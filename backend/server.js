@@ -22,11 +22,11 @@ const supabase = supabaseUrl && supabaseKey
   ? createClient(supabaseUrl, supabaseKey) 
   : null;
 
-// Tüm hizmetleri getir
-app.get('/api/services', async (req, res) => {
+// --- PATIENTS ---
+app.get('/api/patients', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
   try {
-    const { data, error } = await supabase.from('services').select('*').order('created_at', { ascending: true });
+    const { data, error } = await supabase.from('patients').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     res.json(data);
   } catch (err) {
@@ -34,17 +34,25 @@ app.get('/api/services', async (req, res) => {
   }
 });
 
-// Belirli bir tarihteki randevuları getir (boş saatleri hesaplamak için)
-app.get('/api/appointments', async (req, res) => {
+app.post('/api/patients', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
-  const { date } = req.query; // YYYY-MM-DD formatında bekliyoruz
-  
+  const { full_name, phone, email, age, complaint, notes } = req.body;
+  if (!full_name || !phone) return res.status(400).json({ error: "Ad Soyad ve Telefon zorunludur." });
+
   try {
-    let query = supabase.from('appointments').select('appointment_time, duration_minutes:services(duration_minutes)');
-    if (date) {
-        query = query.eq('appointment_date', date);
-    }
-    const { data, error } = await query;
+    const { data, error } = await supabase.from('patients').insert([{ full_name, phone, email, age, complaint, notes }]).select();
+    if (error) throw error;
+    res.status(201).json(data[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- TREATMENTS ---
+app.get('/api/treatments', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  try {
+    const { data, error } = await supabase.from('treatments').select('*').order('created_at', { ascending: true });
     if (error) throw error;
     res.json(data);
   } catch (err) {
@@ -52,28 +60,89 @@ app.get('/api/appointments', async (req, res) => {
   }
 });
 
-// Yeni randevu oluştur
-app.post('/api/appointments', async (req, res) => {
+app.post('/api/treatments', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
-  const { customer_name, customer_phone, service_id, appointment_date, appointment_time } = req.body;
+  const { name, price, duration_minutes } = req.body;
+  if (!name || !price) return res.status(400).json({ error: "Ad ve Fiyat zorunludur." });
 
-  if (!customer_name || !customer_phone || !service_id || !appointment_date || !appointment_time) {
-      return res.status(400).json({ error: "Tüm alanlar zorunludur." });
+  try {
+    const { data, error } = await supabase.from('treatments').insert([{ name, price, duration_minutes: duration_minutes || 60 }]).select();
+    if (error) throw error;
+    res.status(201).json(data[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+});
 
+// --- SESSIONS ---
+app.get('/api/sessions', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
   try {
     const { data, error } = await supabase
-        .from('appointments')
-        .insert([{
-            customer_name,
-            customer_phone,
-            service_id,
-            appointment_date,
-            appointment_time,
-            status: 'pending'
-        }])
-        .select();
+      .from('sessions')
+      .select('*, patient:patients(full_name, phone), treatment:treatments(name, price)')
+      .order('session_date', { ascending: true })
+      .order('session_time', { ascending: true });
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
+app.post('/api/sessions', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { patient_id, treatment_id, session_date, session_time, notes } = req.body;
+  if (!patient_id || !treatment_id || !session_date || !session_time) return res.status(400).json({ error: "Eksik alanlar var." });
+
+  try {
+    const { data, error } = await supabase.from('sessions').insert([{
+      patient_id, treatment_id, session_date, session_time, notes, status: 'bekliyor'
+    }]).select();
+    if (error) throw error;
+    res.status(201).json(data[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/sessions/:id', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    const { data, error } = await supabase.from('sessions').update({ status }).eq('id', id).select();
+    if (error) throw error;
+    res.json(data[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- PAYMENTS ---
+app.get('/api/payments', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  try {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*, patient:patients(full_name), session:sessions(session_date, treatment:treatments(name))')
+      .order('payment_date', { ascending: false });
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/payments', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { session_id, patient_id, amount, payment_method, installments } = req.body;
+  if (!session_id || !patient_id || !amount || !payment_method) return res.status(400).json({ error: "Eksik alanlar var." });
+
+  try {
+    const { data, error } = await supabase.from('payments').insert([{
+      session_id, patient_id, amount, payment_method, installments: installments || 1
+    }]).select();
     if (error) throw error;
     res.status(201).json(data[0]);
   } catch (err) {

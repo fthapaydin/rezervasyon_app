@@ -1,273 +1,539 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Calendar, Clock, Scissors, User, Phone, CheckCircle, ChevronLeft } from 'lucide-react';
+import { 
+  Users, 
+  Stethoscope, 
+  Calendar as CalendarIcon, 
+  CreditCard, 
+  LayoutDashboard,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Plus,
+  Activity
+} from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5001/api';
 
 function App() {
-  const [step, setStep] = useState(1);
-  const [services, setServices] = useState([]);
-  const [selectedService, setSelectedService] = useState(null);
-  const [selectedDate, setSelectedDate] = useState('');
-  const [availableTimes, setAvailableTimes] = useState([]);
-  const [selectedTime, setSelectedTime] = useState('');
-  const [customer, setCustomer] = useState({ name: '', phone: '' });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Hizmetleri getir
+  // States
+  const [patients, setPatients] = useState([]);
+  const [treatments, setTreatments] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [payments, setPayments] = useState([]);
+  
+  const [loading, setLoading] = useState(false);
+
+  // Fetch all data
   useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/services`);
-        setServices(response.data);
-      } catch (err) {
-        console.error("Hizmetler yüklenirken hata:", err);
-        setError("Hizmetler yüklenemedi. Sunucu bağlantısını kontrol edin.");
-      }
-    };
-    fetchServices();
+    fetchData();
   }, []);
 
-  // Seçili tarihe göre uygun saatleri hesapla
-  useEffect(() => {
-    if (!selectedDate || !selectedService) return;
-
-    const fetchAppointments = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/appointments?date=${selectedDate}`);
-        const bookedAppointments = response.data;
-        
-        // Basit saat dilimleri (09:00 - 18:00 arası her saat başı)
-        // Gerçek uygulamada hizmet süresine göre dinamik hesaplanır
-        const allTimes = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
-        
-        // Dolu saatleri filtrele
-        const bookedTimes = bookedAppointments.map(app => app.appointment_time.substring(0,5)); // "10:00:00" -> "10:00"
-        
-        const free = allTimes.filter(t => !bookedTimes.includes(t));
-        setAvailableTimes(free);
-      } catch (err) {
-        console.error("Randevular yüklenirken hata:", err);
-      }
-    };
-    fetchAppointments();
-  }, [selectedDate, selectedService]);
-
-  const handleBook = async (e) => {
-    e.preventDefault();
+  const fetchData = async () => {
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/appointments`, {
-        customer_name: customer.name,
-        customer_phone: customer.phone,
-        service_id: selectedService.id,
-        appointment_date: selectedDate,
-        appointment_time: selectedTime
-      });
-      setStep(4);
+      const [pRes, tRes, sRes, payRes] = await Promise.all([
+        axios.get(`${API_URL}/patients`).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/treatments`).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/sessions`).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/payments`).catch(() => ({ data: [] }))
+      ]);
+      setPatients(pRes.data);
+      setTreatments(tRes.data);
+      setSessions(sRes.data);
+      setPayments(payRes.data);
     } catch (err) {
-      alert("Randevu oluşturulurken bir hata oluştu.");
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const getMinDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
+  const navItems = [
+    { id: 'dashboard', label: 'Özet', icon: LayoutDashboard },
+    { id: 'patients', label: 'Hastalar', icon: Users },
+    { id: 'sessions', label: 'Seanslar', icon: CalendarIcon },
+    { id: 'treatments', label: 'Tedaviler', icon: Activity },
+    { id: 'payments', label: 'Ödemeler', icon: CreditCard },
+  ];
+
+  return (
+    <div className="flex h-screen bg-slate-50 font-sans">
+      {/* Sidebar - Health Theme (Teal/Emerald) */}
+      <aside className="w-64 bg-teal-900 text-white flex flex-col shadow-xl z-20">
+        <div className="p-6 flex items-center space-x-3">
+          <div className="bg-teal-500 p-2 rounded-lg text-white shadow-sm">
+            <Activity size={24} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-wide">FizyoPanel</h1>
+            <p className="text-teal-200 text-xs mt-0.5">Klinik Yönetim Sistemi</p>
+          </div>
+        </div>
+        
+        <nav className="flex-1 px-4 py-4 space-y-1.5">
+          {navItems.map(item => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                  activeTab === item.id 
+                    ? 'bg-teal-500 text-white shadow-md' 
+                    : 'text-teal-100 hover:bg-teal-800 hover:text-white hover:translate-x-1'
+                }`}
+              >
+                <Icon size={20} />
+                <span className="font-medium">{item.label}</span>
+              </button>
+            )
+          })}
+        </nav>
+        <div className="p-4 border-t border-teal-800 text-xs text-teal-400 text-center">
+          FizyoPanel v2.1.0 &copy; 2026
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto bg-slate-50 relative">
+        <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-slate-200 px-8 py-5 flex justify-between items-center sticky top-0 z-10">
+          <h2 className="text-2xl font-bold text-slate-800 capitalize">
+            {navItems.find(i => i.id === activeTab)?.label}
+          </h2>
+          <button 
+            onClick={fetchData} 
+            className="flex items-center text-sm text-teal-700 hover:text-teal-900 font-medium bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors"
+          >
+            <Clock size={16} className="mr-2" /> Yenile
+          </button>
+        </header>
+
+        <div className="p-8 max-w-7xl mx-auto">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-32">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mb-4"></div>
+              <p className="text-teal-600 font-medium animate-pulse">Veriler Yükleniyor...</p>
+            </div>
+          ) : (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {activeTab === 'dashboard' && <DashboardView patients={patients} sessions={sessions} payments={payments} />}
+              {activeTab === 'patients' && <PatientsView patients={patients} refresh={fetchData} />}
+              {activeTab === 'treatments' && <TreatmentsView treatments={treatments} refresh={fetchData} />}
+              {activeTab === 'sessions' && <SessionsView sessions={sessions} patients={patients} treatments={treatments} refresh={fetchData} />}
+              {activeTab === 'payments' && <PaymentsView payments={payments} sessions={sessions} patients={patients} refresh={fetchData} />}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// --- SUB-COMPONENTS ---
+
+function DashboardView({ patients, sessions, payments }) {
+  const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const pendingSessions = sessions.filter(s => s.status === 'bekliyor').length;
+  const completedSessions = sessions.filter(s => s.status === 'tamamlandi').length;
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4 hover:shadow-md transition-shadow">
+          <div className="p-4 bg-blue-50 text-blue-600 rounded-xl"><Users size={28}/></div>
+          <div>
+            <p className="text-sm text-slate-500 font-medium">Toplam Hasta</p>
+            <h3 className="text-3xl font-extrabold text-slate-800">{patients.length}</h3>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4 hover:shadow-md transition-shadow">
+          <div className="p-4 bg-orange-50 text-orange-500 rounded-xl"><CalendarIcon size={28}/></div>
+          <div>
+            <p className="text-sm text-slate-500 font-medium">Bekleyen Seans</p>
+            <h3 className="text-3xl font-extrabold text-slate-800">{pendingSessions}</h3>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4 hover:shadow-md transition-shadow">
+          <div className="p-4 bg-teal-50 text-teal-600 rounded-xl"><CheckCircle size={28}/></div>
+          <div>
+            <p className="text-sm text-slate-500 font-medium">Tamamlanan</p>
+            <h3 className="text-3xl font-extrabold text-slate-800">{completedSessions}</h3>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4 hover:shadow-md transition-shadow">
+          <div className="p-4 bg-green-50 text-green-600 rounded-xl"><CreditCard size={28}/></div>
+          <div>
+            <p className="text-sm text-slate-500 font-medium">Toplam Gelir</p>
+            <h3 className="text-3xl font-extrabold text-slate-800">{totalRevenue.toLocaleString()} ₺</h3>
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+          <h3 className="text-lg font-bold text-slate-800">Fizyoterapist Hoş Geldiniz</h3>
+          <p className="text-slate-500 text-sm mt-1">Hastalarınızın genel durumu ve günlük seans analizleri burada yer almaktadır.</p>
+        </div>
+        <div className="p-6">
+          <p className="text-slate-600">Hastalarınızın yaşı ve şikayetleri gibi daha detaylı bilgileri <span className="font-semibold text-teal-600">Hastalar</span> sekmesinden ekleyebilir, tedavilerinizi "Manuel Terapi", "Klinik Masaj" gibi özel olarak belirleyebilirsiniz.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PatientsView({ patients, refresh }) {
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ full_name: '', phone: '', email: '', age: '', complaint: '', notes: '' });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await axios.post(`${API_URL}/patients`, formData);
+    setShowForm(false);
+    setFormData({ full_name: '', phone: '', email: '', age: '', complaint: '', notes: '' });
+    refresh();
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-        
-        {/* Header */}
-        <div className="bg-indigo-600 px-6 py-4 text-white flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+        <p className="text-slate-500 text-sm">Toplam {patients.length} hasta kayıtlı.</p>
+        <button onClick={() => setShowForm(!showForm)} className="bg-teal-600 text-white px-5 py-2.5 rounded-xl flex items-center text-sm font-semibold hover:bg-teal-700 hover:shadow-lg transition-all">
+          <Plus size={18} className="mr-2" /> Yeni Hasta Kaydı
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-lg border border-teal-100 animate-in slide-in-from-top-4 fade-in">
+          <h4 className="text-lg font-bold text-slate-800 mb-6">Hasta Bilgileri</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Ad Soyad *</label>
+              <input required type="text" className="w-full border-slate-300 rounded-lg shadow-sm focus:ring-teal-500 focus:border-teal-500 p-2.5 border" onChange={e => setFormData({...formData, full_name: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Telefon *</label>
+              <input required type="tel" className="w-full border-slate-300 rounded-lg shadow-sm focus:ring-teal-500 focus:border-teal-500 p-2.5 border" onChange={e => setFormData({...formData, phone: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Yaş</label>
+              <input type="number" className="w-full border-slate-300 rounded-lg shadow-sm focus:ring-teal-500 focus:border-teal-500 p-2.5 border" onChange={e => setFormData({...formData, age: e.target.value})} />
+            </div>
+            <div className="lg:col-span-3">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Şikayeti / Ön Tanı</label>
+              <input type="text" placeholder="Örn: Bel fıtığı, Boyun düzleşmesi..." className="w-full border-slate-300 rounded-lg shadow-sm focus:ring-teal-500 focus:border-teal-500 p-2.5 border" onChange={e => setFormData({...formData, complaint: e.target.value})} />
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end space-x-3">
+            <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-medium">İptal</button>
+            <button type="submit" className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium shadow-md">Kaydet</button>
+          </div>
+        </form>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {patients.map(p => (
+          <div key={p.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-teal-300 transition-colors group">
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-12 h-12 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold text-xl group-hover:bg-teal-600 group-hover:text-white transition-colors">
+                {p.full_name.charAt(0).toUpperCase()}
+              </div>
+              {p.age && <span className="bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-full">{p.age} Yaş</span>}
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-1">{p.full_name}</h3>
+            <p className="text-slate-500 text-sm mb-4">{p.phone}</p>
+            
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Şikayeti</p>
+              <p className="text-slate-700 text-sm font-medium">{p.complaint || 'Belirtilmedi'}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TreatmentsView({ treatments, refresh }) {
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ name: '', price: '', duration_minutes: 60 });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await axios.post(`${API_URL}/treatments`, formData);
+    setShowForm(false);
+    refresh();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+        <p className="text-slate-500 text-sm">Hizmetlerinizi, paketlerinizi ve seans türlerini buradan yönetin.</p>
+        <button onClick={() => setShowForm(!showForm)} className="bg-teal-600 text-white px-5 py-2.5 rounded-xl flex items-center text-sm font-semibold hover:bg-teal-700 hover:shadow-lg transition-all">
+          <Plus size={18} className="mr-2" /> Yeni Hizmet Ekle
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-lg border border-teal-100 animate-in slide-in-from-top-4 fade-in grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
-            <h1 className="text-xl font-bold">Randevu Sistemi</h1>
-            <p className="text-sm opacity-80">Hızlı ve kolay randevu alın</p>
+             <label className="block text-sm font-medium text-slate-700 mb-1">Hizmet Adı *</label>
+             <input required type="text" placeholder="Örn: Manuel Terapi" className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500" onChange={e => setFormData({...formData, name: e.target.value})} />
           </div>
-          {step > 1 && step < 4 && (
-            <button onClick={() => setStep(step - 1)} className="flex items-center text-sm bg-indigo-700 px-3 py-1 rounded hover:bg-indigo-800 transition">
-              <ChevronLeft size={16} /> Geri
-            </button>
-          )}
-        </div>
-
-        {error && (
-          <div className="bg-red-50 text-red-500 p-4 m-4 rounded-md text-sm text-center">
-            {error}
+          <div>
+             <label className="block text-sm font-medium text-slate-700 mb-1">Seans Fiyatı (₺) *</label>
+             <input required type="number" className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500" onChange={e => setFormData({...formData, price: e.target.value})} />
           </div>
-        )}
+          <div>
+             <label className="block text-sm font-medium text-slate-700 mb-1">Süre (Dakika) *</label>
+             <input required type="number" defaultValue="60" className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500" onChange={e => setFormData({...formData, duration_minutes: e.target.value})} />
+          </div>
+          <div className="md:col-span-3 flex justify-end space-x-3">
+            <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-slate-600 bg-slate-100 rounded-xl font-medium">İptal</button>
+            <button type="submit" className="px-6 py-2.5 bg-teal-600 text-white rounded-xl font-medium">Kaydet</button>
+          </div>
+        </form>
+      )}
 
-        <div className="p-6">
-          {/* Adım 1: Hizmet Seçimi */}
-          {step === 1 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-800 border-b pb-2">1. Hizmet Seçin</h2>
-              {services.length === 0 && !error ? (
-                <p className="text-center text-gray-500 py-10">Yükleniyor...</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {services.map(service => (
-                    <div 
-                      key={service.id}
-                      onClick={() => { setSelectedService(service); setStep(2); }}
-                      className={`border p-4 rounded-lg cursor-pointer hover:border-indigo-500 hover:shadow-md transition ${selectedService?.id === service.id ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'}`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center text-indigo-600">
-                          <Scissors size={20} className="mr-2" />
-                          <h3 className="font-medium text-gray-900">{service.name}</h3>
-                        </div>
-                        <span className="font-bold text-gray-700">{service.price} ₺</span>
-                      </div>
-                      <p className="text-sm text-gray-500 mt-2 flex items-center">
-                        <Clock size={14} className="mr-1" /> {service.duration_minutes} dakika
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Adım 2: Tarih ve Saat Seçimi */}
-          {step === 2 && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-gray-800 border-b pb-2">2. Tarih ve Saat Belirleyin</h2>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tarih Seçin</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Calendar size={18} className="text-gray-400" />
-                  </div>
-                  <input
-                    type="date"
-                    min={getMinDate()}
-                    value={selectedDate}
-                    onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(''); }}
-                    className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border p-2"
-                  />
-                </div>
-              </div>
-
-              {selectedDate && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Uygun Saatler</label>
-                  {availableTimes.length > 0 ? (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {availableTimes.map(time => (
-                         <button
-                           key={time}
-                           onClick={() => setSelectedTime(time)}
-                           className={`py-2 rounded-md text-sm font-medium border transition ${selectedTime === time ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-                         >
-                           {time}
-                         </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-red-500 bg-red-50 p-3 rounded">Seçtiğiniz tarihte boş saat bulunmamaktadır. Lütfen başka bir tarih seçin.</p>
-                  )}
-                </div>
-              )}
-
-              <div className="pt-4">
-                <button
-                  disabled={!selectedDate || !selectedTime}
-                  onClick={() => setStep(3)}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Devam Et
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Adım 3: Müşteri Bilgileri */}
-          {step === 3 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-800 border-b pb-2">3. İletişim Bilgileriniz</h2>
-              
-              <div className="bg-gray-50 p-4 rounded-md mb-4 text-sm text-gray-700 border">
-                <strong>Özet:</strong> {selectedService?.name} için {selectedDate} günü saat {selectedTime}'a randevu oluşturuyorsunuz.
-              </div>
-
-              <form onSubmit={handleBook} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Adınız Soyadınız</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User size={18} className="text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      value={customer.name}
-                      onChange={(e) => setCustomer({...customer, name: e.target.value})}
-                      className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border p-2"
-                      placeholder="Örn: Ahmet Yılmaz"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefon Numaranız</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Phone size={18} className="text-gray-400" />
-                    </div>
-                    <input
-                      type="tel"
-                      required
-                      value={customer.phone}
-                      onChange={(e) => setCustomer({...customer, phone: e.target.value})}
-                      className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border p-2"
-                      placeholder="05XX XXX XX XX"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-4">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                  >
-                    {loading ? 'İşleniyor...' : 'Randevuyu Onayla'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Adım 4: Başarılı */}
-          {step === 4 && (
-            <div className="text-center py-10">
-              <CheckCircle size={64} className="mx-auto text-green-500 mb-4" />
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Randevunuz Onaylandı!</h2>
-              <p className="text-gray-600 mb-6">
-                Sayın <strong>{customer.name}</strong>, randevunuz başarıyla oluşturuldu. Sizi bekliyoruz!
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {treatments.map(t => (
+          <div key={t.id} className="bg-white p-6 rounded-2xl border-2 border-transparent shadow-sm hover:border-teal-200 hover:shadow-md transition-all relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-teal-50 rounded-bl-full -z-10 group-hover:bg-teal-100 transition-colors"></div>
+            <h4 className="font-bold text-slate-800 text-lg mb-4">{t.name}</h4>
+            <div className="space-y-2">
+              <p className="flex justify-between text-sm text-slate-600 bg-slate-50 p-2 rounded-lg">
+                <span className="flex items-center text-slate-500"><Clock size={16} className="mr-2 text-teal-600"/> Süre</span>
+                <span className="font-semibold text-slate-800">{t.duration_minutes} dk</span>
               </p>
-              <button
-                onClick={() => {
-                  setStep(1);
-                  setSelectedService(null);
-                  setSelectedDate('');
-                  setSelectedTime('');
-                  setCustomer({name: '', phone: ''});
-                }}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none"
-              >
-                Yeni Randevu Al
-              </button>
+              <p className="flex justify-between text-sm text-slate-600 bg-slate-50 p-2 rounded-lg">
+                <span className="flex items-center text-slate-500"><CreditCard size={16} className="mr-2 text-teal-600"/> Fiyat</span>
+                <span className="font-bold text-teal-700">{t.price} ₺</span>
+              </p>
             </div>
-          )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
+function SessionsView({ sessions, patients, treatments, refresh }) {
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', session_date: '', session_time: '' });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await axios.post(`${API_URL}/sessions`, formData);
+    setShowForm(false);
+    refresh();
+  };
+
+  const completeSession = async (id) => {
+    await axios.put(`${API_URL}/sessions/${id}`, { status: 'tamamlandi' });
+    refresh();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+        <h3 className="text-lg font-bold text-slate-800">Randevu ve Seans Takvimi</h3>
+        <button onClick={() => setShowForm(!showForm)} className="bg-teal-600 text-white px-5 py-2.5 rounded-xl flex items-center text-sm font-semibold hover:bg-teal-700 hover:shadow-lg transition-all">
+          <CalendarIcon size={18} className="mr-2" /> Randevu Oluştur
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-lg border border-teal-100 animate-in slide-in-from-top-4 fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Hasta Seçin *</label>
+              <select required className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500" onChange={e => setFormData({...formData, patient_id: e.target.value})}>
+                <option value="">Seçiniz...</option>
+                {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} {p.complaint ? `(${p.complaint})` : ''}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Uygulanacak Tedavi *</label>
+              <select required className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500" onChange={e => setFormData({...formData, treatment_id: e.target.value})}>
+                <option value="">Seçiniz...</option>
+                {treatments.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes} dk)</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Tarih *</label>
+              <input required type="date" className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500" onChange={e => setFormData({...formData, session_date: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Saat *</label>
+              <input required type="time" className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500" onChange={e => setFormData({...formData, session_time: e.target.value})} />
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end space-x-3">
+            <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-slate-600 bg-slate-100 rounded-xl font-medium">İptal</button>
+            <button type="submit" className="px-6 py-2.5 bg-teal-600 text-white rounded-xl font-medium">Randevu Kaydet</button>
+          </div>
+        </form>
+      )}
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <table className="min-w-full divide-y divide-slate-200">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Tarih / Saat</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Hasta</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Hizmet</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Durum</th>
+              <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Aksiyon</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-slate-100">
+            {sessions.map(s => (
+              <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="font-semibold text-slate-800">{new Date(s.session_date).toLocaleDateString('tr-TR')}</div>
+                  <div className="text-sm text-teal-600 font-medium">{s.session_time.substring(0,5)}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="font-medium text-slate-900">{s.patient?.full_name}</div>
+                  <div className="text-xs text-slate-500">{s.patient?.phone}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-slate-700 font-medium bg-slate-50/50">
+                  {s.treatment?.name}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${s.status === 'tamamlandi' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-orange-100 text-orange-700 border border-orange-200'}`}>
+                    {s.status === 'tamamlandi' ? 'Tamamlandı' : 'Bekliyor'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  {s.status === 'bekliyor' && (
+                    <button onClick={() => completeSession(s.id)} className="text-white bg-green-500 hover:bg-green-600 px-3 py-1.5 rounded-lg shadow-sm transition-colors">Seansı Bitir</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PaymentsView({ payments, sessions, patients, refresh }) {
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ patient_id: '', session_id: '', amount: '', payment_method: 'Nakit', installments: 1 });
+
+  const availableSessions = sessions; 
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await axios.post(`${API_URL}/payments`, formData);
+    setShowForm(false);
+    refresh();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+        <div className="flex space-x-4 items-center">
+           <div className="p-3 bg-teal-100 text-teal-700 rounded-lg"><CreditCard size={24} /></div>
+           <div>
+             <h3 className="text-lg font-bold text-slate-800">Muhasebe ve Ödemeler</h3>
+             <p className="text-slate-500 text-sm">Nakit, Kart veya Taksitli tahsilatlarınızı işleyin.</p>
+           </div>
         </div>
+        <button onClick={() => setShowForm(!showForm)} className="bg-teal-600 text-white px-5 py-2.5 rounded-xl flex items-center text-sm font-semibold hover:bg-teal-700 hover:shadow-lg transition-all">
+          <Plus size={18} className="mr-2" /> Tahsilat Gir
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-lg border border-teal-100 animate-in slide-in-from-top-4 fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Hasta Seçin *</label>
+              <select required className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500" onChange={e => setFormData({...formData, patient_id: e.target.value})}>
+                <option value="">Seçiniz...</option>
+                {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+              </select>
+            </div>
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Hangi Seans İçin? *</label>
+              <select required className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500" onChange={e => setFormData({...formData, session_id: e.target.value})}>
+                <option value="">Seçiniz...</option>
+                {availableSessions.filter(s => s.patient_id === formData.patient_id).map(s => (
+                  <option key={s.id} value={s.id}>{new Date(s.session_date).toLocaleDateString('tr-TR')} - {s.treatment?.name} ({s.treatment?.price} ₺)</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Tahsil Edilen Tutar (₺) *</label>
+              <input required type="number" className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500 font-bold text-teal-700" onChange={e => setFormData({...formData, amount: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Ödeme Yöntemi *</label>
+              <select required className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500" onChange={e => setFormData({...formData, payment_method: e.target.value})}>
+                <option value="Nakit">Nakit</option>
+                <option value="Kredi Kartı">Kredi Kartı</option>
+                <option value="Havale/EFT">Havale/EFT</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Taksit Sayısı</label>
+              <select className="w-full border p-2.5 rounded-lg focus:ring-teal-500 focus:border-teal-500" onChange={e => setFormData({...formData, installments: parseInt(e.target.value) || 1})}>
+                <option value="1">Tek Çekim / Peşin</option>
+                <option value="2">2 Taksit</option>
+                <option value="3">3 Taksit</option>
+                <option value="4">4 Taksit</option>
+                <option value="5">5 Taksit</option>
+                <option value="6">6 Taksit</option>
+                <option value="12">12 Taksit</option>
+              </select>
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end space-x-3 border-t pt-4">
+            <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-slate-600 bg-slate-100 rounded-xl font-medium">İptal</button>
+            <button type="submit" className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-md flex items-center">Tahsilatı Onayla</button>
+          </div>
+        </form>
+      )}
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <table className="min-w-full divide-y divide-slate-200">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">İşlem Tarihi</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Hasta & Hizmet</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Tutar</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Ödeme Tipi</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-slate-100">
+            {payments.map(p => (
+              <tr key={p.id} className="hover:bg-slate-50">
+                <td className="px-6 py-4 whitespace-nowrap text-slate-500 font-medium">{new Date(p.payment_date).toLocaleDateString('tr-TR')}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="font-bold text-slate-800">{p.patient?.full_name}</div>
+                  <div className="text-xs text-slate-500">{p.session?.treatment?.name}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="text-lg font-bold text-teal-700">{p.amount} ₺</span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="inline-flex flex-col">
+                    <span className="bg-slate-100 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-md border border-slate-200">{p.payment_method}</span>
+                    {p.installments > 1 && (
+                      <span className="text-xs text-teal-600 font-medium mt-1 pl-1">{p.installments} Taksit</span>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
