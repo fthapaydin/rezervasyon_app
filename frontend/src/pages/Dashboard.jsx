@@ -1,6 +1,6 @@
-import { Users, CalendarDays, CheckCircle, Wallet, TrendingUp, ArrowUpRight, Clock } from 'lucide-react';
+import { Users, CalendarDays, CheckCircle, Wallet, TrendingUp, Clock } from 'lucide-react';
 
-export default function Dashboard({ patients, sessions, payments }) {
+export default function Dashboard({ patients, sessions, payments, onPatientClick }) {
   const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
   const pending = sessions.filter(s => s.status === 'bekliyor');
   const completed = sessions.filter(s => s.status === 'tamamlandi');
@@ -50,7 +50,9 @@ export default function Dashboard({ patients, sessions, payments }) {
                     {s.patient?.full_name?.charAt(0)}
                   </div>
                   <div>
-                    <p className="text-[13px] font-semibold text-gray-800">{s.patient?.full_name}</p>
+                    <button onClick={() => onPatientClick?.(s.patient?.id)} className="text-[13px] font-semibold text-gray-800 hover:text-emerald-700 hover:underline transition-colors text-left">
+                      {s.patient?.full_name}
+                    </button>
                     <p className="text-[11px] text-gray-400">{s.treatment?.name}</p>
                   </div>
                 </div>
@@ -68,10 +70,10 @@ export default function Dashboard({ patients, sessions, payments }) {
           <div className="bg-emerald-600 rounded-xl p-5 text-white">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp size={18} />
-              <span className="text-[12px] font-semibold opacity-80 uppercase tracking-wide">Bu Ay</span>
+              <span className="text-[12px] font-semibold opacity-80 uppercase tracking-wide">Toplam Gelir</span>
             </div>
             <p className="text-3xl font-bold">{totalRevenue.toLocaleString('tr-TR')} ₺</p>
-            <p className="text-[12px] opacity-70 mt-1">Toplam tahsilat</p>
+            <p className="text-[12px] opacity-70 mt-1">Tüm zamanlar</p>
           </div>
           
           <div className="bg-white rounded-xl border border-gray-200/80 p-5">

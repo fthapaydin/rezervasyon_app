@@ -15,7 +15,7 @@ const API_URL = 'http://localhost:5001/api';
 const pageMeta = {
   dashboard:  { title: 'Dashboard',           subtitle: 'Klinik performansınızın genel görünümü' },
   patients:   { title: 'Hasta Yönetimi',       subtitle: 'Hasta kayıtlarını görüntüleyin ve yönetin' },
-  sessions:   { title: 'Seans Takvimi',        subtitle: 'Randevuları planlayın ve takip edin' },
+  sessions:   { title: 'Seans Takvimi',        subtitle: 'Haftalık takvim üzerinden randevu planlayın' },
   treatments: { title: 'Tedavi & Hizmetler',   subtitle: 'Sunduğunuz hizmetleri düzenleyin' },
   payments:   { title: 'Ödemeler',             subtitle: 'Tahsilat ve finans takibi' },
 };
@@ -50,11 +50,19 @@ function App() {
     }
   };
 
+  // Patient detail navigation
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+
+  const openPatientDetail = (id) => {
+    setSelectedPatientId(id);
+    setActiveTab('patients');
+  };
+
   const meta = pageMeta[activeTab];
 
   return (
     <div className="flex h-screen overflow-hidden font-[Inter]">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); setSelectedPatientId(null); }} />
 
       <div className="flex-1 flex flex-col min-w-0">
         <Header title={meta.title} subtitle={meta.subtitle} onRefresh={fetchData} />
@@ -67,10 +75,10 @@ function App() {
               </div>
             ) : (
               <>
-                {activeTab === 'dashboard'  && <Dashboard patients={patients} sessions={sessions} payments={payments} />}
-                {activeTab === 'patients'   && <Patients patients={patients} refresh={fetchData} />}
+                {activeTab === 'dashboard'  && <Dashboard patients={patients} sessions={sessions} payments={payments} onPatientClick={openPatientDetail} />}
+                {activeTab === 'patients'   && <Patients patients={patients} sessions={sessions} selectedPatientId={selectedPatientId} setSelectedPatientId={setSelectedPatientId} refresh={fetchData} />}
                 {activeTab === 'treatments' && <Treatments treatments={treatments} refresh={fetchData} />}
-                {activeTab === 'sessions'   && <Sessions sessions={sessions} patients={patients} treatments={treatments} refresh={fetchData} />}
+                {activeTab === 'sessions'   && <Sessions sessions={sessions} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} />}
                 {activeTab === 'payments'   && <Payments payments={payments} sessions={sessions} patients={patients} refresh={fetchData} />}
               </>
             )}

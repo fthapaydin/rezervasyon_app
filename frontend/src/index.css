@@ -17,3 +17,9 @@
     @apply outline-none;
   }
 }
+
+@layer components {
+  .input-field {
+    @apply w-full h-10 px-3 rounded-lg border border-gray-200 bg-white text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all;
+  }
+}

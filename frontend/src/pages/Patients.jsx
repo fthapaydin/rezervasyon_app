@@ -1,13 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, X, Phone, Search } from 'lucide-react';
+import { Plus, X, Phone, Search, ArrowLeft, Mail, MapPin, Calendar, CheckCircle2, Clock } from 'lucide-react';
 
 const API_URL = 'http://localhost:5001/api';
 
-export default function Patients({ patients, refresh }) {
+export default function Patients({ patients, sessions, selectedPatientId, setSelectedPatientId, refresh }) {
+  // If a patient is selected, show detail view
+  if (selectedPatientId) {
+    return <PatientDetail id={selectedPatientId} sessions={sessions} onBack={() => setSelectedPatientId(null)} />;
+  }
+
+  return <PatientList patients={patients} sessions={sessions} onSelect={setSelectedPatientId} refresh={refresh} />;
+}
+
+// ─── Patient List ────────────────────────────────────────
+function PatientList({ patients, sessions, onSelect, refresh }) {
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
-  const [formData, setFormData] = useState({ full_name: '', phone: '', email: '', age: '', complaint: '', notes: '' });
+  const [formData, setFormData] = useState({
+    full_name: '', phone: '', email: '', age: '', gender: '', address: '', complaint: '', total_sessions: 10, notes: ''
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const filtered = patients.filter(p =>
@@ -22,16 +34,21 @@ export default function Patients({ patients, refresh }) {
     try {
       await axios.post(`${API_URL}/patients`, formData);
       setShowForm(false);
-      setFormData({ full_name: '', phone: '', email: '', age: '', complaint: '', notes: '' });
+      setFormData({ full_name: '', phone: '', email: '', age: '', gender: '', address: '', complaint: '', total_sessions: 10, notes: '' });
       refresh();
-    } catch {
-      alert('Hasta eklenirken hata oluştu');
-    } finally {
-      setSubmitting(false);
-    }
+    } catch { alert('Hata oluştu'); }
+    finally { setSubmitting(false); }
   };
 
-  const set = (key, val) => setFormData(prev => ({ ...prev, [key]: val }));
+  const set = (k, v) => setFormData(prev => ({ ...prev, [k]: v }));
+
+  // Count sessions per patient
+  const getSessionInfo = (patientId) => {
+    const patientSessions = sessions.filter(s => s.patient_id === patientId);
+    const completed = patientSessions.filter(s => s.status === 'tamamlandi').length;
+    const total = patientSessions.length;
+    return { completed, total };
+  };
 
   return (
     <div className="space-y-5">
@@ -39,22 +56,11 @@ export default function Patients({ patients, refresh }) {
       <div className="flex items-center gap-3">
         <div className="flex-1 relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Hasta ara... (ad, telefon veya tanı)"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full h-10 pl-9 pr-4 rounded-lg border border-gray-200 bg-white text-[13px] placeholder:text-gray-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all"
-          />
+          <input type="text" placeholder="Hasta ara..." value={search} onChange={e => setSearch(e.target.value)}
+            className="w-full h-10 pl-9 pr-4 rounded-lg border border-gray-200 bg-white text-[13px] placeholder:text-gray-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all" />
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className={`h-10 px-4 rounded-lg text-[13px] font-medium flex items-center gap-2 transition-all ${
-            showForm
-              ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
-          }`}
-        >
+        <button onClick={() => setShowForm(!showForm)}
+          className={`h-10 px-4 rounded-lg text-[13px] font-medium flex items-center gap-2 transition-all ${showForm ? 'bg-gray-100 text-gray-600' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'}`}>
           {showForm ? <><X size={15}/> İptal</> : <><Plus size={15}/> Yeni Hasta</>}
         </button>
       </div>
@@ -62,27 +68,53 @@ export default function Patients({ patients, refresh }) {
       {/* Form */}
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200/80 p-6">
-          <h3 className="text-[14px] font-semibold text-gray-800 mb-5">Yeni Hasta Kaydı</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <Field label="Ad Soyad" required>
+          <h3 className="text-[14px] font-semibold text-gray-800 mb-1">Yeni Hasta Kaydı</h3>
+          <p className="text-[12px] text-gray-400 mb-5">Tüm iletişim bilgilerini ve tedavi planını girin.</p>
+
+          <div className="grid grid-cols-4 gap-4">
+            <div className="col-span-2">
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Ad Soyad <span className="text-red-400">*</span></label>
               <input required type="text" placeholder="Ahmet Yılmaz" className="input-field" onChange={e => set('full_name', e.target.value)} />
-            </Field>
-            <Field label="Telefon" required>
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Telefon <span className="text-red-400">*</span></label>
               <input required type="tel" placeholder="05XX XXX XX XX" className="input-field" onChange={e => set('phone', e.target.value)} />
-            </Field>
-            <Field label="Yaş">
-              <input type="number" placeholder="34" className="input-field" onChange={e => set('age', e.target.value)} />
-            </Field>
-            <Field label="E-posta" span={1}>
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">E-posta</label>
               <input type="email" placeholder="ornek@mail.com" className="input-field" onChange={e => set('email', e.target.value)} />
-            </Field>
-            <Field label="Şikayeti / Ön Tanı" span={2}>
-              <input type="text" placeholder="Bel fıtığı, Boyun düzleşmesi..." className="input-field" onChange={e => set('complaint', e.target.value)} />
-            </Field>
+            </div>
+
+            <div>
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Yaş</label>
+              <input type="number" placeholder="34" className="input-field" onChange={e => set('age', e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Cinsiyet</label>
+              <select className="input-field" onChange={e => set('gender', e.target.value)}>
+                <option value="">Seçiniz</option>
+                <option value="Erkek">Erkek</option>
+                <option value="Kadın">Kadın</option>
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Adres</label>
+              <input type="text" placeholder="İlçe / Mahalle" className="input-field" onChange={e => set('address', e.target.value)} />
+            </div>
+
+            <div className="col-span-3">
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Şikayeti / Ön Tanı</label>
+              <input type="text" placeholder="Bel fıtığı, Boyun düzleşmesi, Kırık sonrası rehabilitasyon..." className="input-field" onChange={e => set('complaint', e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Planlanan Seans Sayısı</label>
+              <input type="number" defaultValue={10} className="input-field" onChange={e => set('total_sessions', parseInt(e.target.value) || 10)} />
+            </div>
           </div>
+
           <div className="flex justify-end mt-5 gap-2">
-            <button type="button" onClick={() => setShowForm(false)} className="h-9 px-4 rounded-lg text-[13px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">Vazgeç</button>
-            <button type="submit" disabled={submitting} className="h-9 px-5 rounded-lg text-[13px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors disabled:opacity-50 shadow-sm">
+            <button type="button" onClick={() => setShowForm(false)} className="h-9 px-4 rounded-lg text-[13px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200">Vazgeç</button>
+            <button type="submit" disabled={submitting} className="h-9 px-5 rounded-lg text-[13px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-sm">
               {submitting ? 'Kaydediliyor...' : 'Kaydet'}
             </button>
           </div>
@@ -95,35 +127,161 @@ export default function Patients({ patients, refresh }) {
           <thead>
             <tr className="border-b border-gray-100">
               <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Hasta</th>
-              <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Telefon</th>
-              <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Yaş</th>
-              <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tanı / Şikayet</th>
+              <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">İletişim</th>
+              <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tanı</th>
+              <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Seans İlerlemesi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {filtered.length === 0 && (
               <tr><td colSpan={4} className="px-5 py-12 text-center text-[13px] text-gray-400">
-                {search ? 'Aramayla eşleşen hasta bulunamadı.' : 'Henüz hasta kaydı yok.'}
+                {search ? 'Eşleşen hasta bulunamadı.' : 'Henüz hasta kaydı yok.'}
               </td></tr>
             )}
-            {filtered.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50/60 transition-colors">
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-[12px] font-bold shrink-0">
-                      {p.full_name.charAt(0)}
+            {filtered.map(p => {
+              const info = getSessionInfo(p.id);
+              const totalPlanned = p.total_sessions || 10;
+              const pct = Math.min(100, Math.round((info.completed / totalPlanned) * 100));
+              return (
+                <tr key={p.id} onClick={() => onSelect(p.id)} className="hover:bg-gray-50/60 cursor-pointer transition-colors">
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-[12px] font-bold shrink-0">
+                        {p.full_name.charAt(0)}
+                      </div>
+                      <div>
+                        <span className="text-[13px] font-semibold text-gray-800 block">{p.full_name}</span>
+                        {p.age && <span className="text-[11px] text-gray-400">{p.age} yaş{p.gender ? ` · ${p.gender}` : ''}</span>}
+                      </div>
                     </div>
-                    <span className="text-[13px] font-semibold text-gray-800">{p.full_name}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-3.5 text-[13px] text-gray-500">{p.phone}</td>
-                <td className="px-5 py-3.5 text-[13px] text-gray-500">{p.age || '—'}</td>
-                <td className="px-5 py-3.5">
-                  {p.complaint ? (
-                    <span className="inline-block px-2 py-1 rounded-md bg-amber-50 text-amber-700 text-[12px] font-medium">{p.complaint}</span>
-                  ) : (
-                    <span className="text-[12px] text-gray-300">Belirtilmedi</span>
-                  )}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <p className="text-[13px] text-gray-600">{p.phone}</p>
+                    {p.email && <p className="text-[11px] text-gray-400">{p.email}</p>}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {p.complaint
+                      ? <span className="inline-block px-2 py-1 rounded-md bg-amber-50 text-amber-700 text-[12px] font-medium">{p.complaint}</span>
+                      : <span className="text-[12px] text-gray-300">—</span>}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[100px]">
+                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }}></div>
+                      </div>
+                      <span className="text-[12px] text-gray-500 font-medium whitespace-nowrap">{info.completed}/{totalPlanned}</span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Patient Detail ────────────────────────────────────
+function PatientDetail({ id, sessions: allSessions, onBack }) {
+  const [patient, setPatient] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    axios.get(`${API_URL}/patients/${id}`)
+      .then(res => setPatient(res.data))
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /></div>;
+  if (!patient) return <p className="text-center text-gray-400 py-12">Hasta bulunamadı.</p>;
+
+  const completedCount = (patient.sessions || []).filter(s => s.status === 'tamamlandi').length;
+  const totalPlanned = patient.total_sessions || 10;
+  const remaining = Math.max(0, totalPlanned - completedCount);
+  const pct = Math.min(100, Math.round((completedCount / totalPlanned) * 100));
+  const totalPaid = (patient.payments || []).reduce((s, p) => s + Number(p.amount), 0);
+
+  return (
+    <div className="space-y-5">
+      {/* Back button */}
+      <button onClick={onBack} className="h-9 px-3 rounded-lg text-[13px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 flex items-center gap-1.5 transition-colors">
+        <ArrowLeft size={15}/> Hasta Listesine Dön
+      </button>
+
+      {/* Patient Info Card */}
+      <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
+        <div className="p-6 flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-xl font-bold shrink-0">
+              {patient.full_name.charAt(0)}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">{patient.full_name}</h2>
+              {patient.complaint && <span className="inline-block mt-1 px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-[12px] font-medium">{patient.complaint}</span>}
+
+              <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 text-[12px] text-gray-500">
+                <span className="flex items-center gap-1"><Phone size={13}/> {patient.phone}</span>
+                {patient.email && <span className="flex items-center gap-1"><Mail size={13}/> {patient.email}</span>}
+                {patient.address && <span className="flex items-center gap-1"><MapPin size={13}/> {patient.address}</span>}
+                {patient.age && <span>{patient.age} yaş{patient.gender ? ` · ${patient.gender}` : ''}</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick stats */}
+        <div className="border-t border-gray-100 grid grid-cols-4 divide-x divide-gray-100">
+          <Stat label="Planlanan Seans" value={totalPlanned} />
+          <Stat label="Tamamlanan" value={completedCount} />
+          <Stat label="Kalan Seans" value={remaining} highlight />
+          <Stat label="Toplam Ödeme" value={`${totalPaid.toLocaleString('tr-TR')} ₺`} />
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="bg-white rounded-xl border border-gray-200/80 p-5">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[12px] font-medium text-gray-500">Tedavi İlerlemesi</span>
+          <span className="text-[13px] font-bold text-emerald-600">{pct}%</span>
+        </div>
+        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }}></div>
+        </div>
+      </div>
+
+      {/* Sessions Table */}
+      <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="text-[13px] font-semibold text-gray-800">Seans Geçmişi</h3>
+          <span className="text-[11px] text-gray-400">{(patient.sessions || []).length} kayıt</span>
+        </div>
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-100">
+              <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">#</th>
+              <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tarih</th>
+              <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Saat</th>
+              <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tedavi</th>
+              <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Durum</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {(patient.sessions || []).length === 0 && (
+              <tr><td colSpan={5} className="px-5 py-8 text-center text-[13px] text-gray-400">Seans kaydı yok.</td></tr>
+            )}
+            {(patient.sessions || []).map((s, i) => (
+              <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
+                <td className="px-5 py-3 text-[13px] font-bold text-gray-400">{i + 1}</td>
+                <td className="px-5 py-3 text-[13px] font-medium text-gray-800">{new Date(s.session_date).toLocaleDateString('tr-TR')}</td>
+                <td className="px-5 py-3 text-[13px] text-gray-500">{s.session_time?.substring(0,5)}</td>
+                <td className="px-5 py-3 text-[13px] text-gray-600">{s.treatment?.name}</td>
+                <td className="px-5 py-3">
+                  {s.status === 'tamamlandi'
+                    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[11px] font-semibold"><CheckCircle2 size={11}/> Tamamlandı</span>
+                    : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-[11px] font-semibold"><Clock size={11}/> Bekliyor</span>}
                 </td>
               </tr>
             ))}
@@ -134,13 +292,11 @@ export default function Patients({ patients, refresh }) {
   );
 }
 
-function Field({ label, required, span = 1, children }) {
+function Stat({ label, value, highlight }) {
   return (
-    <div className={span === 2 ? 'col-span-2' : span === 3 ? 'col-span-3' : ''}>
-      <label className="block text-[12px] font-medium text-gray-500 mb-1.5">
-        {label} {required && <span className="text-red-400">*</span>}
-      </label>
-      {children}
+    <div className="px-5 py-4 text-center">
+      <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1">{label}</p>
+      <p className={`text-lg font-bold ${highlight ? 'text-emerald-600' : 'text-gray-900'}`}>{value}</p>
     </div>
   );
 }
