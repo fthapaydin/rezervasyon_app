@@ -31,7 +31,7 @@ export default function Treatments({ treatments, refresh }) {
         <p className="text-[13px] text-gray-400">{treatments.length} hizmet kayıtlı</p>
         <button
           onClick={() => setShowForm(!showForm)}
-          className={`h-10 px-4 rounded-lg text-[13px] font-medium flex items-center gap-2 transition-all ${
+          className={`h-9 md:h-10 px-3.5 md:px-4 rounded-lg text-[12px] md:text-[13px] font-medium flex items-center gap-2 transition-all ${
             showForm ? 'bg-gray-100 text-gray-600' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
           }`}
         >
@@ -41,9 +41,9 @@ export default function Treatments({ treatments, refresh }) {
 
       {/* Form */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200/80 p-6">
-          <h3 className="text-[14px] font-semibold text-gray-800 mb-5">Yeni Hizmet Ekle</h3>
-          <div className="grid grid-cols-3 gap-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200/80 p-5 md:p-6">
+          <h3 className="text-[14px] font-semibold text-gray-800 mb-4">Yeni Hizmet Ekle</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Hizmet Adı <span className="text-red-400">*</span></label>
               <input required type="text" placeholder="Manuel Terapi" className="input-field" onChange={e => setFormData({...formData, name: e.target.value})} />
@@ -66,13 +66,13 @@ export default function Treatments({ treatments, refresh }) {
         </form>
       )}
 
-      {/* Cards */}
+      {/* Cards Grid */}
       {treatments.length === 0 ? (
         <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center">
           <p className="text-[13px] text-gray-400">Henüz hizmet eklenmemiş.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {treatments.map(t => (
             <div key={t.id} className="bg-white rounded-xl border border-gray-200/80 p-5 hover:shadow-sm transition-shadow group">
               <h4 className="text-[14px] font-semibold text-gray-800 mb-4">{t.name}</h4>
