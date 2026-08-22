@@ -1,10 +1,5 @@
 import { 
-  Users, 
-  Activity, 
-  CalendarDays, 
-  Wallet, 
-  LayoutGrid,
-  LogOut
+  Users, Activity, CalendarDays, Wallet, LayoutGrid, BarChart3, Menu, X
 } from 'lucide-react';
 
 const navItems = [
@@ -13,37 +8,40 @@ const navItems = [
   { id: 'sessions', label: 'Seanslar', icon: CalendarDays },
   { id: 'treatments', label: 'Tedaviler', icon: Activity },
   { id: 'payments', label: 'Ödemeler', icon: Wallet },
+  { id: 'reports', label: 'Raporlar', icon: BarChart3 },
 ];
 
-export default function Sidebar({ activeTab, setActiveTab }) {
-  return (
-    <aside className="w-[260px] min-h-screen bg-white border-r border-gray-200/80 flex flex-col">
+export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobileOpen, onLogout }) {
+  const content = (
+    <>
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center">
-            <Activity size={16} className="text-white" strokeWidth={2.5} />
+      <div className="h-14 flex items-center justify-between px-5 border-b border-gray-100 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center">
+            <Activity size={14} className="text-white" strokeWidth={2.5} />
           </div>
-          <span className="text-[15px] font-bold text-gray-900 tracking-tight">FizyoPanel</span>
+          <span className="text-[14px] font-bold text-gray-900 tracking-tight">FizyoPanel</span>
         </div>
+        {/* Mobile close */}
+        <button onClick={() => setMobileOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600">
+          <X size={20}/>
+        </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-3 space-y-0.5 mt-2">
+      <nav className="flex-1 p-2.5 space-y-0.5 mt-1 overflow-y-auto">
         {navItems.map(item => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 ${
-                isActive 
-                  ? 'bg-emerald-50 text-emerald-700' 
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+              onClick={() => { setActiveTab(item.id); setMobileOpen(false); }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 ${
+                isActive ? 'bg-emerald-50 text-emerald-700' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
               }`}
             >
-              <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
+              <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
               <span>{item.label}</span>
             </button>
           );
@@ -51,17 +49,42 @@ export default function Sidebar({ activeTab, setActiveTab }) {
       </nav>
 
       {/* Bottom */}
-      <div className="p-3 border-t border-gray-100">
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">
-            FT
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-gray-800 truncate">Fizyoterapist</p>
-            <p className="text-[11px] text-gray-400">Yönetici</p>
-          </div>
-        </div>
+      <div className="p-2.5 border-t border-gray-100 shrink-0">
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-red-500 hover:bg-red-50 transition-colors"
+        >
+          Çıkış Yap
+        </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-[240px] min-h-screen bg-white border-r border-gray-200/80 flex-col shrink-0">
+        {content}
+      </aside>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute left-0 top-0 bottom-0 w-[260px] bg-white flex flex-col shadow-xl">
+            {content}
+          </aside>
+        </div>
+      )}
+    </>
+  );
+}
+
+// Mobile hamburger for Header
+export function MobileMenuButton({ onClick }) {
+  return (
+    <button onClick={onClick} className="md:hidden w-9 h-9 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 mr-3">
+      <Menu size={18} />
+    </button>
   );
 }

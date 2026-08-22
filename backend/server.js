@@ -181,6 +181,40 @@ app.post('/api/payments', async (req, res) => {
   }
 });
 
+// --- RECURRING SESSIONS ---
+app.post('/api/sessions/recurring', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { patient_id, treatment_id, session_time, start_date, repeat_type, repeat_count } = req.body;
+  if (!patient_id || !treatment_id || !session_time || !start_date || !repeat_type || !repeat_count)
+    return res.status(400).json({ error: "Eksik alanlar var." });
+
+  const sessions = [];
+  const start = new Date(start_date);
+
+  for (let i = 0; i < repeat_count; i++) {
+    const d = new Date(start);
+    if (repeat_type === 'weekly') d.setDate(d.getDate() + i * 7);
+    else if (repeat_type === 'biweekly') d.setDate(d.getDate() + i * 3);
+    else if (repeat_type === 'daily') d.setDate(d.getDate() + i);
+
+    sessions.push({
+      patient_id,
+      treatment_id,
+      session_date: d.toISOString().split('T')[0],
+      session_time,
+      status: 'bekliyor'
+    });
+  }
+
+  try {
+    const { data, error } = await supabase.from('sessions').insert(sessions).select();
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Sunucu http://localhost:${port} adresinde çalışıyor`);
 });
