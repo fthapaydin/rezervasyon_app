@@ -1,3 +1,19 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[#f8fafb] text-gray-800 antialiased;
+  }
+
+  * {
+    @apply border-gray-200;
+  }
+
+  input, select, textarea {
+    @apply outline-none;
+  }
+}
