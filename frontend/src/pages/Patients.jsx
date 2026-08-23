@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, X, Phone, Search, ArrowLeft, Mail, MapPin, CheckCircle2, Clock, FileDown, AlertTriangle } from 'lucide-react';
+import { Plus, X, Phone, Search, ArrowLeft, Mail, MapPin, CheckCircle2, Clock, FileDown, AlertTriangle, MessageCircle } from 'lucide-react';
 import { generateSessionReport, generatePatientSummary } from '../lib/pdfGenerator';
+import { sendWhatsAppReminder } from '../lib/reminder';
 
 const API_URL = 'http://localhost:5001/api';
 
@@ -295,11 +296,12 @@ function PatientDetail({ id, onBack }) {
                 <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Saat</th>
                 <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tedavi</th>
                 <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Durum</th>
+                <th className="text-right px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Hatırlat</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {sessions.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-8 text-center text-[13px] text-gray-400">Seans kaydı yok.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-8 text-center text-[13px] text-gray-400">Seans kaydı yok.</td></tr>
               )}
               {sessions.map((s, i) => (
                 <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
@@ -311,6 +313,20 @@ function PatientDetail({ id, onBack }) {
                     {s.status === 'tamamlandi'
                       ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[11px] font-semibold"><CheckCircle2 size={11}/> Tamamlandı</span>
                       : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-[11px] font-semibold"><Clock size={11}/> Bekliyor</span>}
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    {s.status === 'bekliyor' && (
+                      <button
+                        onClick={() => {
+                          const patientSession = { ...s, patient };
+                          sendWhatsAppReminder(patientSession);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-semibold border border-emerald-200 transition-colors"
+                        title="WhatsApp Randevu Hatırlatması Gönder"
+                      >
+                        <MessageCircle size={12} /> WhatsApp
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

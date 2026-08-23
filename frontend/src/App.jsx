@@ -41,12 +41,23 @@ function App() {
 
   // Auth check
   useEffect(() => {
+    const localDemoUser = localStorage.getItem('fizyo_demo_user');
+    if (localDemoUser) {
+      try {
+        setUser(JSON.parse(localDemoUser));
+        setAuthLoading(false);
+        return;
+      } catch (e) {}
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (!localStorage.getItem('fizyo_demo_user')) {
+        setUser(session?.user ?? null);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -71,6 +82,7 @@ function App() {
   };
 
   const handleLogout = async () => {
+    localStorage.removeItem('fizyo_demo_user');
     await supabase.auth.signOut();
     setUser(null);
   };

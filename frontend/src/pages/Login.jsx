@@ -7,12 +7,21 @@ export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
   const DEMO_EMAIL = 'demo@fizyopanel.com';
-  const DEMO_PASS = 'demo123456';
+
+  const triggerDemoLogin = () => {
+    const demoUser = {
+      id: 'demo-user-fizyopanel',
+      email: DEMO_EMAIL,
+      user_metadata: { full_name: 'Demo Fizyoterapist', role: 'admin' },
+      isDemo: true
+    };
+    localStorage.setItem('fizyo_demo_user', JSON.stringify(demoUser));
+    onLogin(demoUser);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,79 +29,55 @@ export default function Login({ onLogin }) {
     setError('');
     setMessage('');
 
+    // If user enters demo email in the normal form, log them in instantly
+    if (email.trim().toLowerCase() === DEMO_EMAIL) {
+      triggerDemoLogin();
+      setLoading(false);
+      return;
+    }
+
     if (mode === 'login') {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-      if (authError) {
-        setError('E-posta veya şifre hatalı.');
-        setLoading(false);
-        return;
+      try {
+        const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        if (authError) {
+          if (authError.message?.toLowerCase().includes('email not confirmed')) {
+            setError('E-posta adresiniz henüz doğrulanmamış. Lütfen gelen kutunuzdaki onay linkine tıklayın veya aşağıdaki "Tek Tıkla Demo Giriş" butonunu kullanın.');
+          } else {
+            setError('E-posta veya şifre hatalı. Hesabınız yoksa "Kayıt Ol" sekmesinden kaydolabilir veya "Tek Tıkla Demo Giriş" yapabilirsiniz.');
+          }
+          setLoading(false);
+          return;
+        }
+        if (data.user) {
+          localStorage.removeItem('fizyo_demo_user');
+          onLogin(data.user);
+        }
+      } catch (err) {
+        setError('Bağlantı hatası oluştu. Lütfen tekrar deneyin.');
       }
-      if (data.user) onLogin(data.user);
     } else {
       // Register
-      const { data, error: authError } = await supabase.auth.signUp({ email, password });
-      if (authError) {
-        setError(authError.message || 'Kayıt sırasında bir hata oluştu.');
-        setLoading(false);
-        return;
-      }
-      if (data.user) {
-        if (data.session) {
-          onLogin(data.user);
-        } else {
-          setMessage('Kayıt oluşturuldu! Şimdi giriş yapabilirsiniz.');
-          setMode('login');
+      try {
+        const { data, error: authError } = await supabase.auth.signUp({ email, password });
+        if (authError) {
+          setError(authError.message || 'Kayıt sırasında bir hata oluştu.');
+          setLoading(false);
+          return;
         }
+        if (data.user) {
+          if (data.session) {
+            localStorage.removeItem('fizyo_demo_user');
+            onLogin(data.user);
+          } else {
+            setMessage('Kayıt başarılı! E-postanıza doğrulama linki gönderildi. Beklemeden devam etmek için "Tek Tıkla Demo Giriş" yapabilirsiniz.');
+            setMode('login');
+          }
+        }
+      } catch (err) {
+        setError('Kayıt sırasında bağlantı hatası oluştu.');
       }
     }
     setLoading(false);
-  };
-
-  const handleDemoLogin = async () => {
-    setDemoLoading(true);
-    setError('');
-    setMessage('');
-
-    // 1. Try to login with demo credentials
-    const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-      email: DEMO_EMAIL,
-      password: DEMO_PASS,
-    });
-
-    if (!signInErr && signInData.user) {
-      onLogin(signInData.user);
-      setDemoLoading(false);
-      return;
-    }
-
-    // 2. If user doesn't exist, create demo account automatically
-    const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-      email: DEMO_EMAIL,
-      password: DEMO_PASS,
-    });
-
-    if (signUpErr) {
-      setError('Demo hesaba bağlanılamadı: ' + signUpErr.message);
-      setDemoLoading(false);
-      return;
-    }
-
-    if (signUpData.session) {
-      onLogin(signUpData.user);
-    } else {
-      // Try signing in once more
-      const { data: retryData } = await supabase.auth.signInWithPassword({
-        email: DEMO_EMAIL,
-        password: DEMO_PASS,
-      });
-      if (retryData?.user) onLogin(retryData.user);
-      else {
-        setEmail(DEMO_EMAIL);
-        setPassword(DEMO_PASS);
-        setMessage('Demo hesap oluşturuldu. "Giriş Yap" butonuna basarak girebilirsiniz.');
-      }
-    }
-    setDemoLoading(false);
   };
 
   return (
@@ -132,13 +117,13 @@ export default function Login({ onLogin }) {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] px-3 py-2 rounded-lg mb-4">
+            <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] px-3 py-2 rounded-lg mb-4 leading-relaxed">
               {error}
             </div>
           )}
 
           {message && (
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[12px] px-3 py-2 rounded-lg mb-4">
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[12px] px-3 py-2 rounded-lg mb-4 leading-relaxed">
               {message}
             </div>
           )}
@@ -176,7 +161,7 @@ export default function Login({ onLogin }) {
 
             <button
               type="submit"
-              disabled={loading || demoLoading}
+              disabled={loading}
               className="w-full h-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-60 shadow-sm"
             >
               {loading ? (
@@ -196,15 +181,10 @@ export default function Login({ onLogin }) {
           {/* One-Click Demo Button */}
           <button
             type="button"
-            onClick={handleDemoLogin}
-            disabled={loading || demoLoading}
-            className="w-full h-10 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 text-[12px] font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+            onClick={triggerDemoLogin}
+            className="w-full h-10 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 text-[12px] font-semibold flex items-center justify-center gap-2 transition-colors active:scale-[0.99]"
           >
-            {demoLoading ? (
-              <><Loader2 size={15} className="animate-spin text-amber-600" /> Demo Hesaba Bağlanıyor...</>
-            ) : (
-              <><Sparkles size={15} className="text-amber-600" /> Tek Tıkla Demo Giriş</>
-            )}
+            <Sparkles size={15} className="text-amber-600" /> Tek Tıkla Demo Giriş
           </button>
         </div>
 

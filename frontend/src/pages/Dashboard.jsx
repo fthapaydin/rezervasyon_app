@@ -1,4 +1,5 @@
-import { Users, CalendarDays, CheckCircle, Wallet, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Users, CalendarDays, CheckCircle, Wallet, TrendingUp, AlertTriangle, MessageCircle } from 'lucide-react';
+import { sendWhatsAppReminder } from '../lib/reminder';
 
 export default function Dashboard({ patients, sessions, payments, onPatientClick }) {
   const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
@@ -48,21 +49,30 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
               <div className="px-5 py-10 text-center text-[13px] text-gray-400">Yaklaşan seans yok</div>
             )}
             {pending.slice(0, 5).map(s => (
-              <div key={s.id} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+              <div key={s.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-[12px] font-bold">
                     {s.patient?.full_name?.charAt(0)}
                   </div>
                   <div>
-                    <button onClick={() => onPatientClick?.(s.patient?.id)} className="text-[13px] font-semibold text-gray-800 hover:text-emerald-700 transition-colors text-left">
+                    <button onClick={() => onPatientClick?.(s.patient?.id)} className="text-[13px] font-semibold text-gray-800 hover:text-emerald-700 transition-colors text-left block">
                       {s.patient?.full_name}
                     </button>
                     <p className="text-[11px] text-gray-400">{s.treatment?.name}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-[13px] font-semibold text-gray-700">{s.session_time?.substring(0,5)}</p>
-                  <p className="text-[11px] text-gray-400">{new Date(s.session_date).toLocaleDateString('tr-TR')}</p>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-[13px] font-semibold text-gray-700">{s.session_time?.substring(0,5)}</p>
+                    <p className="text-[11px] text-gray-400">{new Date(s.session_date).toLocaleDateString('tr-TR')}</p>
+                  </div>
+                  <button
+                    onClick={() => sendWhatsAppReminder(s)}
+                    className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors border border-emerald-200 shadow-2xs"
+                    title="WhatsApp Hatırlatıcı Gönder"
+                  >
+                    <MessageCircle size={15} />
+                  </button>
                 </div>
               </div>
             ))}
