@@ -31,17 +31,40 @@ function PatientList({ patients, sessions, onSelect, refresh }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Strict phone validation
+    const cleanedPhone = formData.phone.replace(/\D/g, '');
+    if (cleanedPhone.length < 10 || cleanedPhone.length > 11) {
+      alert('Lütfen geçerli bir telefon numarası giriniz (10 veya 11 haneli sayı, Örn: 05551234567).');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await axios.post(`${API_URL}/patients`, formData);
+      await axios.post(`${API_URL}/patients`, {
+        ...formData,
+        phone: cleanedPhone,
+        age: formData.age ? parseInt(formData.age, 10) : null,
+        total_sessions: parseInt(formData.total_sessions, 10) || 10
+      });
       setShowForm(false);
       setFormData({ full_name: '', phone: '', email: '', age: '', gender: '', address: '', complaint: '', total_sessions: 10, notes: '' });
       refresh();
-    } catch { alert('Hata oluştu'); }
-    finally { setSubmitting(false); }
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || err.message || 'Hasta kaydedilirken hata oluştu';
+      alert(`Kayıt Hatası: ${errorMsg}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const set = (k, v) => setFormData(prev => ({ ...prev, [k]: v }));
+
+  const handlePhoneChange = (e) => {
+    // Only allow numbers, maximum 11 digits
+    const cleaned = e.target.value.replace(/\D/g, '').slice(0, 11);
+    set('phone', cleaned);
+  };
 
   const getSessionInfo = (patientId) => {
     const patientSessions = sessions.filter(s => s.patient_id === patientId);
@@ -74,24 +97,44 @@ function PatientList({ patients, sessions, onSelect, refresh }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Ad Soyad <span className="text-red-400">*</span></label>
-              <input required type="text" placeholder="Ahmet Yılmaz" className="input-field" onChange={e => set('full_name', e.target.value)} />
+              <input required type="text" placeholder="Ahmet Yılmaz" value={formData.full_name} className="input-field" onChange={e => set('full_name', e.target.value)} />
             </div>
             <div>
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Telefon <span className="text-red-400">*</span></label>
-              <input required type="tel" placeholder="05XX XXX XX XX" className="input-field" onChange={e => set('phone', e.target.value)} />
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Telefon (10-11 Hane) <span className="text-red-400">*</span></label>
+              <input 
+                required 
+                type="tel" 
+                inputMode="numeric"
+                maxLength={11}
+                placeholder="05XXXXXXXXX" 
+                value={formData.phone} 
+                className="input-field font-medium tracking-wide" 
+                onChange={handlePhoneChange} 
+              />
             </div>
             <div>
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">E-posta</label>
-              <input type="email" placeholder="ornek@mail.com" className="input-field" onChange={e => set('email', e.target.value)} />
+              <input type="email" placeholder="ornek@mail.com" value={formData.email} className="input-field" onChange={e => set('email', e.target.value)} />
             </div>
 
             <div>
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Yaş</label>
-              <input type="number" placeholder="34" className="input-field" onChange={e => set('age', e.target.value)} />
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Yaş (0-120)</label>
+              <input 
+                type="number" 
+                min={0} 
+                max={120} 
+                placeholder="34" 
+                value={formData.age} 
+                className="input-field" 
+                onChange={e => {
+                  const val = e.target.value;
+                  set('age', val === '' ? '' : Math.max(0, Math.min(120, parseInt(val, 10) || 0)));
+                }} 
+              />
             </div>
             <div>
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Cinsiyet</label>
-              <select className="input-field" onChange={e => set('gender', e.target.value)}>
+              <select className="input-field" value={formData.gender} onChange={e => set('gender', e.target.value)}>
                 <option value="">Seçiniz</option>
                 <option value="Erkek">Erkek</option>
                 <option value="Kadın">Kadın</option>
@@ -99,16 +142,26 @@ function PatientList({ patients, sessions, onSelect, refresh }) {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Adres</label>
-              <input type="text" placeholder="İlçe / Mahalle" className="input-field" onChange={e => set('address', e.target.value)} />
+              <input type="text" placeholder="İlçe / Mahalle" value={formData.address} className="input-field" onChange={e => set('address', e.target.value)} />
             </div>
 
             <div className="sm:col-span-3">
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Şikayeti / Ön Tanı</label>
-              <input type="text" placeholder="Bel fıtığı, Boyun düzleşmesi, Kırık sonrası rehabilitasyon..." className="input-field" onChange={e => set('complaint', e.target.value)} />
+              <input type="text" placeholder="Bel fıtığı, Boyun düzleşmesi, Kırık sonrası rehabilitasyon..." value={formData.complaint} className="input-field" onChange={e => set('complaint', e.target.value)} />
             </div>
             <div>
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Planlanan Seans</label>
-              <input type="number" defaultValue={10} className="input-field" onChange={e => set('total_sessions', parseInt(e.target.value) || 10)} />
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Planlanan Seans (1-100)</label>
+              <input 
+                type="number" 
+                min={1} 
+                max={100} 
+                value={formData.total_sessions} 
+                className="input-field font-semibold text-emerald-700" 
+                onChange={e => {
+                  const val = parseInt(e.target.value, 10);
+                  set('total_sessions', isNaN(val) ? '' : Math.max(1, Math.min(100, val)));
+                }} 
+              />
             </div>
           </div>
 

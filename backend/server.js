@@ -10,10 +10,10 @@ app.use(cors());
 app.use(express.json());
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.warn("Uyarı: Supabase URL veya Key .env dosyasında bulunamadı.");
+  console.warn("UYARI: SUPABASE_URL veya SUPABASE_ANON_KEY environment variable olarak tanımlanmamış!");
 }
 
 const supabase = supabaseUrl && supabaseKey
