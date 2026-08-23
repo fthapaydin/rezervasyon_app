@@ -1,11 +1,16 @@
 import { useState, useMemo } from 'react';
 import axios from 'axios';
-import { Plus, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Repeat, MessageCircle, Smartphone, Calendar, ListFilter } from 'lucide-react';
+import { 
+  Plus, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Repeat, 
+  MessageCircle, Smartphone, Calendar, ListFilter, FileSpreadsheet 
+} from 'lucide-react';
 import { sendWhatsAppReminder, sendSmsReminder } from '../lib/reminder';
+import { exportSessionsToExcel } from '../lib/excelExport';
+import { API_URL } from '../lib/api';
 
-const API_URL = 'http://localhost:5001/api';
-const DAY_NAMES = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-const HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'];
+const DAY_NAMES = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+const SHORT_DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+const HOURS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
 
 function getMonday(d) {
   const date = new Date(d);
@@ -19,8 +24,8 @@ function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); retu
 
 export default function Sessions({ sessions, patients, treatments, refresh, onPatientClick }) {
   const [viewMode, setViewMode] = useState('calendar'); // 'calendar' | 'list'
-  const [formMode, setFormMode] = useState(null); // null | 'single' | 'recurring'
-  const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', session_date: '', session_time: '' });
+  const [modalMode, setModalMode] = useState(null); // null | 'single' | 'recurring'
+  const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', session_date: '', session_time: '', notes: '' });
   const [recurData, setRecurData] = useState({ patient_id: '', treatment_id: '', session_time: '', start_date: '', repeat_type: 'weekly', repeat_count: 8 });
   const [submitting, setSubmitting] = useState(false);
   const [weekStart, setWeekStart] = useState(getMonday(new Date()));
@@ -45,219 +50,367 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
     return { current: idx + 1, total: session.patient?.total_sessions || ps.length };
   };
 
+  // Open modal pre-filled with clicked slot
+  const handleCellClick = (dateStr, hourStr) => {
+    setFormData({
+      patient_id: '',
+      treatment_id: treatments[0]?.id || '',
+      session_date: dateStr,
+      session_time: hourStr,
+      notes: ''
+    });
+    setModalMode('single');
+  };
+
   const handleSingleSubmit = async (e) => {
-    e.preventDefault(); setSubmitting(true);
-    try { await axios.post(`${API_URL}/sessions`, formData); setFormMode(null); refresh(); }
-    catch { alert('Hata'); } finally { setSubmitting(false); }
+    e.preventDefault(); 
+    setSubmitting(true);
+    try { 
+      await axios.post(`${API_URL}/sessions`, formData); 
+      setModalMode(null); 
+      refresh(); 
+    } catch { 
+      alert('Seans oluşturulurken bir hata oluştu'); 
+    } finally { 
+      setSubmitting(false); 
+    }
   };
 
   const handleRecurSubmit = async (e) => {
-    e.preventDefault(); setSubmitting(true);
-    try { await axios.post(`${API_URL}/sessions/recurring`, recurData); setFormMode(null); refresh(); }
-    catch { alert('Hata'); } finally { setSubmitting(false); }
+    e.preventDefault(); 
+    setSubmitting(true);
+    try { 
+      await axios.post(`${API_URL}/sessions/recurring`, recurData); 
+      setModalMode(null); 
+      refresh(); 
+    } catch { 
+      alert('Tekrarlayan seanslar oluşturulurken bir hata oluştu'); 
+    } finally { 
+      setSubmitting(false); 
+    }
   };
 
   const completeSession = async (id) => {
-    try { await axios.put(`${API_URL}/sessions/${id}`, { status: 'tamamlandi' }); refresh(); }
-    catch { alert('Hata'); }
+    try { 
+      await axios.put(`${API_URL}/sessions/${id}`, { status: 'tamamlandi' }); 
+      refresh(); 
+    } catch { 
+      alert('İşlem başarısız'); 
+    }
   };
 
-  const weekLabel = `${weekDays[0].toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} – ${weekDays[6].toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  const weekLabel = `${weekDays[0].toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} – ${weekDays[6].toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
 
   return (
     <div className="space-y-5">
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+      {/* Top Toolbar */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs">
+        <div className="flex flex-wrap items-center gap-3">
           {viewMode === 'calendar' && (
-            <>
-              <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center text-gray-500"><ChevronLeft size={16}/></button>
-              <button onClick={() => setWeekStart(getMonday(new Date()))} className="h-8 px-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-[12px] font-medium text-gray-600">Bugün</button>
-              <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center text-gray-500"><ChevronRight size={16}/></button>
-              <span className="text-[13px] font-semibold text-gray-700 ml-1">{weekLabel}</span>
-            </>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors shadow-2xs">
+                <ChevronLeft size={16}/>
+              </button>
+              <button onClick={() => setWeekStart(getMonday(new Date()))} className="h-8 px-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-[12px] font-semibold text-gray-700 transition-colors shadow-2xs">
+                Bugün
+              </button>
+              <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors shadow-2xs">
+                <ChevronRight size={16}/>
+              </button>
+              <span className="text-[14px] font-bold text-gray-800 ml-2">{weekLabel}</span>
+            </div>
           )}
 
           {/* View Toggle */}
-          <div className="flex bg-gray-100 p-0.5 rounded-lg text-[12px] font-medium text-gray-600 ml-0 md:ml-3">
+          <div className="flex bg-gray-100 p-0.5 rounded-xl text-[12px] font-medium text-gray-600 ml-0 lg:ml-2">
             <button
               onClick={() => setViewMode('calendar')}
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-all ${viewMode === 'calendar' ? 'bg-white text-gray-900 shadow-sm font-semibold' : 'hover:text-gray-900'}`}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${viewMode === 'calendar' ? 'bg-white text-gray-900 shadow-xs font-bold' : 'hover:text-gray-900'}`}
             >
-              <Calendar size={13} /> Takvim
+              <Calendar size={14} /> Takvim Görünümü
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-all ${viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm font-semibold' : 'hover:text-gray-900'}`}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${viewMode === 'list' ? 'bg-white text-gray-900 shadow-xs font-bold' : 'hover:text-gray-900'}`}
             >
-              <ListFilter size={13} /> Liste
+              <ListFilter size={14} /> Liste ({sessions.length})
             </button>
           </div>
         </div>
 
-        <div className="flex gap-2 w-full md:w-auto justify-end">
-          <button onClick={() => setFormMode(formMode === 'single' ? null : 'single')}
-            className={`h-9 px-3 rounded-lg text-[12px] font-medium flex items-center gap-1.5 transition-all ${formMode === 'single' ? 'bg-gray-100 text-gray-600' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'}`}>
-            {formMode === 'single' ? <><X size={14}/> İptal</> : <><Plus size={14}/> Tekli Seans</>}
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+          {/* Excel Export Button */}
+          <button
+            onClick={() => exportSessionsToExcel(sessions)}
+            className="h-9 px-3.5 rounded-xl text-[12px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center gap-1.5 shadow-2xs transition-all active:scale-[0.98]"
+            title="Tüm Seansları Excel Olarak İndir"
+          >
+            <FileSpreadsheet size={15} /> Excel İndir
           </button>
-          <button onClick={() => setFormMode(formMode === 'recurring' ? null : 'recurring')}
-            className={`h-9 px-3 rounded-lg text-[12px] font-medium flex items-center gap-1.5 transition-all ${formMode === 'recurring' ? 'bg-gray-100 text-gray-600' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'}`}>
-            {formMode === 'recurring' ? <><X size={14}/> İptal</> : <><Repeat size={14}/> Tekrarlayan</>}
+
+          <button 
+            onClick={() => {
+              setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', session_date: today, session_time: '09:00', notes: '' });
+              setModalMode('single');
+            }}
+            className="h-9 px-3.5 rounded-xl text-[12px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98]"
+          >
+            <Plus size={15}/> Tekli Seans Ekle
+          </button>
+
+          <button 
+            onClick={() => {
+              setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 });
+              setModalMode('recurring');
+            }}
+            className="h-9 px-3.5 rounded-xl text-[12px] font-semibold text-white bg-blue-600 hover:bg-blue-700 flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98]"
+          >
+            <Repeat size={14}/> Tekrarlayan Seans
           </button>
         </div>
       </div>
 
-      {/* Single form */}
-      {formMode === 'single' && (
-        <form onSubmit={handleSingleSubmit} className="bg-white rounded-xl border border-gray-200/80 p-5">
-          <h3 className="text-[13px] font-semibold text-gray-800 mb-4">Tekli Randevu</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Hasta *</label>
-              <select required className="input-field" onChange={e => setFormData({...formData, patient_id: e.target.value})}>
-                <option value="">Seçiniz</option>
-                {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}{p.complaint ? ` — ${p.complaint}` : ''}</option>)}
-              </select>
+      {/* MODAL DIALOG: Single Session */}
+      {modalMode === 'single' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs animate-in fade-in" onClick={() => setModalMode(null)} />
+          <form onSubmit={handleSingleSubmit} className="relative bg-white rounded-2xl border border-gray-200 shadow-2xl p-6 w-full max-w-lg z-10 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100">
+              <div>
+                <h3 className="text-[16px] font-bold text-gray-900">Yeni Randevu Oluştur</h3>
+                <p className="text-[12px] text-gray-400 mt-0.5">Seçilen saat ve güne randevu tanımlayın.</p>
+              </div>
+              <button type="button" onClick={() => setModalMode(null)} className="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex items-center justify-center">
+                <X size={18}/>
+              </button>
             </div>
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Tedavi *</label>
-              <select required className="input-field" onChange={e => setFormData({...formData, treatment_id: e.target.value})}>
-                <option value="">Seçiniz</option>
-                {treatments.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes}dk)</option>)}
-              </select>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Hasta Seçin <span className="text-red-500">*</span></label>
+                <select required value={formData.patient_id} className="input-field font-medium text-gray-800" onChange={e => setFormData({...formData, patient_id: e.target.value})}>
+                  <option value="">Hasta seçiniz...</option>
+                  {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}{p.complaint ? ` — (${p.complaint})` : ''}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Uygulanacak Tedavi <span className="text-red-500">*</span></label>
+                <select required value={formData.treatment_id} className="input-field font-medium text-gray-800" onChange={e => setFormData({...formData, treatment_id: e.target.value})}>
+                  <option value="">Tedavi seçiniz...</option>
+                  {treatments.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes} dk) — {t.price} ₺</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Randevu Tarihi <span className="text-red-500">*</span></label>
+                  <input required type="date" value={formData.session_date} className="input-field font-medium" onChange={e => setFormData({...formData, session_date: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Saat <span className="text-red-500">*</span></label>
+                  <input required type="time" value={formData.session_time} className="input-field font-medium" onChange={e => setFormData({...formData, session_time: e.target.value})} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Seans Notu (Opsiyonel)</label>
+                <input type="text" placeholder="Örn: 2. bölge masajı uygulanacak..." value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} />
+              </div>
             </div>
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Tarih *</label>
-              <input required type="date" className="input-field" onChange={e => setFormData({...formData, session_date: e.target.value})} />
+
+            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-100">
+              <button type="button" onClick={() => setModalMode(null)} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+                Vazgeç
+              </button>
+              <button type="submit" disabled={submitting} className="h-10 px-6 rounded-xl text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-sm transition-colors flex items-center gap-1.5">
+                {submitting ? 'Kaydediliyor...' : 'Randevuyu Kaydet'}
+              </button>
             </div>
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Saat *</label>
-              <input required type="time" className="input-field" onChange={e => setFormData({...formData, session_time: e.target.value})} />
-            </div>
-          </div>
-          <div className="flex justify-end mt-4">
-            <button type="submit" disabled={submitting} className="h-9 px-4 rounded-lg text-[12px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-sm">
-              {submitting ? 'Kaydediliyor...' : 'Kaydet'}
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       )}
 
-      {/* Recurring form */}
-      {formMode === 'recurring' && (
-        <form onSubmit={handleRecurSubmit} className="bg-white rounded-xl border border-blue-200 p-5">
-          <h3 className="text-[13px] font-semibold text-gray-800 mb-1 flex items-center gap-1.5"><Repeat size={14} className="text-blue-600"/> Tekrarlayan Randevu</h3>
-          <p className="text-[11px] text-gray-400 mb-4">Otomatik olarak birden fazla seans oluşturur.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Hasta *</label>
-              <select required className="input-field" onChange={e => setRecurData({...recurData, patient_id: e.target.value})}>
-                <option value="">Seçiniz</option>
-                {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-              </select>
+      {/* MODAL DIALOG: Recurring Session */}
+      {modalMode === 'recurring' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs animate-in fade-in" onClick={() => setModalMode(null)} />
+          <form onSubmit={handleRecurSubmit} className="relative bg-white rounded-2xl border border-blue-200 shadow-2xl p-6 w-full max-w-xl z-10 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100">
+              <div>
+                <h3 className="text-[16px] font-bold text-gray-900 flex items-center gap-2">
+                  <Repeat size={16} className="text-blue-600" /> Tekrarlayan Randevu Planı
+                </h3>
+                <p className="text-[12px] text-gray-400 mt-0.5">Tek tıkla haftalık veya günlük periyotlarda toplu seans oluşturun.</p>
+              </div>
+              <button type="button" onClick={() => setModalMode(null)} className="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex items-center justify-center">
+                <X size={18}/>
+              </button>
             </div>
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Tedavi *</label>
-              <select required className="input-field" onChange={e => setRecurData({...recurData, treatment_id: e.target.value})}>
-                <option value="">Seçiniz</option>
-                {treatments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Hasta Seçin <span className="text-red-500">*</span></label>
+                <select required value={recurData.patient_id} className="input-field font-medium text-gray-800" onChange={e => setRecurData({...recurData, patient_id: e.target.value})}>
+                  <option value="">Seçiniz...</option>
+                  {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Tedavi <span className="text-red-500">*</span></label>
+                <select required value={recurData.treatment_id} className="input-field font-medium text-gray-800" onChange={e => setRecurData({...recurData, treatment_id: e.target.value})}>
+                  <option value="">Seçiniz...</option>
+                  {treatments.map(t => <option key={t.id} value={t.id}>{t.name} ({t.price} ₺)</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Başlangıç Tarihi <span className="text-red-500">*</span></label>
+                <input required type="date" value={recurData.start_date} className="input-field font-medium" onChange={e => setRecurData({...recurData, start_date: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Saat <span className="text-red-500">*</span></label>
+                <input required type="time" value={recurData.session_time} className="input-field font-medium" onChange={e => setRecurData({...recurData, session_time: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Tekrar Periyodu</label>
+                <select value={recurData.repeat_type} className="input-field font-medium" onChange={e => setRecurData({...recurData, repeat_type: e.target.value})}>
+                  <option value="weekly">Her Hafta Aynı Gün</option>
+                  <option value="biweekly">Haftada 2 Kez</option>
+                  <option value="daily">Her Gün</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Toplam Seans Sayısı</label>
+                <input type="number" value={recurData.repeat_count} min={1} max={52} className="input-field font-bold text-blue-700" onChange={e => setRecurData({...recurData, repeat_count: parseInt(e.target.value) || 1})} />
+              </div>
             </div>
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Saat *</label>
-              <input required type="time" className="input-field" onChange={e => setRecurData({...recurData, session_time: e.target.value})} />
+
+            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-100">
+              <button type="button" onClick={() => setModalMode(null)} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+                Vazgeç
+              </button>
+              <button type="submit" disabled={submitting} className="h-10 px-6 rounded-xl text-[13px] font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors">
+                {submitting ? 'Oluşturuluyor...' : `${recurData.repeat_count || 8} Seans Planla`}
+              </button>
             </div>
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Başlangıç Tarihi *</label>
-              <input required type="date" className="input-field" onChange={e => setRecurData({...recurData, start_date: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Tekrar Sıklığı</label>
-              <select className="input-field" onChange={e => setRecurData({...recurData, repeat_type: e.target.value})}>
-                <option value="weekly">Her Hafta</option>
-                <option value="biweekly">Haftada 2</option>
-                <option value="daily">Her Gün</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-gray-500 mb-1">Kaç Seans?</label>
-              <input type="number" defaultValue={8} min={1} max={52} className="input-field" onChange={e => setRecurData({...recurData, repeat_count: parseInt(e.target.value)})} />
-            </div>
-          </div>
-          <div className="flex justify-end mt-4">
-            <button type="submit" disabled={submitting} className="h-9 px-4 rounded-lg text-[12px] font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shadow-sm">
-              {submitting ? 'Oluşturuluyor...' : `${recurData.repeat_count || 8} Seans Oluştur`}
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       )}
 
-      {/* Main View: Calendar or List */}
+      {/* Main View: Large Weekly Calendar or List */}
       {viewMode === 'calendar' ? (
-        /* Weekly Calendar View */
-        <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
+        /* EXPANDED LARGE WEEKLY CALENDAR VIEW */
+        <div className="bg-white rounded-2xl border border-gray-200/90 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[750px]">
+            <table className="w-full border-collapse min-w-[900px]">
               <thead>
-                <tr>
-                  <th className="w-14 px-2 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-r border-gray-100 bg-gray-50/50 text-left">Saat</th>
+                <tr className="bg-gray-50/80 border-b border-gray-200">
+                  <th className="w-20 px-3 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-r border-gray-200 text-center">
+                    SAAT
+                  </th>
                   {weekDays.map((day, i) => {
-                    const isToday = formatDate(day) === today;
+                    const dateStr = formatDate(day);
+                    const isToday = dateStr === today;
                     return (
-                      <th key={i} className={`px-1 py-2.5 text-center border-b border-r border-gray-100 last:border-r-0 ${isToday ? 'bg-emerald-50/50' : 'bg-gray-50/50'}`}>
-                        <span className={`text-[10px] font-semibold uppercase ${isToday ? 'text-emerald-600' : 'text-gray-400'}`}>{DAY_NAMES[i]}</span>
-                        <br/>
-                        <span className={`text-[13px] font-bold inline-block mt-0.5 ${isToday ? 'text-white bg-emerald-600 w-6 h-6 rounded-full leading-6' : 'text-gray-700'}`}>{day.getDate()}</span>
+                      <th key={i} className={`px-3 py-3.5 text-center border-r border-gray-200 last:border-r-0 ${isToday ? 'bg-emerald-50/60' : ''}`}>
+                        <span className={`text-[12px] font-bold uppercase tracking-wider ${isToday ? 'text-emerald-700' : 'text-gray-500'}`}>
+                          {DAY_NAMES[i]}
+                        </span>
+                        <div className="mt-1 flex items-center justify-center">
+                          <span className={`text-[15px] font-black w-8 h-8 rounded-full flex items-center justify-center transition-all ${isToday ? 'text-white bg-emerald-600 shadow-sm' : 'text-gray-800'}`}>
+                            {day.getDate()}
+                          </span>
+                        </div>
                       </th>
                     );
                   })}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-100">
                 {HOURS.map(hour => (
-                  <tr key={hour}>
-                    <td className="px-2 py-0.5 text-[10px] font-medium text-gray-400 border-r border-b border-gray-100 bg-gray-50/30 align-top pt-1.5">{hour}</td>
+                  <tr key={hour} className="group hover:bg-slate-50/30 transition-colors">
+                    {/* Hour Column */}
+                    <td className="px-3 py-2 text-[12px] font-bold text-gray-400 border-r border-gray-200 bg-gray-50/40 text-center align-top pt-3">
+                      {hour}
+                    </td>
+
+                    {/* Day Slots */}
                     {weekDays.map((day, di) => {
                       const dateStr = formatDate(day);
                       const isToday = dateStr === today;
                       const cellSessions = sessionMap[dateStr]?.[hour] || [];
                       return (
-                        <td key={di} className={`px-1 py-1 border-r border-b border-gray-100 last:border-r-0 align-top ${isToday ? 'bg-emerald-50/20' : ''}`} style={{ minHeight: 48 }}>
-                          {cellSessions.map(s => {
-                            const sn = getSessionNumber(s);
-                            const isDone = s.status === 'tamamlandi';
-                            return (
-                              <div key={s.id} className={`text-[11px] rounded-lg p-1.5 mb-1 border shadow-xs transition-all ${isDone ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-blue-50 border-blue-200 text-blue-900'}`}>
-                                <div className="font-bold truncate">
-                                  <button onClick={() => onPatientClick?.(s.patient_id || s.patient?.id)} className="hover:underline truncate text-left w-full">{s.patient?.full_name}</button>
-                                </div>
-                                <div className="flex items-center justify-between text-[10px] text-gray-500 mt-0.5">
-                                  <span className="truncate">{s.treatment?.name}</span>
-                                  <span className="font-bold ml-1 shrink-0 text-gray-700">{sn.current}/{sn.total}</span>
-                                </div>
-
-                                <div className="flex items-center gap-1 mt-1.5 pt-1 border-t border-black/5">
-                                  {!isDone && (
+                        <td
+                          key={di}
+                          onClick={() => handleCellClick(dateStr, hour)}
+                          className={`p-1.5 border-r border-gray-100 last:border-r-0 align-top transition-colors cursor-pointer relative group/cell min-h-[90px] h-[90px] ${
+                            isToday ? 'bg-emerald-50/20 hover:bg-emerald-50/50' : 'hover:bg-teal-50/30'
+                          }`}
+                        >
+                          {/* Sessions in this slot */}
+                          <div className="space-y-1.5 h-full">
+                            {cellSessions.map(s => {
+                              const sn = getSessionNumber(s);
+                              const isDone = s.status === 'tamamlandi';
+                              return (
+                                <div
+                                  key={s.id}
+                                  onClick={(e) => e.stopPropagation()} // Don't trigger cell click when clicking inside session card
+                                  className={`text-[11px] rounded-xl p-2.5 border shadow-2xs transition-all hover:shadow-md ${
+                                    isDone
+                                      ? 'bg-emerald-50 border-emerald-200/80 text-emerald-950'
+                                      : 'bg-white border-blue-200/90 text-slate-900 ring-1 ring-blue-500/10'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-1">
                                     <button 
-                                      onClick={(e) => { e.stopPropagation(); completeSession(s.id); }} 
-                                      className="flex-1 text-[10px] font-semibold text-emerald-700 bg-emerald-100/80 hover:bg-emerald-200 rounded px-1 py-0.5 transition-colors"
-                                      title="Seansı Tamamlandı Olarak İşaretle"
+                                      onClick={() => onPatientClick?.(s.patient_id || s.patient?.id)} 
+                                      className="font-bold text-[12px] hover:text-emerald-700 hover:underline text-left truncate flex-1"
+                                      title={s.patient?.full_name}
                                     >
-                                      ✓ Bitir
+                                      {s.patient?.full_name}
                                     </button>
-                                  )}
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); sendWhatsAppReminder(s); }} 
-                                    className="px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 rounded flex items-center justify-center gap-0.5 transition-colors"
-                                    title="WhatsApp ile Hatırlat"
-                                  >
-                                    <MessageCircle size={11} className="text-emerald-700" />
-                                    <span>WA</span>
-                                  </button>
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-black/5 text-gray-700 shrink-0">
+                                      {sn.current}/{sn.total}
+                                    </span>
+                                  </div>
+
+                                  <div className="text-[11px] text-gray-500 truncate mt-0.5 font-medium">
+                                    {s.treatment?.name}
+                                  </div>
+
+                                  {/* Actions inside Card */}
+                                  <div className="flex items-center gap-1.5 mt-2 pt-1.5 border-t border-black/5">
+                                    {!isDone && (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); completeSession(s.id); }} 
+                                        className="flex-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg py-1 px-1.5 transition-colors flex items-center justify-center gap-1"
+                                        title="Seansı Tamamlandı Olarak İşaretle"
+                                      >
+                                        <CheckCircle2 size={11}/> Bitir
+                                      </button>
+                                    )}
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); sendWhatsAppReminder(s); }} 
+                                      className="px-2 py-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 rounded-lg flex items-center justify-center gap-1 transition-colors"
+                                      title="WhatsApp Hatırlatması Gönder"
+                                    >
+                                      <MessageCircle size={12} className="text-emerald-700" />
+                                      <span>WA</span>
+                                    </button>
+                                  </div>
                                 </div>
+                              );
+                            })}
+
+                            {/* Empty slot hover prompt */}
+                            {cellSessions.length === 0 && (
+                              <div className="h-full min-h-[60px] rounded-lg border-2 border-dashed border-transparent group-hover/cell:border-emerald-300 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-all text-emerald-700 text-[11px] font-bold gap-1 bg-emerald-50/50">
+                                <Plus size={14} /> Randevu Ekle
                               </div>
-                            );
-                          })}
+                            )}
+                          </div>
                         </td>
                       );
                     })}
@@ -268,82 +421,82 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
           </div>
         </div>
       ) : (
-        /* List View */
-        <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
+        /* LIST VIEW */
+        <div className="bg-white rounded-2xl border border-gray-200/90 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px]">
+            <table className="w-full min-w-[750px]">
               <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tarih & Saat</th>
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Hasta</th>
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tedavi</th>
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Seans No</th>
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Durum</th>
-                  <th className="text-center px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Hatırlatma</th>
-                  <th className="text-right px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">İşlem</th>
+                <tr className="bg-gray-50/80 border-b border-gray-200">
+                  <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Tarih & Saat</th>
+                  <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Hasta</th>
+                  <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Tedavi / Hizmet</th>
+                  <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Seans Sırası</th>
+                  <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Durum</th>
+                  <th className="text-center px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Hatırlatma</th>
+                  <th className="text-right px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">İşlem</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-gray-100">
                 {sessions.length === 0 && (
-                  <tr><td colSpan={7} className="px-5 py-12 text-center text-[13px] text-gray-400">Henüz randevu bulunmuyor.</td></tr>
+                  <tr><td colSpan={7} className="px-5 py-12 text-center text-[13px] text-gray-400">Henüz randevu kaydı bulunmuyor.</td></tr>
                 )}
                 {sessions.map(s => {
                   const sn = getSessionNumber(s);
                   const isDone = s.status === 'tamamlandi';
                   return (
-                    <tr key={s.id} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <p className="text-[13px] font-semibold text-gray-800">{new Date(s.session_date).toLocaleDateString('tr-TR')}</p>
-                        <p className="text-[12px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5"><Clock size={12}/> {s.session_time?.substring(0,5)}</p>
+                    <tr key={s.id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="px-5 py-4">
+                        <p className="text-[13px] font-bold text-gray-800">{new Date(s.session_date).toLocaleDateString('tr-TR')}</p>
+                        <p className="text-[12px] text-emerald-600 font-semibold flex items-center gap-1 mt-0.5"><Clock size={12}/> {s.session_time?.substring(0,5)}</p>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <button onClick={() => onPatientClick?.(s.patient_id || s.patient?.id)} className="text-[13px] font-semibold text-gray-800 hover:text-emerald-700 hover:underline transition-colors block text-left">
+                      <td className="px-5 py-4">
+                        <button onClick={() => onPatientClick?.(s.patient_id || s.patient?.id)} className="text-[13px] font-bold text-gray-900 hover:text-emerald-700 hover:underline transition-colors block text-left">
                           {s.patient?.full_name}
                         </button>
-                        <p className="text-[11px] text-gray-400">{s.patient?.phone}</p>
+                        <p className="text-[11px] text-gray-400 font-medium mt-0.5">{s.patient?.phone}</p>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-[13px] text-gray-600">{s.treatment?.name}</span>
+                      <td className="px-5 py-4">
+                        <span className="text-[13px] font-medium text-gray-700">{s.treatment?.name}</span>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <span className="inline-block px-2 py-1 rounded bg-gray-100 text-gray-700 text-[11px] font-bold">
+                      <td className="px-5 py-4">
+                        <span className="inline-block px-2.5 py-1 rounded-lg bg-gray-100 text-gray-800 text-[11px] font-bold">
                           {sn.current} / {sn.total}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-5 py-4">
                         {isDone ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
+                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200">
                             <CheckCircle2 size={12}/> Tamamlandı
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 text-[11px] font-semibold">
+                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-50 text-amber-700 text-[11px] font-bold border border-amber-200">
                             <Clock size={12}/> Bekliyor
                           </span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5 text-center">
+                      <td className="px-5 py-4 text-center">
                         <div className="inline-flex items-center gap-1.5">
                           <button
                             onClick={() => sendWhatsAppReminder(s)}
-                            className="h-8 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-semibold flex items-center gap-1 shadow-xs transition-colors"
+                            className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs transition-colors"
                             title="WhatsApp ile Hatırlat"
                           >
                             <MessageCircle size={13} /> WhatsApp
                           </button>
                           <button
                             onClick={() => sendSmsReminder(s)}
-                            className="h-8 px-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-medium flex items-center gap-1 transition-colors"
+                            className="h-8 px-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-medium flex items-center gap-1 transition-colors"
                             title="SMS ile Hatırlat"
                           >
                             <Smartphone size={13} /> SMS
                           </button>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-right">
+                      <td className="px-5 py-4 text-right">
                         {!isDone && (
                           <button
                             onClick={() => completeSession(s.id)}
-                            className="h-8 px-3 rounded-md text-[12px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                            className="h-8 px-3.5 rounded-lg text-[12px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors"
                           >
                             Tamamla
                           </button>

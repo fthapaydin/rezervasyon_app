@@ -13,7 +13,7 @@ import Sessions from './pages/Sessions';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
 
-const API_URL = 'http://localhost:5001/api';
+import { API_URL } from './lib/api';
 
 const pageMeta = {
   dashboard:  { title: 'Dashboard',           subtitle: 'Klinik performansınızın genel görünümü' },

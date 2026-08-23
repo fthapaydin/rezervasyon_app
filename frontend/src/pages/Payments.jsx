@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Plus, X, CheckCircle, FileText, AlertCircle, Filter } from 'lucide-react';
 import { generatePaymentReceipt } from '../lib/pdfGenerator';
 
-const API_URL = 'http://localhost:5001/api';
+import { API_URL } from '../lib/api';
 
 export default function Payments({ payments, sessions, patients, refresh }) {
   const [showForm, setShowForm] = useState(false);

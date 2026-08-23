@@ -4,7 +4,7 @@ import { Plus, X, Phone, Search, ArrowLeft, Mail, MapPin, CheckCircle2, Clock, F
 import { generateSessionReport, generatePatientSummary } from '../lib/pdfGenerator';
 import { sendWhatsAppReminder } from '../lib/reminder';
 
-const API_URL = 'http://localhost:5001/api';
+import { API_URL } from '../lib/api';
 
 export default function Patients({ patients, sessions, selectedPatientId, setSelectedPatientId, refresh }) {
   if (selectedPatientId) {

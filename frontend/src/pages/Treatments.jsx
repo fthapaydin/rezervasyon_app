@@ -2,7 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { Plus, X, Clock, Wallet } from 'lucide-react';
 
-const API_URL = 'http://localhost:5001/api';
+import { API_URL } from '../lib/api';
 
 export default function Treatments({ treatments, refresh }) {
   const [showForm, setShowForm] = useState(false);
