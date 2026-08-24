@@ -1,5 +1,5 @@
 import { 
-  Users, Activity, CalendarDays, Wallet, LayoutGrid, BarChart3, Menu, X
+  Users, Activity, CalendarDays, Wallet, LayoutGrid, BarChart3, Menu, X, ClipboardList
 } from 'lucide-react';
 
 const navItems = [
@@ -9,9 +9,10 @@ const navItems = [
   { id: 'treatments', label: 'Tedaviler', icon: Activity },
   { id: 'payments', label: 'Ödemeler', icon: Wallet },
   { id: 'reports', label: 'Raporlar', icon: BarChart3 },
+  { id: 'requests', label: 'Talepler', icon: ClipboardList },
 ];
 
-export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobileOpen, onLogout }) {
+export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobileOpen, onLogout, pendingCount = 0 }) {
   const content = (
     <>
       {/* Logo */}
@@ -33,6 +34,7 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
         {navItems.map(item => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
+          const showBadge = item.id === 'requests' && pendingCount > 0;
           return (
             <button
               key={item.id}
@@ -42,7 +44,12 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
               }`}
             >
               <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
-              <span>{item.label}</span>
+              <span className="flex-1 text-left">{item.label}</span>
+              {showBadge && (
+                <span className="inline-flex items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full">
+                  {pendingCount > 9 ? '9+' : pendingCount}
+                </span>
+              )}
             </button>
           );
         })}

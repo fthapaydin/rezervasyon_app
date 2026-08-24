@@ -74,3 +74,22 @@ CREATE POLICY "Allow public all sessions" ON sessions FOR ALL USING (true) WITH 
 
 DROP POLICY IF EXISTS "Allow public all payments" ON payments;
 CREATE POLICY "Allow public all payments" ON payments FOR ALL USING (true) WITH CHECK (true);
+
+-- 5. Hasta Randevu Talepleri
+CREATE TABLE IF NOT EXISTS session_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+  treatment_id UUID REFERENCES treatments(id),
+  requested_date DATE NOT NULL,
+  requested_time TIME NOT NULL,
+  status VARCHAR DEFAULT 'bekliyor',  -- bekliyor | onaylandi | reddedildi
+  rejection_reason TEXT,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE session_requests DISABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public all session_requests" ON session_requests;
+CREATE POLICY "Allow public all session_requests" ON session_requests FOR ALL USING (true) WITH CHECK (true);
+

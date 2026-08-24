@@ -12,6 +12,8 @@ import Treatments from './pages/Treatments';
 import Sessions from './pages/Sessions';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
+import Requests from './pages/Requests';
+import PatientPortal from './pages/PatientPortal';
 
 import { API_URL } from './lib/api';
 
@@ -22,6 +24,7 @@ const pageMeta = {
   treatments: { title: 'Tedavi & Hizmetler',   subtitle: 'Sunduğunuz hizmetleri düzenleyin' },
   payments:   { title: 'Ödemeler',             subtitle: 'Tahsilat ve finans takibi' },
   reports:    { title: 'Raporlar',             subtitle: 'Grafikler ve istatistikler' },
+  requests:   { title: 'Randevu Talepleri',    subtitle: 'Hastaların randevu taleplerini onaylayın veya reddedin' },
 };
 
 function App() {
@@ -35,9 +38,16 @@ function App() {
   const [treatments, setTreatments] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [selectedPatientId, setSelectedPatientId] = useState(null);
+
+  // Check if we're on the /portal route BEFORE auth check
+  const isPortal = window.location.pathname === '/portal';
+  if (isPortal) {
+    return <PatientPortal />;
+  }
 
   // Auth check
   useEffect(() => {
@@ -67,16 +77,18 @@ function App() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [p, t, s, pay] = await Promise.all([
+      const [p, t, s, pay, req] = await Promise.all([
         axios.get(`${API_URL}/patients`).catch(() => ({ data: [] })),
         axios.get(`${API_URL}/treatments`).catch(() => ({ data: [] })),
         axios.get(`${API_URL}/sessions`).catch(() => ({ data: [] })),
         axios.get(`${API_URL}/payments`).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/session-requests`).catch(() => ({ data: [] })),
       ]);
       setPatients(p.data);
       setTreatments(t.data);
       setSessions(s.data);
       setPayments(pay.data);
+      setRequests(req.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -91,6 +103,8 @@ function App() {
     setSelectedPatientId(id);
     setActiveTab('patients');
   };
+
+  const pendingCount = requests.filter(r => r.status === 'bekliyor').length;
 
   // Auth loading
   if (authLoading) {
@@ -116,6 +130,7 @@ function App() {
         mobileOpen={mobileOpen}
         setMobileOpen={setMobileOpen}
         onLogout={handleLogout}
+        pendingCount={pendingCount}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -141,6 +156,7 @@ function App() {
                 {activeTab === 'sessions'   && <Sessions sessions={sessions} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} />}
                 {activeTab === 'payments'   && <Payments payments={payments} sessions={sessions} patients={patients} refresh={fetchData} />}
                 {activeTab === 'reports'    && <Reports patients={patients} sessions={sessions} payments={payments} treatments={treatments} />}
+                {activeTab === 'requests'   && <Requests requests={requests} refresh={fetchData} />}
               </>
             )}
           </div>

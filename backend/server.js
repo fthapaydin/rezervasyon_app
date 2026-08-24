@@ -215,6 +215,93 @@ app.post('/api/sessions/recurring', async (req, res) => {
   }
 });
 
+// --- SESSION REQUESTS (Hasta Self-Servis Talepleri) ---
+
+// Telefona göre hasta ara (hasta portalı için)
+app.get('/api/patients/by-phone/:phone', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
+  try {
+    const cleanedPhone = req.params.phone.replace(/\D/g, '');
+    const { data, error } = await supabase
+      .from('patients')
+      .select('id, full_name, phone, complaint, total_sessions')
+      .ilike('phone', `%${cleanedPhone}%`)
+      .limit(1)
+      .single();
+    if (error) return res.status(404).json({ error: 'Hasta bulunamadı.' });
+    res.json(data);
+  } catch (err) {
+    res.status(404).json({ error: 'Hasta bulunamadı.' });
+  }
+});
+
+// Tüm talepleri listele (admin için)
+app.get('/api/session-requests', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
+  try {
+    const { data, error } = await supabase
+      .from('session_requests')
+      .select('*, patient:patients(id, full_name, phone), treatment:treatments(name, price)')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Yeni randevu talebi oluştur (hasta portalından)
+app.post('/api/session-requests', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
+  const { patient_id, treatment_id, requested_date, requested_time, notes } = req.body;
+  if (!patient_id || !treatment_id || !requested_date || !requested_time)
+    return res.status(400).json({ error: 'Eksik alanlar var.' });
+
+  try {
+    const { data, error } = await supabase.from('session_requests').insert([{
+      patient_id, treatment_id, requested_date, requested_time, notes, status: 'bekliyor'
+    }]).select();
+    if (error) throw error;
+    res.status(201).json(data[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Talebi onayla veya reddet (admin için)
+app.put('/api/session-requests/:id', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
+  const { status, rejection_reason } = req.body;
+
+  try {
+    // Talebi güncelle
+    const { data: updatedReq, error: updateErr } = await supabase
+      .from('session_requests')
+      .update({ status, rejection_reason: rejection_reason || null })
+      .eq('id', req.params.id)
+      .select('*, patient:patients(id, full_name), treatment:treatments(name, price)')
+      .single();
+    if (updateErr) throw updateErr;
+
+    // Onaylandıysa sessions tablosuna da ekle
+    if (status === 'onaylandi') {
+      const { error: sessionErr } = await supabase.from('sessions').insert([{
+        patient_id: updatedReq.patient_id,
+        treatment_id: updatedReq.treatment_id,
+        session_date: updatedReq.requested_date,
+        session_time: updatedReq.requested_time,
+        notes: updatedReq.notes,
+        status: 'bekliyor'
+      }]);
+      if (sessionErr) throw sessionErr;
+    }
+
+    res.json(updatedReq);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Sunucu http://localhost:${port} adresinde çalışıyor`);
 });
