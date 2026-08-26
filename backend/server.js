@@ -302,6 +302,61 @@ app.put('/api/session-requests/:id', async (req, res) => {
   }
 });
 
+// --- PUBLIC BOOKING (Harici randevu sitesi için — kayıtsız hastalar dahil) ---
+app.post('/api/booking/public', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
+  const { full_name, phone, treatment_id, requested_date, requested_time, notes } = req.body;
+
+  if (!full_name || !phone || !treatment_id || !requested_date || !requested_time) {
+    return res.status(400).json({ error: 'Ad, telefon, tedavi, tarih ve saat zorunludur.' });
+  }
+
+  try {
+    const cleanedPhone = phone.replace(/\D/g, '');
+
+    // Hasta var mı kontrol et (telefona göre)
+    let patientId;
+    const { data: existingPatient } = await supabase
+      .from('patients')
+      .select('id')
+      .ilike('phone', `%${cleanedPhone}%`)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingPatient) {
+      patientId = existingPatient.id;
+    } else {
+      // Yeni hasta oluştur
+      const { data: newPatient, error: patErr } = await supabase
+        .from('patients')
+        .insert([{ full_name: full_name.trim(), phone: cleanedPhone, total_sessions: 10 }])
+        .select()
+        .single();
+      if (patErr) throw patErr;
+      patientId = newPatient.id;
+    }
+
+    // Randevu talebi oluştur
+    const { data: requestData, error: reqErr } = await supabase
+      .from('session_requests')
+      .insert([{
+        patient_id: patientId,
+        treatment_id,
+        requested_date,
+        requested_time,
+        notes: notes || null,
+        status: 'bekliyor'
+      }])
+      .select()
+      .single();
+
+    if (reqErr) throw reqErr;
+    res.status(201).json(requestData);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Sunucu http://localhost:${port} adresinde çalışıyor`);
 });
