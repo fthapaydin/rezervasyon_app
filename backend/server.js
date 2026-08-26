@@ -32,6 +32,24 @@ app.get('/api/patients', async (req, res) => {
   }
 });
 
+// Telefona göre hasta ara — /:id'den ÖNCE tanımlanmalı!
+app.get('/api/patients/by-phone/:phone', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
+  try {
+    const cleanedPhone = req.params.phone.replace(/\D/g, '');
+    const { data, error } = await supabase
+      .from('patients')
+      .select('id, full_name, phone, complaint, total_sessions')
+      .ilike('phone', `%${cleanedPhone}%`)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return res.status(404).json({ error: 'Hasta bulunamadı.' });
+    res.json(data);
+  } catch (err) {
+    res.status(404).json({ error: 'Hasta bulunamadı.' });
+  }
+});
+
 app.get('/api/patients/:id', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
   try {
@@ -74,6 +92,7 @@ app.post('/api/patients', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // --- TREATMENTS ---
 app.get('/api/treatments', async (req, res) => {
@@ -216,24 +235,6 @@ app.post('/api/sessions/recurring', async (req, res) => {
 });
 
 // --- SESSION REQUESTS (Hasta Self-Servis Talepleri) ---
-
-// Telefona göre hasta ara (hasta portalı için)
-app.get('/api/patients/by-phone/:phone', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
-  try {
-    const cleanedPhone = req.params.phone.replace(/\D/g, '');
-    const { data, error } = await supabase
-      .from('patients')
-      .select('id, full_name, phone, complaint, total_sessions')
-      .ilike('phone', `%${cleanedPhone}%`)
-      .limit(1)
-      .single();
-    if (error) return res.status(404).json({ error: 'Hasta bulunamadı.' });
-    res.json(data);
-  } catch (err) {
-    res.status(404).json({ error: 'Hasta bulunamadı.' });
-  }
-});
 
 // Tüm talepleri listele (admin için)
 app.get('/api/session-requests', async (req, res) => {
