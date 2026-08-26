@@ -93,6 +93,32 @@ app.post('/api/patients', async (req, res) => {
   }
 });
 
+app.put('/api/patients/:id', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { full_name, phone, email, age, gender, address, complaint, total_sessions, notes } = req.body;
+  try {
+    const { data, error } = await supabase
+      .from('patients')
+      .update({ full_name, phone, email, age, gender, address, complaint, total_sessions, notes })
+      .eq('id', req.params.id)
+      .select();
+    if (error) throw error;
+    res.json(data[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/patients/:id', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  try {
+    const { error } = await supabase.from('patients').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ message: "Hasta başarıyla silindi." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // --- TREATMENTS ---
 app.get('/api/treatments', async (req, res) => {
@@ -117,6 +143,33 @@ app.post('/api/treatments', async (req, res) => {
     }]).select();
     if (error) throw error;
     res.status(201).json(data[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/treatments/:id', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { name, price, duration_minutes } = req.body;
+  try {
+    const { data, error } = await supabase
+      .from('treatments')
+      .update({ name, price, duration_minutes })
+      .eq('id', req.params.id)
+      .select();
+    if (error) throw error;
+    res.json(data[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/treatments/:id', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  try {
+    const { error } = await supabase.from('treatments').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ message: "Tedavi başarıyla silindi." });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -167,6 +220,18 @@ app.put('/api/sessions/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+app.delete('/api/sessions/:id', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  try {
+    const { error } = await supabase.from('sessions').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ message: "Seans başarıyla silindi." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // --- PAYMENTS ---
 app.get('/api/payments', async (req, res) => {

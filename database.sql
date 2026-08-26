@@ -1,5 +1,5 @@
 -- =========================================================
--- FİZYOPANEL VERİTABANI & RLS İZİN SCRİPTİ
+-- FİZYOPANEL VERİTABANI & RLS İZİN SCRİPTİ (GÜNCEL)
 -- =========================================================
 
 -- 1. Tablolar henüz yoksa oluştur
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS treatments (
 CREATE TABLE IF NOT EXISTS sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
-  treatment_id UUID REFERENCES treatments(id),
+  treatment_id UUID REFERENCES treatments(id) ON DELETE SET NULL,
   session_date DATE NOT NULL,
   session_time TIME NOT NULL,
   status VARCHAR DEFAULT 'bekliyor',
@@ -46,6 +46,18 @@ CREATE TABLE IF NOT EXISTS payments (
   payment_date TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS session_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+  treatment_id UUID REFERENCES treatments(id) ON DELETE SET NULL,
+  requested_date DATE NOT NULL,
+  requested_time TIME NOT NULL,
+  status VARCHAR DEFAULT 'bekliyor',
+  rejection_reason TEXT,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- 2. Var olan tablolarda eksik sütunlar varsa GÜVENLE EKLE
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS age INTEGER;
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS gender VARCHAR;
@@ -61,8 +73,9 @@ ALTER TABLE patients DISABLE ROW LEVEL SECURITY;
 ALTER TABLE treatments DISABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE payments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE session_requests DISABLE ROW LEVEL SECURITY;
 
--- Politikaları da açık olarak herkese izin verecek şekilde ayarla
+-- Tam okuma/yazma politikaları
 DROP POLICY IF EXISTS "Allow public all patients" ON patients;
 CREATE POLICY "Allow public all patients" ON patients FOR ALL USING (true) WITH CHECK (true);
 
@@ -75,21 +88,5 @@ CREATE POLICY "Allow public all sessions" ON sessions FOR ALL USING (true) WITH 
 DROP POLICY IF EXISTS "Allow public all payments" ON payments;
 CREATE POLICY "Allow public all payments" ON payments FOR ALL USING (true) WITH CHECK (true);
 
--- 5. Hasta Randevu Talepleri
-CREATE TABLE IF NOT EXISTS session_requests (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
-  treatment_id UUID REFERENCES treatments(id),
-  requested_date DATE NOT NULL,
-  requested_time TIME NOT NULL,
-  status VARCHAR DEFAULT 'bekliyor',  -- bekliyor | onaylandi | reddedildi
-  rejection_reason TEXT,
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE session_requests DISABLE ROW LEVEL SECURITY;
-
 DROP POLICY IF EXISTS "Allow public all session_requests" ON session_requests;
 CREATE POLICY "Allow public all session_requests" ON session_requests FOR ALL USING (true) WITH CHECK (true);
-

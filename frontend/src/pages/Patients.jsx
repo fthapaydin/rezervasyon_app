@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, X, Phone, Search, ArrowLeft, Mail, MapPin, CheckCircle2, Clock, FileDown, AlertTriangle, MessageCircle } from 'lucide-react';
+import { Plus, X, Phone, Search, ArrowLeft, Mail, MapPin, CheckCircle2, Clock, FileDown, AlertTriangle, MessageCircle, Pencil, Trash2 } from 'lucide-react';
 import { generateSessionReport, generatePatientSummary } from '../lib/pdfGenerator';
 import { sendWhatsAppReminder } from '../lib/reminder';
 
@@ -8,7 +8,7 @@ import { API_URL } from '../lib/api';
 
 export default function Patients({ patients, sessions, selectedPatientId, setSelectedPatientId, refresh }) {
   if (selectedPatientId) {
-    return <PatientDetail id={selectedPatientId} onBack={() => setSelectedPatientId(null)} />;
+    return <PatientDetail id={selectedPatientId} onBack={() => setSelectedPatientId(null)} refresh={refresh} />;
   }
 
   return <PatientList patients={patients} sessions={sessions} onSelect={setSelectedPatientId} refresh={refresh} />;
@@ -238,17 +238,70 @@ function PatientList({ patients, sessions, onSelect, refresh }) {
 }
 
 // ─── Patient Detail ────────────────────────────────────
-function PatientDetail({ id, onBack }) {
+function PatientDetail({ id, onBack, refresh }) {
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editData, setEditData] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
+  const fetchPatientDetail = () => {
     setLoading(true);
     axios.get(`${API_URL}/patients/${id}`)
-      .then(res => setPatient(res.data))
+      .then(res => {
+        setPatient(res.data);
+        setEditData(res.data);
+      })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchPatientDetail();
   }, [id]);
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    const cleanedPhone = editData.phone.replace(/\D/g, '');
+    if (cleanedPhone.length < 10 || cleanedPhone.length > 11) {
+      alert('Lütfen geçerli bir telefon numarası giriniz (Örn: 05XXXXXXXXX).');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await axios.put(`${API_URL}/patients/${id}`, {
+        ...editData,
+        phone: cleanedPhone,
+        age: editData.age ? parseInt(editData.age, 10) : null,
+        total_sessions: parseInt(editData.total_sessions, 10) || 10,
+      });
+      setShowEditModal(false);
+      fetchPatientDetail();
+      refresh();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Güncelleme sırasında hata oluştu.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeletePatient = async () => {
+    if (!patient) return;
+    const confirmMsg = `"${patient.full_name}" isimli hastayı ve hastaya ait TÜM randevu ve ödeme geçmişini kalıcı olarak silmek istediğinize emin misiniz?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setDeleting(true);
+    try {
+      await axios.delete(`${API_URL}/patients/${id}`);
+      refresh();
+      onBack();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Silme işlemi sırasında hata oluştu.');
+      setDeleting(false);
+    }
+  };
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /></div>;
   if (!patient) return <p className="text-center text-gray-400 py-12">Hasta bulunamadı.</p>;
@@ -272,7 +325,23 @@ function PatientDetail({ id, onBack }) {
           <ArrowLeft size={15}/> Hasta Listesine Dön
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button 
+            onClick={() => {
+              setEditData(patient);
+              setShowEditModal(true);
+            }}
+            className="h-9 px-3 rounded-lg text-[12px] font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 flex items-center gap-1.5 shadow-sm transition-colors"
+          >
+            <Pencil size={13} className="text-gray-500" /> Düzenle
+          </button>
+          <button 
+            onClick={handleDeletePatient}
+            disabled={deleting}
+            className="h-9 px-3 rounded-lg text-[12px] font-medium text-red-600 bg-white border border-red-200 hover:bg-red-50 flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-50"
+          >
+            <Trash2 size={13} /> {deleting ? 'Siliniyor...' : 'Hastayı Sil'}
+          </button>
           <button 
             onClick={() => generateSessionReport(patient, sessions)}
             className="h-9 px-3 rounded-lg text-[12px] font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 flex items-center gap-1.5 shadow-sm transition-colors"
@@ -322,6 +391,144 @@ function PatientDetail({ id, onBack }) {
           />
         </div>
       </div>
+
+      {/* Edit Patient Modal */}
+      {showEditModal && editData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowEditModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
+              <h3 className="text-[16px] font-semibold text-gray-800">Hasta Bilgilerini Düzenle</h3>
+              <button onClick={() => setShowEditModal(false)} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                <X size={15} className="text-gray-500" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Ad Soyad *</label>
+                  <input
+                    required
+                    type="text"
+                    value={editData.full_name || ''}
+                    onChange={e => setEditData({ ...editData, full_name: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Telefon *</label>
+                  <input
+                    required
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={11}
+                    value={editData.phone || ''}
+                    onChange={e => setEditData({ ...editData, phone: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                    className="input-field"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-500 mb-1">E-posta</label>
+                  <input
+                    type="email"
+                    value={editData.email || ''}
+                    onChange={e => setEditData({ ...editData, email: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Yaş</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={120}
+                    value={editData.age ?? ''}
+                    onChange={e => setEditData({ ...editData, age: e.target.value === '' ? '' : parseInt(e.target.value, 10) })}
+                    className="input-field"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Cinsiyet</label>
+                  <select
+                    value={editData.gender || ''}
+                    onChange={e => setEditData({ ...editData, gender: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="">Seçiniz</option>
+                    <option value="Erkek">Erkek</option>
+                    <option value="Kadın">Kadın</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Adres</label>
+                  <input
+                    type="text"
+                    value={editData.address || ''}
+                    onChange={e => setEditData({ ...editData, address: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Şikayeti / Ön Tanı</label>
+                  <input
+                    type="text"
+                    value={editData.complaint || ''}
+                    onChange={e => setEditData({ ...editData, complaint: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Planlanan Seans Sayısı</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={editData.total_sessions || 10}
+                    onChange={e => setEditData({ ...editData, total_sessions: parseInt(e.target.value, 10) || 10 })}
+                    className="input-field font-semibold text-emerald-700"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Notlar</label>
+                  <textarea
+                    rows={2}
+                    value={editData.notes || ''}
+                    onChange={e => setEditData({ ...editData, notes: e.target.value })}
+                    className="input-field resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="h-9 px-4 rounded-lg text-[13px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="h-9 px-5 rounded-lg text-[13px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-sm"
+                >
+                  {submitting ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
 
       {/* Progress bar */}
       <div className="bg-white rounded-xl border border-gray-200/80 p-5">
