@@ -271,12 +271,18 @@ function PatientDetail({ id, onBack, refresh }) {
 
     setSubmitting(true);
     try {
-      await axios.put(`${API_URL}/patients/${id}`, {
-        ...editData,
+      const payload = {
+        full_name: editData.full_name,
         phone: cleanedPhone,
+        email: editData.email,
         age: editData.age ? parseInt(editData.age, 10) : null,
+        gender: editData.gender,
+        address: editData.address,
+        complaint: editData.complaint,
         total_sessions: parseInt(editData.total_sessions, 10) || 10,
-      });
+        notes: editData.notes
+      };
+      await axios.put(`${API_URL}/patients/${id}`, payload);
       setShowEditModal(false);
       fetchPatientDetail();
       refresh();
