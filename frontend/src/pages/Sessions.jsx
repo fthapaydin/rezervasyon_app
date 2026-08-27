@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import axios from 'axios';
 import { 
   Plus, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Repeat, 
-  MessageCircle, Smartphone, Calendar, ListFilter, FileSpreadsheet 
+  MessageCircle, Smartphone, Calendar, ListFilter, FileSpreadsheet,
+  Edit2, Trash2 
 } from 'lucide-react';
 import { sendWhatsAppReminder, sendSmsReminder } from '../lib/reminder';
 import { exportSessionsToExcel } from '../lib/excelExport';
@@ -24,7 +25,7 @@ function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); retu
 
 export default function Sessions({ sessions, patients, treatments, refresh, onPatientClick }) {
   const [viewMode, setViewMode] = useState('calendar'); // 'calendar' | 'list'
-  const [modalMode, setModalMode] = useState(null); // null | 'single' | 'recurring'
+  const [modalMode, setModalMode] = useState(null); // null | 'single' | 'recurring' | 'edit'
   const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', session_date: '', session_time: '', notes: '' });
   const [recurData, setRecurData] = useState({ patient_id: '', treatment_id: '', session_time: '', start_date: '', repeat_type: 'weekly', repeat_count: 8 });
   const [submitting, setSubmitting] = useState(false);
@@ -39,18 +40,26 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
       const dk = s.session_date, tk = s.session_time?.substring(0, 5);
       if (!map[dk]) map[dk] = {};
       if (!map[dk][tk]) map[dk][tk] = [];
-      map[dk][tk].push(s);
+      map[dk][tk].push({ ...s, _type: 'session' });
+    });
+    (requests || []).forEach(r => {
+      if (r.status === 'bekliyor') {
+        const dk = r.requested_date, tk = r.requested_time?.substring(0, 5);
+        if (!map[dk]) map[dk] = {};
+        if (!map[dk][tk]) map[dk][tk] = [];
+        map[dk][tk].push({ ...r, _type: 'request' });
+      }
     });
     return map;
-  }, [sessions]);
+  }, [sessions, requests]);
 
   const getSessionNumber = (session) => {
+    if (session._type === 'request') return null;
     const ps = sessions.filter(s => s.patient_id === session.patient_id).sort((a, b) => a.session_date.localeCompare(b.session_date));
     const idx = ps.findIndex(s => s.id === session.id);
     return { current: idx + 1, total: session.patient?.total_sessions || ps.length };
   };
 
-  // Open modal pre-filled with clicked slot
   const handleCellClick = (dateStr, hourStr) => {
     setFormData({
       patient_id: '',
@@ -76,6 +85,42 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
     }
   };
 
+  const handleEditClick = (session) => {
+    setFormData({
+      id: session.id,
+      patient_id: session.patient_id,
+      treatment_id: session.treatment_id,
+      session_date: session.session_date,
+      session_time: session.session_time?.substring(0, 5),
+      notes: session.notes || ''
+    });
+    setModalMode('edit');
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault(); 
+    setSubmitting(true);
+    try { 
+      await axios.put(`${API_URL}/sessions/${formData.id}`, formData); 
+      setModalMode(null); 
+      refresh(); 
+    } catch { 
+      alert('Seans güncellenirken bir hata oluştu'); 
+    } finally { 
+      setSubmitting(false); 
+    }
+  };
+
+  const deleteSession = async (id) => {
+    if (!window.confirm("Bu seansı silmek istediğinize emin misiniz?")) return;
+    try { 
+      await axios.delete(`${API_URL}/sessions/${id}`); 
+      refresh(); 
+    } catch { 
+      alert('Silme işlemi başarısız'); 
+    }
+  };
+
   const handleRecurSubmit = async (e) => {
     e.preventDefault(); 
     setSubmitting(true);
@@ -96,6 +141,15 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
       refresh(); 
     } catch { 
       alert('İşlem başarısız'); 
+    }
+  };
+
+  const approveRequest = async (id) => {
+    try {
+      await axios.put(`${API_URL}/session-requests/${id}`, { status: 'onaylandi' });
+      refresh();
+    } catch {
+      alert('Onaylama işlemi başarısız');
     }
   };
 
@@ -298,6 +352,68 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
         </div>
       )}
 
+      {/* MODAL DIALOG: Edit Session */}
+      {modalMode === 'edit' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs animate-in fade-in" onClick={() => setModalMode(null)} />
+          <form onSubmit={handleEditSubmit} className="relative bg-white rounded-2xl border border-blue-200 shadow-2xl p-6 w-full max-w-lg z-10 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100">
+              <div>
+                <h3 className="text-[16px] font-bold text-gray-900 flex items-center gap-2">
+                  <Edit2 size={16} className="text-blue-600" /> Seans Düzenle
+                </h3>
+              </div>
+              <button type="button" onClick={() => setModalMode(null)} className="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex items-center justify-center">
+                <X size={18}/>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Hasta Seçin <span className="text-red-500">*</span></label>
+                <select required value={formData.patient_id} className="input-field font-medium text-gray-800" onChange={e => setFormData({...formData, patient_id: e.target.value})}>
+                  <option value="">Hasta seçiniz...</option>
+                  {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Uygulanacak Tedavi <span className="text-red-500">*</span></label>
+                <select required value={formData.treatment_id} className="input-field font-medium text-gray-800" onChange={e => setFormData({...formData, treatment_id: e.target.value})}>
+                  <option value="">Tedavi seçiniz...</option>
+                  {treatments.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes} dk) — {t.price} ₺</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Randevu Tarihi <span className="text-red-500">*</span></label>
+                  <input required type="date" value={formData.session_date} className="input-field font-medium" onChange={e => setFormData({...formData, session_date: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Saat <span className="text-red-500">*</span></label>
+                  <input required type="time" value={formData.session_time} className="input-field font-medium" onChange={e => setFormData({...formData, session_time: e.target.value})} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Seans Notu (Opsiyonel)</label>
+                <input type="text" placeholder="Örn: 2. bölge masajı uygulanacak..." value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-100">
+              <button type="button" onClick={() => setModalMode(null)} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+                İptal
+              </button>
+              <button type="submit" disabled={submitting} className="h-10 px-6 rounded-xl text-[13px] font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors flex items-center gap-1.5">
+                {submitting ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Main View: Large Weekly Calendar or List */}
       {viewMode === 'calendar' ? (
         /* EXPANDED LARGE WEEKLY CALENDAR VIEW */
@@ -344,70 +460,103 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
                         <td
                           key={di}
                           onClick={() => handleCellClick(dateStr, hour)}
-                          className={`p-1.5 border-r border-gray-100 last:border-r-0 align-top transition-colors cursor-pointer relative group/cell min-h-[90px] h-[90px] ${
+                          className={`p-1 border-r border-gray-100 last:border-r-0 align-top transition-colors cursor-pointer relative group/cell min-h-[70px] ${
                             isToday ? 'bg-emerald-50/20 hover:bg-emerald-50/50' : 'hover:bg-teal-50/30'
                           }`}
                         >
-                          {/* Sessions in this slot */}
-                          <div className="space-y-1.5 h-full">
+                          <div className="space-y-1 h-full">
                             {cellSessions.map(s => {
-                              const sn = getSessionNumber(s);
-                              const isDone = s.status === 'tamamlandi';
+                              const isReq = s._type === 'request';
+                              const sn = isReq ? null : getSessionNumber(s);
+                              const isDone = !isReq && s.status === 'tamamlandi';
+                              
+                              let cardClass = isReq 
+                                ? 'bg-amber-50 border-amber-200/80 text-amber-950 border-l-4 border-l-amber-500'
+                                : isDone 
+                                  ? 'bg-emerald-50 border-emerald-200/80 text-emerald-950 border-l-4 border-l-emerald-500'
+                                  : 'bg-white border-blue-200/90 text-slate-900 border-l-4 border-l-blue-500 shadow-sm';
+
                               return (
                                 <div
-                                  key={s.id}
-                                  onClick={(e) => e.stopPropagation()} // Don't trigger cell click when clicking inside session card
-                                  className={`text-[11px] rounded-xl p-2.5 border shadow-2xs transition-all hover:shadow-md ${
-                                    isDone
-                                      ? 'bg-emerald-50 border-emerald-200/80 text-emerald-950'
-                                      : 'bg-white border-blue-200/90 text-slate-900 ring-1 ring-blue-500/10'
-                                  }`}
+                                  key={isReq ? `req-${s.id}` : `ses-${s.id}`}
+                                  onClick={(e) => e.stopPropagation()} 
+                                  className={`text-[11px] rounded-lg p-2 border transition-all hover:shadow-md flex flex-col gap-1 ${cardClass}`}
                                 >
                                   <div className="flex items-start justify-between gap-1">
                                     <button 
                                       onClick={() => onPatientClick?.(s.patient_id || s.patient?.id)} 
-                                      className="font-bold text-[12px] hover:text-emerald-700 hover:underline text-left truncate flex-1"
+                                      className="font-bold text-[11px] hover:underline text-left truncate flex-1 leading-tight"
                                       title={s.patient?.full_name}
                                     >
                                       {s.patient?.full_name}
                                     </button>
-                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-black/5 text-gray-700 shrink-0">
-                                      {sn.current}/{sn.total}
-                                    </span>
+                                    {!isReq && (
+                                      <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm bg-black/5 shrink-0">
+                                        {sn.current}/{sn.total}
+                                      </span>
+                                    )}
+                                    {isReq && (
+                                      <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm bg-amber-200/50 text-amber-800 shrink-0 uppercase">Talep</span>
+                                    )}
                                   </div>
 
-                                  <div className="text-[11px] text-gray-500 truncate mt-0.5 font-medium">
+                                  <div className="text-[10px] opacity-70 truncate font-medium leading-none mb-1">
                                     {s.treatment?.name}
                                   </div>
 
-                                  {/* Actions inside Card */}
-                                  <div className="flex items-center gap-1.5 mt-2 pt-1.5 border-t border-black/5">
-                                    {!isDone && (
-                                      <button 
-                                        onClick={(e) => { e.stopPropagation(); completeSession(s.id); }} 
-                                        className="flex-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg py-1 px-1.5 transition-colors flex items-center justify-center gap-1"
-                                        title="Seansı Tamamlandı Olarak İşaretle"
-                                      >
-                                        <CheckCircle2 size={11}/> Bitir
-                                      </button>
+                                  <div className="flex flex-col gap-1 mt-auto pt-1 border-t border-black/5">
+                                    {isReq ? (
+                                      <div className="flex items-center gap-1">
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); approveRequest(s.id); }} 
+                                          className="flex-1 text-[10px] font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded py-1 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                                        >
+                                          <CheckCircle2 size={11}/> Onayla
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div className="flex items-center gap-1">
+                                          {!isDone && (
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); completeSession(s.id); }} 
+                                              className="flex-1 text-[9px] font-bold text-emerald-700 bg-emerald-100/50 hover:bg-emerald-100 rounded py-0.5 transition-colors flex items-center justify-center gap-1"
+                                            >
+                                              <CheckCircle2 size={10}/> Bitir
+                                            </button>
+                                          )}
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); sendWhatsAppReminder(s); }} 
+                                            className="px-1.5 py-0.5 flex-1 text-[9px] font-bold text-emerald-800 bg-emerald-100/50 hover:bg-emerald-100 rounded flex items-center justify-center gap-1 transition-colors"
+                                          >
+                                            <MessageCircle size={10} className="text-emerald-700" />
+                                            WA
+                                          </button>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); handleEditClick(s); }} 
+                                            className="flex-1 text-[9px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded py-0.5 transition-colors flex items-center justify-center gap-1"
+                                          >
+                                            <Edit2 size={9}/> Düzenle
+                                          </button>
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }} 
+                                            className="px-1.5 py-0.5 text-[9px] font-bold text-red-700 bg-red-50 hover:bg-red-100 rounded flex items-center justify-center transition-colors"
+                                          >
+                                            <Trash2 size={10}/>
+                                          </button>
+                                        </div>
+                                      </>
                                     )}
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); sendWhatsAppReminder(s); }} 
-                                      className="px-2 py-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 rounded-lg flex items-center justify-center gap-1 transition-colors"
-                                      title="WhatsApp Hatırlatması Gönder"
-                                    >
-                                      <MessageCircle size={12} className="text-emerald-700" />
-                                      <span>WA</span>
-                                    </button>
                                   </div>
                                 </div>
                               );
                             })}
 
-                            {/* Empty slot hover prompt */}
                             {cellSessions.length === 0 && (
-                              <div className="h-full min-h-[60px] rounded-lg border-2 border-dashed border-transparent group-hover/cell:border-emerald-300 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-all text-emerald-700 text-[11px] font-bold gap-1 bg-emerald-50/50">
-                                <Plus size={14} /> Randevu Ekle
+                              <div className="h-full min-h-[40px] rounded-lg border border-dashed border-transparent group-hover/cell:border-emerald-300 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-all text-emerald-600 text-[10px] font-bold gap-1 bg-emerald-50/50">
+                                <Plus size={12} /> Ekle
                               </div>
                             )}
                           </div>
@@ -493,14 +642,31 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
                         </div>
                       </td>
                       <td className="px-5 py-4 text-right">
-                        {!isDone && (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {!isDone && (
+                            <button
+                              onClick={() => completeSession(s.id)}
+                              className="h-8 px-2 rounded-lg text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                              title="Tamamla"
+                            >
+                              <CheckCircle2 size={13} />
+                            </button>
+                          )}
                           <button
-                            onClick={() => completeSession(s.id)}
-                            className="h-8 px-3.5 rounded-lg text-[12px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                            onClick={() => handleEditClick(s)}
+                            className="h-8 px-2 rounded-lg text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors"
+                            title="Düzenle"
                           >
-                            Tamamla
+                            <Edit2 size={13} />
                           </button>
-                        )}
+                          <button
+                            onClick={() => deleteSession(s.id)}
+                            className="h-8 px-2 rounded-lg text-[11px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors"
+                            title="Sil"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

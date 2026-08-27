@@ -153,7 +153,7 @@ function App() {
                 {activeTab === 'dashboard'  && <Dashboard patients={patients} sessions={sessions} payments={payments} onPatientClick={openPatientDetail} />}
                 {activeTab === 'patients'   && <Patients patients={patients} sessions={sessions} selectedPatientId={selectedPatientId} setSelectedPatientId={setSelectedPatientId} refresh={fetchData} />}
                 {activeTab === 'treatments' && <Treatments treatments={treatments} refresh={fetchData} />}
-                {activeTab === 'sessions'   && <Sessions sessions={sessions} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} />}
+                {activeTab === 'sessions'   && <Sessions sessions={sessions} requests={requests} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} />}
                 {activeTab === 'payments'   && <Payments payments={payments} sessions={sessions} patients={patients} refresh={fetchData} />}
                 {activeTab === 'reports'    && <Reports patients={patients} sessions={sessions} payments={payments} treatments={treatments} />}
                 {activeTab === 'requests'   && <Requests requests={requests} refresh={fetchData} />}
