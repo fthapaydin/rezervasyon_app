@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   Plus, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Repeat, 
   MessageCircle, Smartphone, Calendar, ListFilter, FileSpreadsheet,
-  Edit2, Trash2 
+  Edit2, Trash2, XCircle
 } from 'lucide-react';
 import { sendWhatsAppReminder, sendSmsReminder } from '../lib/reminder';
 import { exportSessionsToExcel } from '../lib/excelExport';
@@ -11,7 +11,7 @@ import { API_URL } from '../lib/api';
 
 const DAY_NAMES = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 const SHORT_DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-const HOURS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
+const HOURS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
 
 function getMonday(d) {
   const date = new Date(d);
@@ -20,16 +20,20 @@ function getMonday(d) {
   date.setDate(diff); date.setHours(0,0,0,0);
   return date;
 }
-function formatDate(d) { return d.toISOString().split('T')[0]; }
+function formatDate(d) { 
+  const local = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
+  return local.toISOString().split('T')[0];
+}
 function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 
-export default function Sessions({ sessions, patients, treatments, refresh, onPatientClick }) {
+export default function Sessions({ sessions, requests = [], patients, treatments, refresh, onPatientClick }) {
   const [viewMode, setViewMode] = useState('calendar'); // 'calendar' | 'list'
   const [modalMode, setModalMode] = useState(null); // null | 'single' | 'recurring' | 'edit'
   const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', session_date: '', session_time: '', notes: '' });
   const [recurData, setRecurData] = useState({ patient_id: '', treatment_id: '', session_time: '', start_date: '', repeat_type: 'weekly', repeat_count: 8 });
   const [submitting, setSubmitting] = useState(false);
   const [weekStart, setWeekStart] = useState(getMonday(new Date()));
+  const [editSession, setEditSession] = useState(null);
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const today = formatDate(new Date());
@@ -86,6 +90,7 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
   };
 
   const handleEditClick = (session) => {
+    setEditSession(session);
     setFormData({
       id: session.id,
       patient_id: session.patient_id,
@@ -150,6 +155,21 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
       refresh();
     } catch {
       alert('Onaylama işlemi başarısız');
+    }
+  };
+
+  const rejectRequest = async (id) => {
+    const reason = window.prompt("Reddetme gerekçesi (isteğe bağlı):");
+    if (reason === null) return; // Cancelled
+    
+    try {
+      await axios.put(`${API_URL}/session-requests/${id}`, { 
+        status: 'reddedildi',
+        rejection_reason: reason || null
+      });
+      refresh();
+    } catch {
+      alert('Reddetme işlemi başarısız');
     }
   };
 
@@ -230,7 +250,7 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-xs animate-in fade-in" onClick={() => setModalMode(null)} />
           <form onSubmit={handleSingleSubmit} className="relative bg-white rounded-2xl border border-gray-200 shadow-2xl p-6 w-full max-w-lg z-10 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100">
+            <div className="flex items-center justify-between pb-4 mb-5 border-b-2 border-gray-300">
               <div>
                 <h3 className="text-[16px] font-bold text-gray-900">Yeni Randevu Oluştur</h3>
                 <p className="text-[12px] text-gray-400 mt-0.5">Seçilen saat ve güne randevu tanımlayın.</p>
@@ -274,7 +294,7 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
               </div>
             </div>
 
-            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-100">
+            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-300">
               <button type="button" onClick={() => setModalMode(null)} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
                 Vazgeç
               </button>
@@ -291,7 +311,7 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-xs animate-in fade-in" onClick={() => setModalMode(null)} />
           <form onSubmit={handleRecurSubmit} className="relative bg-white rounded-2xl border border-blue-200 shadow-2xl p-6 w-full max-w-xl z-10 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100">
+            <div className="flex items-center justify-between pb-4 mb-5 border-b-2 border-gray-300">
               <div>
                 <h3 className="text-[16px] font-bold text-gray-900 flex items-center gap-2">
                   <Repeat size={16} className="text-blue-600" /> Tekrarlayan Randevu Planı
@@ -340,7 +360,7 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
               </div>
             </div>
 
-            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-100">
+            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-300">
               <button type="button" onClick={() => setModalMode(null)} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
                 Vazgeç
               </button>
@@ -357,7 +377,7 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-xs animate-in fade-in" onClick={() => setModalMode(null)} />
           <form onSubmit={handleEditSubmit} className="relative bg-white rounded-2xl border border-blue-200 shadow-2xl p-6 w-full max-w-lg z-10 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100">
+            <div className="flex items-center justify-between pb-4 mb-5 border-b-2 border-gray-300">
               <div>
                 <h3 className="text-[16px] font-bold text-gray-900 flex items-center gap-2">
                   <Edit2 size={16} className="text-blue-600" /> Seans Düzenle
@@ -369,6 +389,21 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
             </div>
 
             <div className="space-y-4">
+              <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/60 mb-2 flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] text-blue-500 font-bold mb-0.5 uppercase tracking-wider">Mevcut Randevu</p>
+                  <p className="text-[14px] font-bold text-blue-950">
+                    {editSession?.session_date ? new Date(editSession.session_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' }) : '-'} 
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] text-blue-500 font-bold mb-0.5 uppercase tracking-wider">Saat</p>
+                  <p className="text-[14px] font-bold text-blue-950">
+                    {editSession?.session_time?.substring(0,5) || '-'}
+                  </p>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Hasta Seçin <span className="text-red-500">*</span></label>
                 <select required value={formData.patient_id} className="input-field font-medium text-gray-800" onChange={e => setFormData({...formData, patient_id: e.target.value})}>
@@ -387,12 +422,12 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Randevu Tarihi <span className="text-red-500">*</span></label>
-                  <input required type="date" value={formData.session_date} className="input-field font-medium" onChange={e => setFormData({...formData, session_date: e.target.value})} />
+                  <label className="block text-[12px] font-semibold text-blue-600 mb-1.5">Yeni Tarih <span className="text-red-500">*</span></label>
+                  <input required type="date" value={formData.session_date} className="input-field font-medium border-blue-200 focus:border-blue-500 focus:ring-blue-100" onChange={e => setFormData({...formData, session_date: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Saat <span className="text-red-500">*</span></label>
-                  <input required type="time" value={formData.session_time} className="input-field font-medium" onChange={e => setFormData({...formData, session_time: e.target.value})} />
+                  <label className="block text-[12px] font-semibold text-blue-600 mb-1.5">Yeni Saat <span className="text-red-500">*</span></label>
+                  <input required type="time" value={formData.session_time} className="input-field font-medium border-blue-200 focus:border-blue-500 focus:ring-blue-100" onChange={e => setFormData({...formData, session_time: e.target.value})} />
                 </div>
               </div>
 
@@ -402,7 +437,7 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
               </div>
             </div>
 
-            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-100">
+            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-300">
               <button type="button" onClick={() => setModalMode(null)} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
                 İptal
               </button>
@@ -417,19 +452,19 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
       {/* Main View: Large Weekly Calendar or List */}
       {viewMode === 'calendar' ? (
         /* EXPANDED LARGE WEEKLY CALENDAR VIEW */
-        <div className="bg-white rounded-2xl border border-gray-200/90 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border-2 border-gray-300 shadow-xl overflow-hidden mt-6 mb-20 animate-in fade-in duration-300">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse min-w-[900px]">
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-200">
-                  <th className="w-20 px-3 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-r border-gray-200 text-center">
+                <tr className="bg-gray-50/80 border-b-2 border-gray-300">
+                  <th className="w-20 px-3 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-r-2 border-gray-300 text-center">
                     SAAT
                   </th>
                   {weekDays.map((day, i) => {
                     const dateStr = formatDate(day);
                     const isToday = dateStr === today;
                     return (
-                      <th key={i} className={`px-3 py-3.5 text-center border-r border-gray-200 last:border-r-0 ${isToday ? 'bg-emerald-50/60' : ''}`}>
+                      <th key={i} className={`px-3 py-3.5 text-center border-r-2 border-gray-300 last:border-r-0 ${isToday ? 'bg-emerald-50/60' : ''}`}>
                         <span className={`text-[12px] font-bold uppercase tracking-wider ${isToday ? 'text-emerald-700' : 'text-gray-500'}`}>
                           {DAY_NAMES[i]}
                         </span>
@@ -443,11 +478,11 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
                   })}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y-2 divide-gray-300">
                 {HOURS.map(hour => (
                   <tr key={hour} className="group hover:bg-slate-50/30 transition-colors">
                     {/* Hour Column */}
-                    <td className="px-3 py-2 text-[12px] font-bold text-gray-400 border-r border-gray-200 bg-gray-50/40 text-center align-top pt-3">
+                    <td className="px-3 py-2 text-[12px] font-bold text-gray-400 border-r-2 border-gray-300 bg-gray-50/40 text-center align-top pt-3">
                       {hour}
                     </td>
 
@@ -460,11 +495,13 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
                         <td
                           key={di}
                           onClick={() => handleCellClick(dateStr, hour)}
-                          className={`p-1 border-r border-gray-100 last:border-r-0 align-top transition-colors cursor-pointer relative group/cell min-h-[70px] ${
-                            isToday ? 'bg-emerald-50/20 hover:bg-emerald-50/50' : 'hover:bg-teal-50/30'
+                          className={`border-r-2 border-gray-300 last:border-r-0 align-top transition-colors cursor-pointer relative group/cell ${
+                            cellSessions.length === 0 
+                              ? (isToday ? 'bg-emerald-200 hover:bg-emerald-300 text-emerald-800' : 'bg-emerald-100/80 hover:bg-emerald-200 text-emerald-700')
+                              : (isToday ? 'bg-emerald-50/10 hover:bg-emerald-50/30' : 'bg-transparent hover:bg-slate-50/50')
                           }`}
                         >
-                          <div className="space-y-1 h-full">
+                          <div className={`h-full min-h-[70px] ${cellSessions.length > 0 ? 'p-1 space-y-1' : 'flex flex-col items-center justify-center'}`}>
                             {cellSessions.map(s => {
                               const isReq = s._type === 'request';
                               const sn = isReq ? null : getSessionNumber(s);
@@ -509,9 +546,15 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
                                       <div className="flex items-center gap-1">
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); approveRequest(s.id); }} 
-                                          className="flex-1 text-[10px] font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded py-1 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                                          className="flex-1 text-[9px] font-bold text-emerald-700 bg-emerald-100/70 hover:bg-emerald-200 rounded py-1 transition-colors flex items-center justify-center gap-1 shadow-sm"
                                         >
-                                          <CheckCircle2 size={11}/> Onayla
+                                          <CheckCircle2 size={10}/> Onayla
+                                        </button>
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); rejectRequest(s.id); }} 
+                                          className="flex-1 text-[9px] font-bold text-red-700 bg-red-100/70 hover:bg-red-200 rounded py-1 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                                        >
+                                          <XCircle size={10}/> Reddet
                                         </button>
                                       </div>
                                     ) : (
@@ -555,9 +598,10 @@ export default function Sessions({ sessions, patients, treatments, refresh, onPa
                             })}
 
                             {cellSessions.length === 0 && (
-                              <div className="h-full min-h-[40px] rounded-lg border border-dashed border-transparent group-hover/cell:border-emerald-300 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-all text-emerald-600 text-[10px] font-bold gap-1 bg-emerald-50/50">
-                                <Plus size={12} /> Ekle
-                              </div>
+                              <>
+                                <Plus size={14} className="opacity-70 group-hover/cell:opacity-100 transition-opacity" />
+                                <span className="opacity-70 group-hover/cell:opacity-100 transition-opacity absolute mt-[30px] text-[10px] font-bold">Ekle</span>
+                              </>
                             )}
                           </div>
                         </td>
