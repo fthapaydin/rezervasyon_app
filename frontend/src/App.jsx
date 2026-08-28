@@ -28,8 +28,14 @@ const pageMeta = {
 };
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [clinic, setClinic] = useState(() => {
+    try {
+      const saved = localStorage.getItem('fizyo_clinic');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -39,7 +45,7 @@ function App() {
   const [sessions, setSessions] = useState([]);
   const [payments, setPayments] = useState([]);
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [selectedPatientId, setSelectedPatientId] = useState(null);
 
@@ -49,54 +55,58 @@ function App() {
     return <PatientPortal />;
   }
 
-  // Auth check
   useEffect(() => {
-    const localDemoUser = localStorage.getItem('fizyo_demo_user');
-    if (localDemoUser) {
-      try {
-        setUser(JSON.parse(localDemoUser));
-        setAuthLoading(false);
-        return;
-      } catch (e) {}
+    if (clinic?.id) {
+      fetchData();
     }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!localStorage.getItem('fizyo_demo_user')) {
-        setUser(session?.user ?? null);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => { if (user) fetchData(); }, [user]);
+  }, [clinic]);
 
   const fetchData = async () => {
+    if (!clinic?.id) return;
     setLoading(true);
     try {
-      const [p, t, s, pay, req] = await Promise.all([
-        axios.get(`${API_URL}/patients`).catch(() => ({ data: [] })),
-        axios.get(`${API_URL}/treatments`).catch(() => ({ data: [] })),
-        axios.get(`${API_URL}/sessions`).catch(() => ({ data: [] })),
-        axios.get(`${API_URL}/payments`).catch(() => ({ data: [] })),
-        axios.get(`${API_URL}/session-requests`).catch(() => ({ data: [] })),
+      // Supabase üzerinden doğrudan kliniğin verilerini çek
+      const [pRes, tRes, sRes, payRes, reqRes] = await Promise.all([
+        supabase.from('patients').select('*').eq('clinic_id', clinic.id).order('created_at', { ascending: false }),
+        supabase.from('treatments').select('*').eq('clinic_id', clinic.id).order('created_at', { ascending: true }),
+        supabase.from('sessions').select('*, patient:patients(id, full_name, phone, total_sessions), treatment:treatments(name, price)').eq('clinic_id', clinic.id).order('session_date', { ascending: true }),
+        supabase.from('payments').select('*, patient:patients(full_name), session:sessions(session_date, treatment:treatments(name))').eq('clinic_id', clinic.id).order('payment_date', { ascending: false }),
+        supabase.from('session_requests').select('*, patient:patients(id, full_name, phone), treatment:treatments(name, price)').eq('clinic_id', clinic.id).order('created_at', { ascending: false }),
       ]);
-      setPatients(p.data);
-      setTreatments(t.data);
-      setSessions(s.data);
-      setPayments(pay.data);
-      setRequests(req.data);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+
+      setPatients(pRes.data || []);
+      setTreatments(tRes.data || []);
+      setSessions(sRes.data || []);
+      setPayments(payRes.data || []);
+      setRequests(reqRes.data || []);
+    } catch (e) {
+      console.error('Veri çekme hatası:', e);
+      // Fallback: Backend API'ye x-clinic-id başlığı ile istek at
+      try {
+        const config = { headers: { 'x-clinic-id': clinic.id } };
+        const [p, t, s, pay, req] = await Promise.all([
+          axios.get(`${API_URL}/patients`, config).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/treatments`, config).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/sessions`, config).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/payments`, config).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/session-requests`, config).catch(() => ({ data: [] })),
+        ]);
+        setPatients(p.data);
+        setTreatments(t.data);
+        setSessions(s.data);
+        setPayments(pay.data);
+        setRequests(req.data);
+      } catch (err) {
+        console.error(err);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleLogout = async () => {
-    localStorage.removeItem('fizyo_demo_user');
-    await supabase.auth.signOut();
-    setUser(null);
+  const handleLogout = () => {
+    localStorage.removeItem('fizyo_clinic');
+    setClinic(null);
   };
 
   const openPatientDetail = (id) => {
@@ -106,18 +116,9 @@ function App() {
 
   const pendingCount = requests.filter(r => r.status === 'bekliyor').length;
 
-  // Auth loading
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8fafb]">
-        <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  // Not logged in
-  if (!user) {
-    return <Login onLogin={setUser} />;
+  // Not logged in -> Show clinic login screen
+  if (!clinic) {
+    return <Login onLogin={setClinic} />;
   }
 
   const meta = pageMeta[activeTab] || pageMeta.dashboard;
@@ -131,12 +132,14 @@ function App() {
         setMobileOpen={setMobileOpen}
         onLogout={handleLogout}
         pendingCount={pendingCount}
+        clinic={clinic}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
         <Header
           title={meta.title}
           subtitle={meta.subtitle}
+          clinic={clinic}
           onRefresh={fetchData}
           onMenuClick={() => setMobileOpen(true)}
           onLogout={handleLogout}
@@ -150,13 +153,13 @@ function App() {
               </div>
             ) : (
               <>
-                {activeTab === 'dashboard'  && <Dashboard patients={patients} sessions={sessions} payments={payments} onPatientClick={openPatientDetail} />}
-                {activeTab === 'patients'   && <Patients patients={patients} sessions={sessions} selectedPatientId={selectedPatientId} setSelectedPatientId={setSelectedPatientId} refresh={fetchData} />}
-                {activeTab === 'treatments' && <Treatments treatments={treatments} refresh={fetchData} />}
-                {activeTab === 'sessions'   && <Sessions sessions={sessions} requests={requests} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} />}
-                {activeTab === 'payments'   && <Payments payments={payments} sessions={sessions} patients={patients} refresh={fetchData} />}
-                {activeTab === 'reports'    && <Reports patients={patients} sessions={sessions} payments={payments} treatments={treatments} />}
-                {activeTab === 'requests'   && <Requests requests={requests} refresh={fetchData} />}
+                {activeTab === 'dashboard'  && <Dashboard clinic={clinic} patients={patients} sessions={sessions} payments={payments} onPatientClick={openPatientDetail} />}
+                {activeTab === 'patients'   && <Patients clinic={clinic} patients={patients} sessions={sessions} selectedPatientId={selectedPatientId} setSelectedPatientId={setSelectedPatientId} refresh={fetchData} />}
+                {activeTab === 'treatments' && <Treatments clinic={clinic} treatments={treatments} refresh={fetchData} />}
+                {activeTab === 'sessions'   && <Sessions clinic={clinic} sessions={sessions} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} />}
+                {activeTab === 'payments'   && <Payments clinic={clinic} payments={payments} sessions={sessions} patients={patients} refresh={fetchData} />}
+                {activeTab === 'reports'    && <Reports clinic={clinic} patients={patients} sessions={sessions} payments={payments} treatments={treatments} />}
+                {activeTab === 'requests'   && <Requests clinic={clinic} requests={requests} refresh={fetchData} />}
               </>
             )}
           </div>

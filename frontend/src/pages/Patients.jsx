@@ -6,16 +6,16 @@ import { sendWhatsAppReminder } from '../lib/reminder';
 
 import { API_URL } from '../lib/api';
 
-export default function Patients({ patients, sessions, selectedPatientId, setSelectedPatientId, refresh }) {
+export default function Patients({ clinic, patients, sessions, selectedPatientId, setSelectedPatientId, refresh }) {
   if (selectedPatientId) {
     return <PatientDetail id={selectedPatientId} onBack={() => setSelectedPatientId(null)} refresh={refresh} />;
   }
 
-  return <PatientList patients={patients} sessions={sessions} onSelect={setSelectedPatientId} refresh={refresh} />;
+  return <PatientList clinic={clinic} patients={patients} sessions={sessions} onSelect={setSelectedPatientId} refresh={refresh} />;
 }
 
 // ─── Patient List ────────────────────────────────────────
-function PatientList({ patients, sessions, onSelect, refresh }) {
+function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [formData, setFormData] = useState({
@@ -43,6 +43,7 @@ function PatientList({ patients, sessions, onSelect, refresh }) {
     try {
       await axios.post(`${API_URL}/patients`, {
         ...formData,
+        clinic_id: clinic?.id,
         phone: cleanedPhone,
         age: formData.age ? parseInt(formData.age, 10) : null,
         total_sessions: parseInt(formData.total_sessions, 10) || 10

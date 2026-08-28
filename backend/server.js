@@ -20,11 +20,68 @@ const supabase = supabaseUrl && supabaseKey
   ? createClient(supabaseUrl, supabaseKey)
   : null;
 
+// Helper: Extract clinic_id from headers or query
+const getClinicId = (req) => {
+  return req.headers['x-clinic-id'] || req.query.clinic_id || null;
+};
+
+// --- AUTH & CLINICS ---
+
+// Klinik Giriş
+app.post('/api/auth/clinic-login', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "E-posta ve şifre zorunludur." });
+
+  try {
+    const { data: clinic, error } = await supabase
+      .from('clinics')
+      .select('*')
+      .eq('email', email.trim().toLowerCase())
+      .eq('password', password)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!clinic) {
+      return res.status(401).json({ error: "E-posta veya şifre hatalı." });
+    }
+
+    if (clinic.status === 'pasif') {
+      return res.status(403).json({ error: "Hesabınız pasife alınmıştır. Lütfen yöneticiyle iletişime geçiniz." });
+    }
+
+    res.json(clinic);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Slug'a göre klinik bilgisi çek (Hasta Rezervasyon Portalı İçin)
+app.get('/api/clinics/by-slug/:slug', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  try {
+    const { data: clinic, error } = await supabase
+      .from('clinics')
+      .select('id, name, slug, owner_name, phone, address, status')
+      .eq('slug', req.params.slug)
+      .maybeSingle();
+
+    if (error || !clinic) return res.status(404).json({ error: "Klinik bulunamadı." });
+    res.json(clinic);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- PATIENTS ---
 app.get('/api/patients', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const clinicId = getClinicId(req);
   try {
-    const { data, error } = await supabase.from('patients').select('*').order('created_at', { ascending: false });
+    let query = supabase.from('patients').select('*').order('created_at', { ascending: false });
+    if (clinicId) query = query.eq('clinic_id', clinicId);
+    
+    const { data, error } = await query;
     if (error) throw error;
     res.json(data);
   } catch (err) {
@@ -32,17 +89,20 @@ app.get('/api/patients', async (req, res) => {
   }
 });
 
-// Telefona göre hasta ara — /:id'den ÖNCE tanımlanmalı!
+// Telefona göre hasta ara (clinic_id filtresi ile)
 app.get('/api/patients/by-phone/:phone', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
+  const clinicId = getClinicId(req);
   try {
     const cleanedPhone = req.params.phone.replace(/\D/g, '');
-    const { data, error } = await supabase
+    let query = supabase
       .from('patients')
       .select('id, full_name, phone, complaint, total_sessions')
-      .ilike('phone', `%${cleanedPhone}%`)
-      .limit(1)
-      .maybeSingle();
+      .ilike('phone', `%${cleanedPhone}%`);
+    
+    if (clinicId) query = query.eq('clinic_id', clinicId);
+
+    const { data, error } = await query.limit(1).maybeSingle();
     if (error || !data) return res.status(404).json({ error: 'Hasta bulunamadı.' });
     res.json(data);
   } catch (err) {
@@ -79,12 +139,13 @@ app.get('/api/patients/:id', async (req, res) => {
 
 app.post('/api/patients', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const clinicId = req.body.clinic_id || getClinicId(req);
   const { full_name, phone, email, age, gender, address, complaint, total_sessions, notes } = req.body;
   if (!full_name || !phone) return res.status(400).json({ error: "Ad Soyad ve Telefon zorunludur." });
 
   try {
     const { data, error } = await supabase.from('patients').insert([{
-      full_name, phone, email, age, gender, address, complaint, total_sessions: total_sessions || 10, notes
+      clinic_id: clinicId, full_name, phone, email, age, gender, address, complaint, total_sessions: total_sessions || 10, notes
     }]).select();
     if (error) throw error;
     res.status(201).json(data[0]);
@@ -123,8 +184,12 @@ app.delete('/api/patients/:id', async (req, res) => {
 // --- TREATMENTS ---
 app.get('/api/treatments', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const clinicId = getClinicId(req);
   try {
-    const { data, error } = await supabase.from('treatments').select('*').order('created_at', { ascending: true });
+    let query = supabase.from('treatments').select('*').order('created_at', { ascending: true });
+    if (clinicId) query = query.eq('clinic_id', clinicId);
+
+    const { data, error } = await query;
     if (error) throw error;
     res.json(data);
   } catch (err) {
@@ -134,12 +199,13 @@ app.get('/api/treatments', async (req, res) => {
 
 app.post('/api/treatments', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const clinicId = req.body.clinic_id || getClinicId(req);
   const { name, price, duration_minutes } = req.body;
   if (!name || !price) return res.status(400).json({ error: "Ad ve Fiyat zorunludur." });
 
   try {
     const { data, error } = await supabase.from('treatments').insert([{
-      name, price, duration_minutes: duration_minutes || 60
+      clinic_id: clinicId, name, price, duration_minutes: duration_minutes || 60
     }]).select();
     if (error) throw error;
     res.status(201).json(data[0]);
@@ -178,12 +244,17 @@ app.delete('/api/treatments/:id', async (req, res) => {
 // --- SESSIONS ---
 app.get('/api/sessions', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const clinicId = getClinicId(req);
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('sessions')
       .select('*, patient:patients(id, full_name, phone, total_sessions), treatment:treatments(name, price)')
       .order('session_date', { ascending: true })
       .order('session_time', { ascending: true });
+
+    if (clinicId) query = query.eq('clinic_id', clinicId);
+
+    const { data, error } = await query;
     if (error) throw error;
     res.json(data);
   } catch (err) {
@@ -193,13 +264,14 @@ app.get('/api/sessions', async (req, res) => {
 
 app.post('/api/sessions', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const clinicId = req.body.clinic_id || getClinicId(req);
   const { patient_id, treatment_id, session_date, session_time, notes } = req.body;
   if (!patient_id || !treatment_id || !session_date || !session_time)
     return res.status(400).json({ error: "Eksik alanlar var." });
 
   try {
     const { data, error } = await supabase.from('sessions').insert([{
-      patient_id, treatment_id, session_date, session_time, notes, status: 'bekliyor'
+      clinic_id: clinicId, patient_id, treatment_id, session_date, session_time, notes, status: 'bekliyor'
     }]).select();
     if (error) throw error;
     res.status(201).json(data[0]);
@@ -232,15 +304,19 @@ app.delete('/api/sessions/:id', async (req, res) => {
   }
 });
 
-
 // --- PAYMENTS ---
 app.get('/api/payments', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const clinicId = getClinicId(req);
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('payments')
       .select('*, patient:patients(full_name), session:sessions(session_date, treatment:treatments(name))')
       .order('payment_date', { ascending: false });
+
+    if (clinicId) query = query.eq('clinic_id', clinicId);
+
+    const { data, error } = await query;
     if (error) throw error;
     res.json(data);
   } catch (err) {
@@ -250,13 +326,14 @@ app.get('/api/payments', async (req, res) => {
 
 app.post('/api/payments', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const clinicId = req.body.clinic_id || getClinicId(req);
   const { session_id, patient_id, amount, payment_method, installments } = req.body;
   if (!session_id || !patient_id || !amount || !payment_method)
     return res.status(400).json({ error: "Eksik alanlar var." });
 
   try {
     const { data, error } = await supabase.from('payments').insert([{
-      session_id, patient_id, amount, payment_method, installments: installments || 1
+      clinic_id: clinicId, session_id, patient_id, amount, payment_method, installments: installments || 1
     }]).select();
     if (error) throw error;
     res.status(201).json(data[0]);
@@ -268,6 +345,7 @@ app.post('/api/payments', async (req, res) => {
 // --- RECURRING SESSIONS ---
 app.post('/api/sessions/recurring', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const clinicId = req.body.clinic_id || getClinicId(req);
   const { patient_id, treatment_id, session_time, start_date, repeat_type, repeat_count } = req.body;
   if (!patient_id || !treatment_id || !session_time || !start_date || !repeat_type || !repeat_count)
     return res.status(400).json({ error: "Eksik alanlar var." });
@@ -282,6 +360,7 @@ app.post('/api/sessions/recurring', async (req, res) => {
     else if (repeat_type === 'daily') d.setDate(d.getDate() + i);
 
     sessions.push({
+      clinic_id: clinicId,
       patient_id,
       treatment_id,
       session_date: d.toISOString().split('T')[0],
@@ -301,14 +380,19 @@ app.post('/api/sessions/recurring', async (req, res) => {
 
 // --- SESSION REQUESTS (Hasta Self-Servis Talepleri) ---
 
-// Tüm talepleri listele (admin için)
+// Tüm talepleri listele (clinic_id filtresi ile)
 app.get('/api/session-requests', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
+  const clinicId = getClinicId(req);
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('session_requests')
       .select('*, patient:patients(id, full_name, phone), treatment:treatments(name, price)')
       .order('created_at', { ascending: false });
+
+    if (clinicId) query = query.eq('clinic_id', clinicId);
+
+    const { data, error } = await query;
     if (error) throw error;
     res.json(data);
   } catch (err) {
@@ -316,16 +400,17 @@ app.get('/api/session-requests', async (req, res) => {
   }
 });
 
-// Yeni randevu talebi oluştur (hasta portalından)
+// Yeni randevu talebi oluştur
 app.post('/api/session-requests', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
+  const clinicId = req.body.clinic_id || getClinicId(req);
   const { patient_id, treatment_id, requested_date, requested_time, notes } = req.body;
   if (!patient_id || !treatment_id || !requested_date || !requested_time)
     return res.status(400).json({ error: 'Eksik alanlar var.' });
 
   try {
     const { data, error } = await supabase.from('session_requests').insert([{
-      patient_id, treatment_id, requested_date, requested_time, notes, status: 'bekliyor'
+      clinic_id: clinicId, patient_id, treatment_id, requested_date, requested_time, notes, status: 'bekliyor'
     }]).select();
     if (error) throw error;
     res.status(201).json(data[0]);
@@ -334,13 +419,12 @@ app.post('/api/session-requests', async (req, res) => {
   }
 });
 
-// Talebi onayla veya reddet (admin için)
+// Talebi onayla veya reddet
 app.put('/api/session-requests/:id', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
   const { status, rejection_reason } = req.body;
 
   try {
-    // Talebi güncelle
     const { data: updatedReq, error: updateErr } = await supabase
       .from('session_requests')
       .update({ status, rejection_reason: rejection_reason || null })
@@ -352,6 +436,7 @@ app.put('/api/session-requests/:id', async (req, res) => {
     // Onaylandıysa sessions tablosuna da ekle
     if (status === 'onaylandi') {
       const { error: sessionErr } = await supabase.from('sessions').insert([{
+        clinic_id: updatedReq.clinic_id,
         patient_id: updatedReq.patient_id,
         treatment_id: updatedReq.treatment_id,
         session_date: updatedReq.requested_date,
@@ -363,61 +448,6 @@ app.put('/api/session-requests/:id', async (req, res) => {
     }
 
     res.json(updatedReq);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- PUBLIC BOOKING (Harici randevu sitesi için — kayıtsız hastalar dahil) ---
-app.post('/api/booking/public', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Supabase yapılandırılmamış.' });
-  const { full_name, phone, treatment_id, requested_date, requested_time, notes } = req.body;
-
-  if (!full_name || !phone || !treatment_id || !requested_date || !requested_time) {
-    return res.status(400).json({ error: 'Ad, telefon, tedavi, tarih ve saat zorunludur.' });
-  }
-
-  try {
-    const cleanedPhone = phone.replace(/\D/g, '');
-
-    // Hasta var mı kontrol et (telefona göre)
-    let patientId;
-    const { data: existingPatient } = await supabase
-      .from('patients')
-      .select('id')
-      .ilike('phone', `%${cleanedPhone}%`)
-      .limit(1)
-      .maybeSingle();
-
-    if (existingPatient) {
-      patientId = existingPatient.id;
-    } else {
-      // Yeni hasta oluştur
-      const { data: newPatient, error: patErr } = await supabase
-        .from('patients')
-        .insert([{ full_name: full_name.trim(), phone: cleanedPhone, total_sessions: 10 }])
-        .select()
-        .single();
-      if (patErr) throw patErr;
-      patientId = newPatient.id;
-    }
-
-    // Randevu talebi oluştur
-    const { data: requestData, error: reqErr } = await supabase
-      .from('session_requests')
-      .insert([{
-        patient_id: patientId,
-        treatment_id,
-        requested_date,
-        requested_time,
-        notes: notes || null,
-        status: 'bekliyor'
-      }])
-      .select()
-      .single();
-
-    if (reqErr) throw reqErr;
-    res.status(201).json(requestData);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

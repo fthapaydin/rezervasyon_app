@@ -1,5 +1,5 @@
 import { 
-  Users, Activity, CalendarDays, Wallet, LayoutGrid, BarChart3, Menu, X, ClipboardList
+  Users, Activity, CalendarDays, Wallet, LayoutGrid, BarChart3, Menu, X, ClipboardList, Building2, LogOut
 } from 'lucide-react';
 
 const navItems = [
@@ -12,13 +12,13 @@ const navItems = [
   { id: 'requests', label: 'Talepler', icon: ClipboardList },
 ];
 
-export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobileOpen, onLogout, pendingCount = 0 }) {
+export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobileOpen, onLogout, pendingCount = 0, clinic }) {
   const content = (
     <>
       {/* Logo */}
       <div className="h-14 flex items-center justify-between px-5 border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center shadow-xs">
             <Activity size={14} className="text-white" strokeWidth={2.5} />
           </div>
           <span className="text-[14px] font-bold text-gray-900 tracking-tight">FizyoPanel</span>
@@ -28,6 +28,19 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
           <X size={20}/>
         </button>
       </div>
+
+      {/* Clinic Badge */}
+      {clinic && (
+        <div className="mx-3 mt-3 px-3 py-2.5 rounded-xl bg-emerald-50/70 border border-emerald-100/80 flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-white shadow-2xs border border-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+            <Building2 size={14} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-bold text-gray-800 truncate">{clinic.name || 'Klinik'}</p>
+            <p className="text-[10px] text-emerald-600 font-medium capitalize truncate">{clinic.plan || 'Standart'} Plan</p>
+          </div>
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 p-2.5 space-y-0.5 mt-1 overflow-y-auto">
@@ -40,7 +53,7 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
               key={item.id}
               onClick={() => { setActiveTab(item.id); setMobileOpen(false); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 ${
-                isActive ? 'bg-emerald-50 text-emerald-700' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                isActive ? 'bg-emerald-50 text-emerald-700 font-semibold shadow-2xs' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
               }`}
             >
               <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
@@ -61,7 +74,8 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
           onClick={onLogout}
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-red-500 hover:bg-red-50 transition-colors"
         >
-          Çıkış Yap
+          <LogOut size={16} />
+          <span>Çıkış Yap</span>
         </button>
       </div>
     </>

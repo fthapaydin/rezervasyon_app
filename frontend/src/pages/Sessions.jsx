@@ -26,7 +26,7 @@ function formatDate(d) {
 }
 function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 
-export default function Sessions({ sessions, requests = [], patients, treatments, refresh, onPatientClick }) {
+export default function Sessions({ clinic, sessions, requests = [], patients, treatments, refresh, onPatientClick }) {
   const [viewMode, setViewMode] = useState('calendar'); // 'calendar' | 'list'
   const [modalMode, setModalMode] = useState(null); // null | 'single' | 'recurring' | 'edit'
   const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', session_date: '', session_time: '', notes: '' });
@@ -79,7 +79,10 @@ export default function Sessions({ sessions, requests = [], patients, treatments
     e.preventDefault(); 
     setSubmitting(true);
     try { 
-      await axios.post(`${API_URL}/sessions`, formData); 
+      await axios.post(`${API_URL}/sessions`, {
+        ...formData,
+        clinic_id: clinic?.id,
+      }); 
       setModalMode(null); 
       refresh(); 
     } catch { 
@@ -130,7 +133,10 @@ export default function Sessions({ sessions, requests = [], patients, treatments
     e.preventDefault(); 
     setSubmitting(true);
     try { 
-      await axios.post(`${API_URL}/sessions/recurring`, recurData); 
+      await axios.post(`${API_URL}/sessions/recurring`, {
+        ...recurData,
+        clinic_id: clinic?.id,
+      }); 
       setModalMode(null); 
       refresh(); 
     } catch { 

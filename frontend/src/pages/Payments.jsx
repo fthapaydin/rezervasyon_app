@@ -5,7 +5,7 @@ import { generatePaymentReceipt } from '../lib/pdfGenerator';
 
 import { API_URL } from '../lib/api';
 
-export default function Payments({ payments, sessions, patients, refresh }) {
+export default function Payments({ clinic, payments, sessions, patients, refresh }) {
   const [showForm, setShowForm] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'debtors'
   const [formData, setFormData] = useState({ patient_id: '', session_id: '', amount: '', payment_method: 'Nakit', installments: 1 });
@@ -31,7 +31,10 @@ export default function Payments({ payments, sessions, patients, refresh }) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await axios.post(`${API_URL}/payments`, formData);
+      await axios.post(`${API_URL}/payments`, {
+        ...formData,
+        clinic_id: clinic?.id,
+      });
       setShowForm(false);
       setFormData({ patient_id: '', session_id: '', amount: '', payment_method: 'Nakit', installments: 1 });
       refresh();

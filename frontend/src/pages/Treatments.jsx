@@ -4,7 +4,7 @@ import { Plus, X, Clock, Wallet, Pencil, Trash2 } from 'lucide-react';
 
 import { API_URL } from '../lib/api';
 
-export default function Treatments({ treatments, refresh }) {
+export default function Treatments({ clinic, treatments, refresh }) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', price: '', duration_minutes: 60 });
   const [editItem, setEditItem] = useState(null);
@@ -17,7 +17,10 @@ export default function Treatments({ treatments, refresh }) {
       if (editItem) {
         await axios.put(`${API_URL}/treatments/${editItem.id}`, formData);
       } else {
-        await axios.post(`${API_URL}/treatments`, formData);
+        await axios.post(`${API_URL}/treatments`, {
+          ...formData,
+          clinic_id: clinic?.id,
+        });
       }
       setShowForm(false);
       setEditItem(null);
