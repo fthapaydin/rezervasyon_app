@@ -142,12 +142,12 @@ VALUES (
 )
 ON CONFLICT (email) DO UPDATE SET city = 'İstanbul', district = 'Kadıköy';
 
--- Demo Terapist
+-- Demo Terapistler Ekle
 INSERT INTO staff (id, clinic_id, full_name, role, title, color, phone, email)
 VALUES 
-  ('s1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', 'Dr. Fatih Apaydın', 'admin', 'Klinik Sahibi / Baş Fzt.', '#059669', '05555555555', 'fatih@fizyopanel.com'),
-  ('s2222222-2222-2222-2222-222222222222', 'c1111111-1111-1111-1111-111111111111', 'Fzt. Ayşe Yılmaz', 'therapist', 'Manuel Terapist', '#2563eb', '05554443322', 'ayse@fizyopanel.com'),
-  ('s3333333-3333-3333-3333-333333333333', 'c1111111-1111-1111-1111-111111111111', 'Fzt. Mehmet Demir', 'therapist', 'Spor Fizyoterapisti', '#ea580c', '05553332211', 'mehmet@fizyopanel.com')
+  ('a1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', 'Dr. Fatih Apaydın', 'admin', 'Klinik Sahibi / Baş Fzt.', '#059669', '05555555555', 'fatih@fizyopanel.com'),
+  ('a2222222-2222-2222-2222-222222222222', 'c1111111-1111-1111-1111-111111111111', 'Fzt. Ayşe Yılmaz', 'therapist', 'Manuel Terapist', '#2563eb', '05554443322', 'ayse@fizyopanel.com'),
+  ('a3333333-3333-3333-3333-333333333333', 'c1111111-1111-1111-1111-111111111111', 'Fzt. Mehmet Demir', 'therapist', 'Spor Fizyoterapisti', '#ea580c', '05553332211', 'mehmet@fizyopanel.com')
 ON CONFLICT (id) DO NOTHING;
 
 -- 10. RLS (ROW LEVEL SECURITY) İZİNLERİ
