@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   Plus, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Repeat, 
   MessageCircle, Smartphone, Calendar, ListFilter, FileSpreadsheet,
-  Edit2, Trash2, XCircle
+  Edit2, Trash2, XCircle, Stethoscope, User
 } from 'lucide-react';
 import { sendWhatsAppReminder, sendSmsReminder } from '../lib/reminder';
 import { exportSessionsToExcel } from '../lib/excelExport';
@@ -26,11 +26,12 @@ function formatDate(d) {
 }
 function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 
-export default function Sessions({ clinic, sessions, requests = [], patients, treatments, refresh, onPatientClick }) {
+export default function Sessions({ clinic, staff = [], sessions, requests = [], patients, treatments, refresh, onPatientClick }) {
   const [viewMode, setViewMode] = useState('calendar'); // 'calendar' | 'list'
+  const [selectedTherapistId, setSelectedTherapistId] = useState('all'); // 'all' | staff.id
   const [modalMode, setModalMode] = useState(null); // null | 'single' | 'recurring' | 'edit'
-  const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', session_date: '', session_time: '', notes: '' });
-  const [recurData, setRecurData] = useState({ patient_id: '', treatment_id: '', session_time: '', start_date: '', repeat_type: 'weekly', repeat_count: 8 });
+  const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', therapist_id: '', session_date: '', session_time: '', notes: '' });
+  const [recurData, setRecurData] = useState({ patient_id: '', treatment_id: '', therapist_id: '', session_time: '', start_date: '', repeat_type: 'weekly', repeat_count: 8 });
   const [submitting, setSubmitting] = useState(false);
   const [weekStart, setWeekStart] = useState(getMonday(new Date()));
   const [editSession, setEditSession] = useState(null);
@@ -38,15 +39,25 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const today = formatDate(new Date());
 
+  const filteredSessions = useMemo(() => {
+    if (selectedTherapistId === 'all') return sessions;
+    return sessions.filter(s => s.therapist_id === selectedTherapistId);
+  }, [sessions, selectedTherapistId]);
+
+  const filteredRequests = useMemo(() => {
+    if (selectedTherapistId === 'all') return requests;
+    return requests.filter(r => r.therapist_id === selectedTherapistId);
+  }, [requests, selectedTherapistId]);
+
   const sessionMap = useMemo(() => {
     const map = {};
-    sessions.forEach(s => {
+    filteredSessions.forEach(s => {
       const dk = s.session_date, tk = s.session_time?.substring(0, 5);
       if (!map[dk]) map[dk] = {};
       if (!map[dk][tk]) map[dk][tk] = [];
       map[dk][tk].push({ ...s, _type: 'session' });
     });
-    (requests || []).forEach(r => {
+    (filteredRequests || []).forEach(r => {
       if (r.status === 'bekliyor') {
         const dk = r.requested_date, tk = r.requested_time?.substring(0, 5);
         if (!map[dk]) map[dk] = {};
@@ -55,7 +66,7 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
       }
     });
     return map;
-  }, [sessions, requests]);
+  }, [filteredSessions, filteredRequests]);
 
   const getSessionNumber = (session) => {
     if (session._type === 'request') return null;
@@ -68,6 +79,7 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
     setFormData({
       patient_id: '',
       treatment_id: treatments[0]?.id || '',
+      therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff[0]?.id || ''),
       session_date: dateStr,
       session_time: hourStr,
       notes: ''
@@ -82,6 +94,7 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
       await axios.post(`${API_URL}/sessions`, {
         ...formData,
         clinic_id: clinic?.id,
+        therapist_id: formData.therapist_id || null,
       }); 
       setModalMode(null); 
       refresh(); 
@@ -98,6 +111,7 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
       id: session.id,
       patient_id: session.patient_id,
       treatment_id: session.treatment_id,
+      therapist_id: session.therapist_id || '',
       session_date: session.session_date,
       session_time: session.session_time?.substring(0, 5),
       notes: session.notes || ''
@@ -109,7 +123,10 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
     e.preventDefault(); 
     setSubmitting(true);
     try { 
-      await axios.put(`${API_URL}/sessions/${formData.id}`, formData); 
+      await axios.put(`${API_URL}/sessions/${formData.id}`, {
+        ...formData,
+        therapist_id: formData.therapist_id || null,
+      }); 
       setModalMode(null); 
       refresh(); 
     } catch { 
@@ -136,6 +153,7 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
       await axios.post(`${API_URL}/sessions/recurring`, {
         ...recurData,
         clinic_id: clinic?.id,
+        therapist_id: recurData.therapist_id || null,
       }); 
       setModalMode(null); 
       refresh(); 
@@ -146,121 +164,139 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
     }
   };
 
-  const completeSession = async (id) => {
-    try { 
-      await axios.put(`${API_URL}/sessions/${id}`, { status: 'tamamlandi' }); 
-      refresh(); 
-    } catch { 
-      alert('İşlem başarısız'); 
-    }
-  };
-
-  const approveRequest = async (id) => {
+  const updateSessionStatus = async (id, status, sessionData) => {
     try {
-      await axios.put(`${API_URL}/session-requests/${id}`, { status: 'onaylandi' });
+      await axios.put(`${API_URL}/sessions/${id}`, { status });
       refresh();
+
+      // Otomatik WhatsApp bildirim tetiklemesi
+      if (status === 'tamamlandi' && sessionData?.patient?.phone) {
+        axios.post(`${API_URL}/whatsapp/send-template`, {
+          clinic_id: clinic?.id,
+          to_phone: sessionData.patient.phone,
+          type: 'completed',
+          patient_name: sessionData.patient.full_name,
+          date: sessionData.session_date,
+          time: sessionData.session_time?.substring(0, 5),
+          therapist_name: sessionData.therapist?.full_name,
+          treatment_name: sessionData.treatment?.name
+        }).catch(err => console.error(err));
+      }
     } catch {
-      alert('Onaylama işlemi başarısız');
+      alert('Durum güncellenemedi');
     }
   };
 
-  const rejectRequest = async (id) => {
-    const reason = window.prompt("Reddetme gerekçesi (isteğe bağlı):");
-    if (reason === null) return; // Cancelled
-    
-    try {
-      await axios.put(`${API_URL}/session-requests/${id}`, { 
-        status: 'reddedildi',
-        rejection_reason: reason || null
-      });
-      refresh();
-    } catch {
-      alert('Reddetme işlemi başarısız');
-    }
-  };
-
-  const weekLabel = `${weekDays[0].toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} – ${weekDays[6].toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+  const weekLabel = `${weekDays[0].toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} - ${weekDays[6].toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Top Toolbar */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-gray-200/80 shadow-2xs">
+        
+        {/* Navigation & Therapist Filter */}
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           {viewMode === 'calendar' && (
             <div className="flex items-center gap-1.5">
-              <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors shadow-2xs">
+              <button 
+                onClick={() => setWeekStart(addDays(weekStart, -7))}
+                className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors"
+                title="Önceki Hafta"
+              >
                 <ChevronLeft size={16}/>
               </button>
-              <button onClick={() => setWeekStart(getMonday(new Date()))} className="h-8 px-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-[12px] font-semibold text-gray-700 transition-colors shadow-2xs">
+              <button 
+                onClick={() => setWeekStart(getMonday(new Date()))}
+                className="h-8 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 text-[12px] font-semibold text-gray-700 transition-colors"
+              >
                 Bugün
               </button>
-              <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors shadow-2xs">
+              <button 
+                onClick={() => setWeekStart(addDays(weekStart, 7))}
+                className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors"
+                title="Sonraki Hafta"
+              >
                 <ChevronRight size={16}/>
               </button>
-              <span className="text-[14px] font-bold text-gray-800 ml-2">{weekLabel}</span>
+              <span className="text-[13px] font-bold text-gray-800 ml-1.5">{weekLabel}</span>
+            </div>
+          )}
+
+          {/* Therapist Filter */}
+          {staff.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Stethoscope size={15} className="text-gray-400" />
+              <select
+                value={selectedTherapistId}
+                onChange={(e) => setSelectedTherapistId(e.target.value)}
+                className="h-8 px-2.5 rounded-lg border border-gray-200 bg-white text-[12px] font-semibold text-gray-700 outline-none shadow-2xs"
+              >
+                <option value="all">Tüm Terapistler ({staff.length})</option>
+                {staff.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.full_name} ({s.title || 'Fzt.'})
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 
           {/* View Toggle */}
-          <div className="flex bg-gray-100 p-0.5 rounded-xl text-[12px] font-medium text-gray-600 ml-0 lg:ml-2">
+          <div className="flex bg-gray-100 p-0.5 rounded-xl text-[12px] font-medium text-gray-600">
             <button
               onClick={() => setViewMode('calendar')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${viewMode === 'calendar' ? 'bg-white text-gray-900 shadow-xs font-bold' : 'hover:text-gray-900'}`}
+              className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all ${viewMode === 'calendar' ? 'bg-white text-gray-900 shadow-2xs font-bold' : 'hover:text-gray-900'}`}
             >
-              <Calendar size={14} /> Takvim Görünümü
+              <Calendar size={13} /> Takvim
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${viewMode === 'list' ? 'bg-white text-gray-900 shadow-xs font-bold' : 'hover:text-gray-900'}`}
+              className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all ${viewMode === 'list' ? 'bg-white text-gray-900 shadow-2xs font-bold' : 'hover:text-gray-900'}`}
             >
-              <ListFilter size={14} /> Liste ({sessions.length})
+              <ListFilter size={13} /> Liste ({filteredSessions.length})
             </button>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
-          {/* Excel Export Button */}
           <button
             onClick={() => exportSessionsToExcel(sessions)}
-            className="h-9 px-3.5 rounded-xl text-[12px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center gap-1.5 shadow-2xs transition-all active:scale-[0.98]"
+            className="h-8 px-3 rounded-lg text-[12px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center gap-1.5 transition-all"
             title="Tüm Seansları Excel Olarak İndir"
           >
-            <FileSpreadsheet size={15} /> Excel İndir
+            <FileSpreadsheet size={14} /> <span className="hidden sm:inline">Excel</span>
           </button>
 
           <button 
             onClick={() => {
-              setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', session_date: today, session_time: '09:00', notes: '' });
+              setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: staff[0]?.id || '', session_date: today, session_time: '09:00', notes: '' });
               setModalMode('single');
             }}
-            className="h-9 px-3.5 rounded-xl text-[12px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98]"
+            className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
           >
-            <Plus size={15}/> Tekli Seans Ekle
+            <Plus size={14}/> Tekli Seans
           </button>
 
           <button 
             onClick={() => {
-              setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 });
+              setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: staff[0]?.id || '', session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 });
               setModalMode('recurring');
             }}
-            className="h-9 px-3.5 rounded-xl text-[12px] font-semibold text-white bg-blue-600 hover:bg-blue-700 flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98]"
+            className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white bg-blue-600 hover:bg-blue-700 flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
           >
-            <Repeat size={14}/> Tekrarlayan Seans
+            <Repeat size={13}/> Tekrarlayan
           </button>
         </div>
       </div>
 
-      {/* MODAL DIALOG: Single Session */}
+      {/* MODAL: Single Session */}
       {modalMode === 'single' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs animate-in fade-in" onClick={() => setModalMode(null)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setModalMode(null)} />
           <form onSubmit={handleSingleSubmit} className="relative bg-white rounded-2xl border border-gray-200 shadow-2xl p-6 w-full max-w-lg z-10 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-4 mb-5 border-b-2 border-gray-300">
-              <div>
-                <h3 className="text-[16px] font-bold text-gray-900">Yeni Randevu Oluştur</h3>
-                <p className="text-[12px] text-gray-400 mt-0.5">Seçilen saat ve güne randevu tanımlayın.</p>
-              </div>
+            <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100">
+              <h3 className="text-[16px] font-bold text-gray-900">Yeni Seans / Randevu Ekle</h3>
               <button type="button" onClick={() => setModalMode(null)} className="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex items-center justify-center">
                 <X size={18}/>
               </button>
@@ -268,43 +304,53 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Hasta Seçin <span className="text-red-500">*</span></label>
-                <select required value={formData.patient_id} className="input-field font-medium text-gray-800" onChange={e => setFormData({...formData, patient_id: e.target.value})}>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Hasta *</label>
+                <select required value={formData.patient_id} className="input-field" onChange={e => setFormData({...formData, patient_id: e.target.value})}>
                   <option value="">Hasta seçiniz...</option>
                   {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}{p.complaint ? ` — (${p.complaint})` : ''}</option>)}
                 </select>
               </div>
 
-              <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Uygulanacak Tedavi <span className="text-red-500">*</span></label>
-                <select required value={formData.treatment_id} className="input-field font-medium text-gray-800" onChange={e => setFormData({...formData, treatment_id: e.target.value})}>
-                  <option value="">Tedavi seçiniz...</option>
-                  {treatments.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes} dk) — {t.price} ₺</option>)}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Tedavi *</label>
+                  <select required value={formData.treatment_id} className="input-field" onChange={e => setFormData({...formData, treatment_id: e.target.value})}>
+                    <option value="">Tedavi seçiniz...</option>
+                    {treatments.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes} dk) — {t.price} ₺</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Fizyoterapist</label>
+                  <select value={formData.therapist_id} className="input-field" onChange={e => setFormData({...formData, therapist_id: e.target.value})}>
+                    <option value="">Terapist seçiniz...</option>
+                    {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Randevu Tarihi <span className="text-red-500">*</span></label>
-                  <input required type="date" value={formData.session_date} className="input-field font-medium" onChange={e => setFormData({...formData, session_date: e.target.value})} />
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Tarih *</label>
+                  <input required type="date" value={formData.session_date} className="input-field" onChange={e => setFormData({...formData, session_date: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Saat <span className="text-red-500">*</span></label>
-                  <input required type="time" value={formData.session_time} className="input-field font-medium" onChange={e => setFormData({...formData, session_time: e.target.value})} />
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Saat *</label>
+                  <input required type="time" value={formData.session_time} className="input-field" onChange={e => setFormData({...formData, session_time: e.target.value})} />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Seans Notu (Opsiyonel)</label>
-                <input type="text" placeholder="Örn: 2. bölge masajı uygulanacak..." value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} />
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Seans Notu</label>
+                <input type="text" placeholder="Örn: 2. bölge uygulaması..." value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-300">
+            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-100">
               <button type="button" onClick={() => setModalMode(null)} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
                 Vazgeç
               </button>
-              <button type="submit" disabled={submitting} className="h-10 px-6 rounded-xl text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-sm transition-colors flex items-center gap-1.5">
+              <button type="submit" disabled={submitting} className="h-10 px-6 rounded-xl text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-sm transition-colors">
                 {submitting ? 'Kaydediliyor...' : 'Randevuyu Kaydet'}
               </button>
             </div>
@@ -312,142 +358,116 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
         </div>
       )}
 
-      {/* MODAL DIALOG: Recurring Session */}
+      {/* MODAL: Recurring Session */}
       {modalMode === 'recurring' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs animate-in fade-in" onClick={() => setModalMode(null)} />
-          <form onSubmit={handleRecurSubmit} className="relative bg-white rounded-2xl border border-blue-200 shadow-2xl p-6 w-full max-w-xl z-10 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-4 mb-5 border-b-2 border-gray-300">
-              <div>
-                <h3 className="text-[16px] font-bold text-gray-900 flex items-center gap-2">
-                  <Repeat size={16} className="text-blue-600" /> Tekrarlayan Randevu Planı
-                </h3>
-                <p className="text-[12px] text-gray-400 mt-0.5">Tek tıkla haftalık veya günlük periyotlarda toplu seans oluşturun.</p>
-              </div>
-              <button type="button" onClick={() => setModalMode(null)} className="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex items-center justify-center">
-                <X size={18}/>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Hasta Seçin <span className="text-red-500">*</span></label>
-                <select required value={recurData.patient_id} className="input-field font-medium text-gray-800" onChange={e => setRecurData({...recurData, patient_id: e.target.value})}>
-                  <option value="">Seçiniz...</option>
-                  {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Tedavi <span className="text-red-500">*</span></label>
-                <select required value={recurData.treatment_id} className="input-field font-medium text-gray-800" onChange={e => setRecurData({...recurData, treatment_id: e.target.value})}>
-                  <option value="">Seçiniz...</option>
-                  {treatments.map(t => <option key={t.id} value={t.id}>{t.name} ({t.price} ₺)</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Başlangıç Tarihi <span className="text-red-500">*</span></label>
-                <input required type="date" value={recurData.start_date} className="input-field font-medium" onChange={e => setRecurData({...recurData, start_date: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Saat <span className="text-red-500">*</span></label>
-                <input required type="time" value={recurData.session_time} className="input-field font-medium" onChange={e => setRecurData({...recurData, session_time: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Tekrar Periyodu</label>
-                <select value={recurData.repeat_type} className="input-field font-medium" onChange={e => setRecurData({...recurData, repeat_type: e.target.value})}>
-                  <option value="weekly">Her Hafta Aynı Gün</option>
-                  <option value="biweekly">Haftada 2 Kez</option>
-                  <option value="daily">Her Gün</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Toplam Seans Sayısı</label>
-                <input type="number" value={recurData.repeat_count} min={1} max={52} className="input-field font-bold text-blue-700" onChange={e => setRecurData({...recurData, repeat_count: parseInt(e.target.value) || 1})} />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-300">
-              <button type="button" onClick={() => setModalMode(null)} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
-                Vazgeç
-              </button>
-              <button type="submit" disabled={submitting} className="h-10 px-6 rounded-xl text-[13px] font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors">
-                {submitting ? 'Oluşturuluyor...' : `${recurData.repeat_count || 8} Seans Planla`}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL DIALOG: Edit Session */}
-      {modalMode === 'edit' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs animate-in fade-in" onClick={() => setModalMode(null)} />
-          <form onSubmit={handleEditSubmit} className="relative bg-white rounded-2xl border border-blue-200 shadow-2xl p-6 w-full max-w-lg z-10 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-4 mb-5 border-b-2 border-gray-300">
-              <div>
-                <h3 className="text-[16px] font-bold text-gray-900 flex items-center gap-2">
-                  <Edit2 size={16} className="text-blue-600" /> Seans Düzenle
-                </h3>
-              </div>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setModalMode(null)} />
+          <form onSubmit={handleRecurSubmit} className="relative bg-white rounded-2xl border border-gray-200 shadow-2xl p-6 w-full max-w-xl z-10 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100">
+              <h3 className="text-[16px] font-bold text-gray-900">Tekrarlayan Seans Paketi</h3>
               <button type="button" onClick={() => setModalMode(null)} className="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex items-center justify-center">
                 <X size={18}/>
               </button>
             </div>
 
             <div className="space-y-4">
-              <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/60 mb-2 flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] text-blue-500 font-bold mb-0.5 uppercase tracking-wider">Mevcut Randevu</p>
-                  <p className="text-[14px] font-bold text-blue-950">
-                    {editSession?.session_date ? new Date(editSession.session_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' }) : '-'} 
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[11px] text-blue-500 font-bold mb-0.5 uppercase tracking-wider">Saat</p>
-                  <p className="text-[14px] font-bold text-blue-950">
-                    {editSession?.session_time?.substring(0,5) || '-'}
-                  </p>
-                </div>
-              </div>
-
               <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Hasta Seçin <span className="text-red-500">*</span></label>
-                <select required value={formData.patient_id} className="input-field font-medium text-gray-800" onChange={e => setFormData({...formData, patient_id: e.target.value})}>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Hasta *</label>
+                <select required value={recurData.patient_id} className="input-field" onChange={e => setRecurData({...recurData, patient_id: e.target.value})}>
                   <option value="">Hasta seçiniz...</option>
                   {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
                 </select>
               </div>
 
-              <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Uygulanacak Tedavi <span className="text-red-500">*</span></label>
-                <select required value={formData.treatment_id} className="input-field font-medium text-gray-800" onChange={e => setFormData({...formData, treatment_id: e.target.value})}>
-                  <option value="">Tedavi seçiniz...</option>
-                  {treatments.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes} dk) — {t.price} ₺</option>)}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Tedavi *</label>
+                  <select required value={recurData.treatment_id} className="input-field" onChange={e => setRecurData({...recurData, treatment_id: e.target.value})}>
+                    <option value="">Tedavi seçiniz...</option>
+                    {treatments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Fizyoterapist</label>
+                  <select value={recurData.therapist_id} className="input-field" onChange={e => setRecurData({...recurData, therapist_id: e.target.value})}>
+                    <option value="">Terapist seçiniz...</option>
+                    {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+                  </select>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[12px] font-semibold text-blue-600 mb-1.5">Yeni Tarih <span className="text-red-500">*</span></label>
-                  <input required type="date" value={formData.session_date} className="input-field font-medium border-blue-200 focus:border-blue-500 focus:ring-blue-100" onChange={e => setFormData({...formData, session_date: e.target.value})} />
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Başlangıç Tarihi *</label>
+                  <input required type="date" value={recurData.start_date} className="input-field" onChange={e => setRecurData({...recurData, start_date: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-semibold text-blue-600 mb-1.5">Yeni Saat <span className="text-red-500">*</span></label>
-                  <input required type="time" value={formData.session_time} className="input-field font-medium border-blue-200 focus:border-blue-500 focus:ring-blue-100" onChange={e => setFormData({...formData, session_time: e.target.value})} />
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Saat *</label>
+                  <input required type="time" value={recurData.session_time} className="input-field" onChange={e => setRecurData({...recurData, session_time: e.target.value})} />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Seans Notu (Opsiyonel)</label>
-                <input type="text" placeholder="Örn: 2. bölge masajı uygulanacak..." value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} />
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Seans Sayısı *</label>
+                  <input required type="number" min="2" max="30" value={recurData.repeat_count} className="input-field" onChange={e => setRecurData({...recurData, repeat_count: parseInt(e.target.value, 10) || 8})} />
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-300">
+            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-100">
+              <button type="button" onClick={() => setModalMode(null)} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+                Vazgeç
+              </button>
+              <button type="submit" disabled={submitting} className="h-10 px-6 rounded-xl text-[13px] font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors">
+                {submitting ? 'Oluşturuluyor...' : 'Paketi Oluştur'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL: Edit Session */}
+      {modalMode === 'edit' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setModalMode(null)} />
+          <form onSubmit={handleEditSubmit} className="relative bg-white rounded-2xl border border-gray-200 shadow-2xl p-6 w-full max-w-lg z-10 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100">
+              <h3 className="text-[16px] font-bold text-gray-900">Seansı Düzenle</h3>
+              <button type="button" onClick={() => setModalMode(null)} className="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex items-center justify-center">
+                <X size={18}/>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Tarih *</label>
+                  <input required type="date" value={formData.session_date} className="input-field" onChange={e => setFormData({...formData, session_date: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Saat *</label>
+                  <input required type="time" value={formData.session_time} className="input-field" onChange={e => setFormData({...formData, session_time: e.target.value})} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Fizyoterapist</label>
+                <select value={formData.therapist_id} className="input-field" onChange={e => setFormData({...formData, therapist_id: e.target.value})}>
+                  <option value="">Terapist seçiniz...</option>
+                  {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Not</label>
+                <input type="text" value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 mt-6 pt-4 border-t border-gray-100">
               <button type="button" onClick={() => setModalMode(null)} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
                 İptal
               </button>
-              <button type="submit" disabled={submitting} className="h-10 px-6 rounded-xl text-[13px] font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors flex items-center gap-1.5">
+              <button type="submit" disabled={submitting} className="h-10 px-6 rounded-xl text-[13px] font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors">
                 {submitting ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
               </button>
             </div>
@@ -455,27 +475,26 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
         </div>
       )}
 
-      {/* Main View: Large Weekly Calendar or List */}
+      {/* Main View: Calendar or List */}
       {viewMode === 'calendar' ? (
-        /* EXPANDED LARGE WEEKLY CALENDAR VIEW */
-        <div className="bg-white rounded-2xl border-2 border-gray-300 shadow-xl overflow-hidden mt-6 mb-20 animate-in fade-in duration-300">
+        <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden mt-4">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[900px]">
+            <table className="w-full border-collapse min-w-[850px]">
               <thead>
-                <tr className="bg-gray-50/80 border-b-2 border-gray-300">
-                  <th className="w-20 px-3 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-r-2 border-gray-300 text-center">
+                <tr className="bg-gray-50/80 border-b border-gray-200/80">
+                  <th className="w-16 px-2 py-3 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-r border-gray-200/60 text-center">
                     SAAT
                   </th>
                   {weekDays.map((day, i) => {
                     const dateStr = formatDate(day);
                     const isToday = dateStr === today;
                     return (
-                      <th key={i} className={`px-3 py-3.5 text-center border-r-2 border-gray-300 last:border-r-0 ${isToday ? 'bg-emerald-50/60' : ''}`}>
-                        <span className={`text-[12px] font-bold uppercase tracking-wider ${isToday ? 'text-emerald-700' : 'text-gray-500'}`}>
-                          {DAY_NAMES[i]}
+                      <th key={i} className={`px-2 py-2.5 text-center border-r border-gray-200/60 last:border-r-0 ${isToday ? 'bg-emerald-50/50' : ''}`}>
+                        <span className={`text-[11px] font-bold uppercase tracking-wider ${isToday ? 'text-emerald-700' : 'text-gray-500'}`}>
+                          {SHORT_DAYS[i]}
                         </span>
-                        <div className="mt-1 flex items-center justify-center">
-                          <span className={`text-[15px] font-black w-8 h-8 rounded-full flex items-center justify-center transition-all ${isToday ? 'text-white bg-emerald-600 shadow-sm' : 'text-gray-800'}`}>
+                        <div className="mt-0.5 flex items-center justify-center">
+                          <span className={`text-[13px] font-extrabold w-6 h-6 rounded-full flex items-center justify-center ${isToday ? 'text-white bg-emerald-600 shadow-2xs' : 'text-gray-800'}`}>
                             {day.getDate()}
                           </span>
                         </div>
@@ -484,15 +503,13 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
                   })}
                 </tr>
               </thead>
-              <tbody className="divide-y-2 divide-gray-300">
-                {HOURS.map(hour => (
+              <tbody className="divide-y divide-gray-200/60">
+                {HOURS.map((hour) => (
                   <tr key={hour} className="group hover:bg-slate-50/30 transition-colors">
-                    {/* Hour Column */}
-                    <td className="px-3 py-2 text-[12px] font-bold text-gray-400 border-r-2 border-gray-300 bg-gray-50/40 text-center align-top pt-3">
+                    <td className="px-2 py-1.5 text-[11px] font-bold text-gray-400 border-r border-gray-200/60 bg-gray-50/40 text-center align-top pt-2.5">
                       {hour}
                     </td>
 
-                    {/* Day Slots */}
                     {weekDays.map((day, di) => {
                       const dateStr = formatDate(day);
                       const isToday = dateStr === today;
@@ -501,29 +518,29 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
                         <td
                           key={di}
                           onClick={() => handleCellClick(dateStr, hour)}
-                          className={`border-r-2 border-gray-300 last:border-r-0 align-top transition-colors cursor-pointer relative group/cell ${
+                          className={`border-r border-gray-200/60 last:border-r-0 align-top transition-colors cursor-pointer relative ${
                             cellSessions.length === 0 
-                              ? (isToday ? 'bg-emerald-200 hover:bg-emerald-300 text-emerald-800' : 'bg-emerald-100/80 hover:bg-emerald-200 text-emerald-700')
-                              : (isToday ? 'bg-emerald-50/10 hover:bg-emerald-50/30' : 'bg-transparent hover:bg-slate-50/50')
+                              ? (isToday ? 'bg-emerald-100/60 hover:bg-emerald-200/70 text-emerald-800' : 'bg-emerald-50/40 hover:bg-emerald-100/60 text-emerald-700')
+                              : (isToday ? 'bg-emerald-50/10' : 'bg-transparent')
                           }`}
                         >
-                          <div className={`h-full min-h-[70px] ${cellSessions.length > 0 ? 'p-1 space-y-1' : 'flex flex-col items-center justify-center'}`}>
-                            {cellSessions.map(s => {
+                          <div className={`h-full min-h-[65px] ${cellSessions.length > 0 ? 'p-1 space-y-1' : 'flex flex-col items-center justify-center'}`}>
+                            {cellSessions.map((s) => {
                               const isReq = s._type === 'request';
                               const sn = isReq ? null : getSessionNumber(s);
                               const isDone = !isReq && s.status === 'tamamlandi';
-                              
+
                               let cardClass = isReq 
-                                ? 'bg-amber-50 border-amber-200/80 text-amber-950 border-l-4 border-l-amber-500'
+                                ? 'bg-amber-50 border-amber-200 text-amber-950 border-l-4 border-l-amber-500'
                                 : isDone 
-                                  ? 'bg-emerald-50 border-emerald-200/80 text-emerald-950 border-l-4 border-l-emerald-500'
-                                  : 'bg-white border-blue-200/90 text-slate-900 border-l-4 border-l-blue-500 shadow-sm';
+                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-950 border-l-4 border-l-emerald-500'
+                                  : 'bg-white border-blue-200 text-slate-900 border-l-4 border-l-blue-500 shadow-2xs';
 
                               return (
                                 <div
                                   key={isReq ? `req-${s.id}` : `ses-${s.id}`}
                                   onClick={(e) => e.stopPropagation()} 
-                                  className={`text-[11px] rounded-lg p-2 border transition-all hover:shadow-md flex flex-col gap-1 ${cardClass}`}
+                                  className={`text-[11px] rounded-lg p-2 border transition-all hover:shadow-sm flex flex-col gap-1 ${cardClass}`}
                                 >
                                   <div className="flex items-start justify-between gap-1">
                                     <button 
@@ -533,82 +550,61 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
                                     >
                                       {s.patient?.full_name}
                                     </button>
-                                    {!isReq && (
+                                    {!isReq && sn && (
                                       <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm bg-black/5 shrink-0">
                                         {sn.current}/{sn.total}
                                       </span>
                                     )}
                                     {isReq && (
-                                      <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm bg-amber-200/50 text-amber-800 shrink-0 uppercase">Talep</span>
+                                      <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm bg-amber-200/70 text-amber-800 shrink-0 uppercase">Talep</span>
                                     )}
                                   </div>
 
-                                  <div className="text-[10px] opacity-70 truncate font-medium leading-none mb-1">
+                                  <div className="text-[10px] opacity-75 truncate font-medium leading-none">
                                     {s.treatment?.name}
                                   </div>
 
-                                  <div className="flex flex-col gap-1 mt-auto pt-1 border-t border-black/5">
-                                    {isReq ? (
-                                      <div className="flex items-center gap-1">
-                                        <button 
-                                          onClick={(e) => { e.stopPropagation(); approveRequest(s.id); }} 
-                                          className="flex-1 text-[9px] font-bold text-emerald-700 bg-emerald-100/70 hover:bg-emerald-200 rounded py-1 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                                  {/* Therapist Badge */}
+                                  {s.therapist && (
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.therapist.color || '#059669' }} />
+                                      <span className="text-[10px] font-semibold text-gray-700 truncate">{s.therapist.full_name}</span>
+                                    </div>
+                                  )}
+
+                                  {/* Actions */}
+                                  {!isReq && (
+                                    <div className="flex items-center justify-between gap-1 mt-1 pt-1 border-t border-black/5">
+                                      <button
+                                        onClick={() => updateSessionStatus(s.id, isDone ? 'bekliyor' : 'tamamlandi', s)}
+                                        className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+                                          isDone ? 'bg-emerald-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                        }`}
+                                      >
+                                        {isDone ? '✓ Tamam' : 'Tamamla'}
+                                      </button>
+
+                                      <div className="flex items-center gap-0.5">
+                                        <button
+                                          onClick={() => handleEditClick(s)}
+                                          className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50"
+                                          title="Düzenle"
                                         >
-                                          <CheckCircle2 size={10}/> Onayla
+                                          <Edit2 size={11} />
                                         </button>
-                                        <button 
-                                          onClick={(e) => { e.stopPropagation(); rejectRequest(s.id); }} 
-                                          className="flex-1 text-[9px] font-bold text-red-700 bg-red-100/70 hover:bg-red-200 rounded py-1 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                                        <button
+                                          onClick={() => deleteSession(s.id)}
+                                          className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
+                                          title="Sil"
                                         >
-                                          <XCircle size={10}/> Reddet
+                                          <Trash2 size={11} />
                                         </button>
                                       </div>
-                                    ) : (
-                                      <>
-                                        <div className="flex items-center gap-1">
-                                          {!isDone && (
-                                            <button 
-                                              onClick={(e) => { e.stopPropagation(); completeSession(s.id); }} 
-                                              className="flex-1 text-[9px] font-bold text-emerald-700 bg-emerald-100/50 hover:bg-emerald-100 rounded py-0.5 transition-colors flex items-center justify-center gap-1"
-                                            >
-                                              <CheckCircle2 size={10}/> Bitir
-                                            </button>
-                                          )}
-                                          <button 
-                                            onClick={(e) => { e.stopPropagation(); sendWhatsAppReminder(s); }} 
-                                            className="px-1.5 py-0.5 flex-1 text-[9px] font-bold text-emerald-800 bg-emerald-100/50 hover:bg-emerald-100 rounded flex items-center justify-center gap-1 transition-colors"
-                                          >
-                                            <MessageCircle size={10} className="text-emerald-700" />
-                                            WA
-                                          </button>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <button 
-                                            onClick={(e) => { e.stopPropagation(); handleEditClick(s); }} 
-                                            className="flex-1 text-[9px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded py-0.5 transition-colors flex items-center justify-center gap-1"
-                                          >
-                                            <Edit2 size={9}/> Düzenle
-                                          </button>
-                                          <button 
-                                            onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }} 
-                                            className="px-1.5 py-0.5 text-[9px] font-bold text-red-700 bg-red-50 hover:bg-red-100 rounded flex items-center justify-center transition-colors"
-                                          >
-                                            <Trash2 size={10}/>
-                                          </button>
-                                        </div>
-                                      </>
-                                    )}
-                                  </div>
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
-
-                            {cellSessions.length === 0 && (
-                              <>
-                                <Plus size={14} className="opacity-70 group-hover/cell:opacity-100 transition-opacity" />
-                                <span className="opacity-70 group-hover/cell:opacity-100 transition-opacity absolute mt-[30px] text-[10px] font-bold">Ekle</span>
-                              </>
-                            )}
                           </div>
                         </td>
                       );
@@ -620,107 +616,75 @@ export default function Sessions({ clinic, sessions, requests = [], patients, tr
           </div>
         </div>
       ) : (
-        /* LIST VIEW */
-        <div className="bg-white rounded-2xl border border-gray-200/90 shadow-sm overflow-hidden">
+        /* List View */
+        <div className="bg-white rounded-2xl border border-gray-200/80 shadow-2xs overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[750px]">
+            <table className="w-full min-w-[700px]">
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-200">
-                  <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Tarih & Saat</th>
-                  <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Hasta</th>
-                  <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Tedavi / Hizmet</th>
-                  <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Seans Sırası</th>
-                  <th className="text-left px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Durum</th>
-                  <th className="text-center px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Hatırlatma</th>
-                  <th className="text-right px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">İşlem</th>
+                <tr className="border-b border-gray-100 bg-gray-50/50 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                  <th className="text-left px-4 py-3">Hasta</th>
+                  <th className="text-left px-4 py-3">Tedavi</th>
+                  <th className="text-left px-4 py-3">Fizyoterapist</th>
+                  <th className="text-left px-4 py-3">Tarih &amp; Saat</th>
+                  <th className="text-left px-4 py-3">Durum</th>
+                  <th className="text-right px-4 py-3">İşlem</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {sessions.length === 0 && (
-                  <tr><td colSpan={7} className="px-5 py-12 text-center text-[13px] text-gray-400">Henüz randevu kaydı bulunmuyor.</td></tr>
-                )}
-                {sessions.map(s => {
-                  const sn = getSessionNumber(s);
-                  const isDone = s.status === 'tamamlandi';
-                  return (
-                    <tr key={s.id} className="hover:bg-gray-50/70 transition-colors">
-                      <td className="px-5 py-4">
-                        <p className="text-[13px] font-bold text-gray-800">{new Date(s.session_date).toLocaleDateString('tr-TR')}</p>
-                        <p className="text-[12px] text-emerald-600 font-semibold flex items-center gap-1 mt-0.5"><Clock size={12}/> {s.session_time?.substring(0,5)}</p>
-                      </td>
-                      <td className="px-5 py-4">
-                        <button onClick={() => onPatientClick?.(s.patient_id || s.patient?.id)} className="text-[13px] font-bold text-gray-900 hover:text-emerald-700 hover:underline transition-colors block text-left">
+              <tbody className="divide-y divide-gray-100 text-[13px]">
+                {filteredSessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                      Seans kaydı bulunamadı.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredSessions.map((s) => {
+                    const isDone = s.status === 'tamamlandi';
+                    return (
+                      <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-gray-900">
                           {s.patient?.full_name}
-                        </button>
-                        <p className="text-[11px] text-gray-400 font-medium mt-0.5">{s.patient?.phone}</p>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className="text-[13px] font-medium text-gray-700">{s.treatment?.name}</span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className="inline-block px-2.5 py-1 rounded-lg bg-gray-100 text-gray-800 text-[11px] font-bold">
-                          {sn.current} / {sn.total}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        {isDone ? (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200">
-                            <CheckCircle2 size={12}/> Tamamlandı
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-50 text-amber-700 text-[11px] font-bold border border-amber-200">
-                            <Clock size={12}/> Bekliyor
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4 text-center">
-                        <div className="inline-flex items-center gap-1.5">
-                          <button
-                            onClick={() => sendWhatsAppReminder(s)}
-                            className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs transition-colors"
-                            title="WhatsApp ile Hatırlat"
-                          >
-                            <MessageCircle size={13} /> WhatsApp
-                          </button>
-                          <button
-                            onClick={() => sendSmsReminder(s)}
-                            className="h-8 px-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-medium flex items-center gap-1 transition-colors"
-                            title="SMS ile Hatırlat"
-                          >
-                            <Smartphone size={13} /> SMS
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {!isDone && (
-                            <button
-                              onClick={() => completeSession(s.id)}
-                              className="h-8 px-2 rounded-lg text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors"
-                              title="Tamamla"
-                            >
-                              <CheckCircle2 size={13} />
-                            </button>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {s.treatment?.name}
+                        </td>
+                        <td className="px-4 py-3">
+                          {s.therapist ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-100 text-[11px] font-semibold text-gray-800">
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.therapist.color || '#059669' }} />
+                              {s.therapist.full_name}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-[12px]">-</span>
                           )}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700 font-mono text-[12px]">
+                          {s.session_date} {s.session_time?.substring(0, 5)}
+                        </td>
+                        <td className="px-4 py-3">
                           <button
-                            onClick={() => handleEditClick(s)}
-                            className="h-8 px-2 rounded-lg text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors"
-                            title="Düzenle"
+                            onClick={() => updateSessionStatus(s.id, isDone ? 'bekliyor' : 'tamamlandi', s)}
+                            className={`px-2 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${
+                              isDone ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'
+                            }`}
                           >
-                            <Edit2 size={13} />
+                            {isDone ? '✓ Tamamlandı' : '● Bekliyor'}
                           </button>
-                          <button
-                            onClick={() => deleteSession(s.id)}
-                            className="h-8 px-2 rounded-lg text-[11px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors"
-                            title="Sil"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => handleEditClick(s)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600">
+                              <Edit2 size={13} />
+                            </button>
+                            <button onClick={() => deleteSession(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>

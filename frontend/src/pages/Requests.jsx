@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { API_URL } from '../lib/api';
-import { CheckCircle, XCircle, Clock, Calendar, Phone, Stethoscope, MessageSquare, X } from 'lucide-react';
+import { 
+  CheckCircle, XCircle, Clock, Calendar, Phone, Stethoscope, MessageSquare, X, Send, UserCheck 
+} from 'lucide-react';
 
 const STATUS_MAP = {
   bekliyor:    { label: 'Bekliyor',    cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
@@ -19,20 +21,48 @@ function formatCreated(d) {
   return new Date(d).toLocaleDateString('tr-TR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 
-export default function Requests({ requests, refresh }) {
+export default function Requests({ clinic, staff = [], requests = [], refresh }) {
   const [filter, setFilter] = useState('bekliyor');
   const [rejectModal, setRejectModal] = useState(null); // request object
+  const [approveModal, setApproveModal] = useState(null); // request object for therapist assignment
+  const [selectedTherapistId, setSelectedTherapistId] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
-  const [processing, setProcessing] = useState(null); // id of request being processed
+  const [processing, setProcessing] = useState(null);
 
   const filtered = requests.filter(r => filter === 'hepsi' ? true : r.status === filter);
-
   const pendingCount = requests.filter(r => r.status === 'bekliyor').length;
 
-  const handleApprove = async (req) => {
-    setProcessing(req.id);
+  const openApproveModal = (req) => {
+    setApproveModal(req);
+    setSelectedTherapistId(req.therapist_id || staff[0]?.id || '');
+  };
+
+  const handleApproveConfirm = async () => {
+    if (!approveModal) return;
+    setProcessing(approveModal.id);
+
     try {
-      await axios.put(`${API_URL}/session-requests/${req.id}`, { status: 'onaylandi' });
+      await axios.put(`${API_URL}/session-requests/${approveModal.id}`, {
+        status: 'onaylandi',
+        therapist_id: selectedTherapistId || null
+      });
+
+      // Otomatik WhatsApp bildirim tetiklemesi
+      const assignedTherapist = staff.find(s => s.id === selectedTherapistId);
+      if (approveModal.patient?.phone) {
+        axios.post(`${API_URL}/whatsapp/send-template`, {
+          clinic_id: clinic?.id,
+          to_phone: approveModal.patient.phone,
+          type: 'approval',
+          patient_name: approveModal.patient.full_name,
+          date: approveModal.requested_date,
+          time: approveModal.requested_time?.substring(0, 5),
+          therapist_name: assignedTherapist?.full_name,
+          treatment_name: approveModal.treatment?.name
+        }).catch(err => console.error(err));
+      }
+
+      setApproveModal(null);
       refresh();
     } catch (err) {
       alert(err.response?.data?.error || 'İşlem başarısız oldu.');
@@ -68,7 +98,6 @@ export default function Requests({ requests, refresh }) {
 
   return (
     <div className="space-y-5">
-
       {/* Header stats */}
       {pendingCount > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-center gap-3">
@@ -79,7 +108,7 @@ export default function Requests({ requests, refresh }) {
             <p className="text-[13px] font-semibold text-amber-800">
               {pendingCount} bekleyen randevu talebi var
             </p>
-            <p className="text-[11px] text-amber-600">Onaylamak veya reddetmek için talebi inceleyin.</p>
+            <p className="text-[11px] text-amber-600">Onaylamak veya terapist atamak için talebi inceleyin.</p>
           </div>
         </div>
       )}
@@ -90,8 +119,8 @@ export default function Requests({ requests, refresh }) {
           <button
             key={t.key}
             onClick={() => setFilter(t.key)}
-            className={`h-8 px-3 rounded-lg text-[12px] font-medium transition-all flex items-center gap-1.5 ${
-              filter === t.key ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            className={`h-8 px-3 rounded-lg text-[12px] font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+              filter === t.key ? 'bg-white text-gray-800 shadow-2xs font-bold' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             {t.label}
@@ -106,154 +135,193 @@ export default function Requests({ requests, refresh }) {
         ))}
       </div>
 
-      {/* Requests List */}
-      {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Calendar size={22} className="text-gray-400" />
+      {/* Request Cards */}
+      <div className="space-y-3">
+        {filtered.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center text-gray-400">
+            Bu filtrede randevu talebi bulunmuyor.
           </div>
-          <p className="text-[13px] text-gray-500">Bu kategoride talep bulunmuyor.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map(req => {
-            const status = STATUS_MAP[req.status] || STATUS_MAP.bekliyor;
-            const isProcessing = processing === req.id;
+        ) : (
+          filtered.map(req => {
+            const statusInfo = STATUS_MAP[req.status] || STATUS_MAP.bekliyor;
+            const isPending = req.status === 'bekliyor';
+            const isApproved = req.status === 'onaylandi';
+            const isRejected = req.status === 'reddedildi';
+
             return (
-              <div key={req.id} className="bg-white rounded-xl border border-gray-200/80 p-5 hover:border-gray-300 transition-all">
-                <div className="flex items-start justify-between gap-4">
-                  {/* Left: Patient & Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-bold text-[12px] shrink-0">
-                        {(req.patient?.full_name || '?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-[14px] font-semibold text-gray-800">{req.patient?.full_name || 'Bilinmiyor'}</p>
-                        <div className="flex items-center gap-1 text-[11px] text-gray-400">
-                          <Phone size={10} />
-                          {req.patient?.phone || '-'}
-                        </div>
-                      </div>
-                      <span className={`ml-auto shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full ${status.cls}`}>
-                        {status.label}
+              <div key={req.id} className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-2xs">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-3">
+                      <h4 className="font-bold text-gray-900 text-[15px]">{req.patient?.full_name}</h4>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${statusInfo.cls}`}>
+                        {statusInfo.label}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      <div className="flex items-center gap-2 text-[12px] text-gray-600">
-                        <Calendar size={13} className="text-gray-400 shrink-0" />
-                        <span>{formatDate(req.requested_date)}</span>
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12px] text-gray-600">
+                      <div className="flex items-center gap-1.5">
+                        <Phone size={13} className="text-gray-400" />
+                        <span>{req.patient?.phone}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-[12px] text-gray-600">
-                        <Clock size={13} className="text-gray-400 shrink-0" />
-                        <span className="font-semibold">{req.requested_time?.slice(0,5)}</span>
+                      <div className="flex items-center gap-1.5">
+                        <Stethoscope size={13} className="text-gray-400" />
+                        <span className="font-medium text-gray-800">{req.treatment?.name}</span>
+                        {req.treatment?.price && <span className="text-emerald-600 font-bold">({req.treatment.price} ₺)</span>}
                       </div>
-                      <div className="flex items-center gap-2 text-[12px] text-gray-600">
-                        <Stethoscope size={13} className="text-gray-400 shrink-0" />
-                        <span>{req.treatment?.name || '-'}</span>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar size={13} className="text-gray-400" />
+                        <span className="font-medium">{formatDate(req.requested_date)}</span>
+                        <span className="font-bold text-gray-900">{req.requested_time?.substring(0, 5)}</span>
                       </div>
+                      {req.therapist && (
+                        <div className="flex items-center gap-1.5">
+                          <UserCheck size={13} className="text-emerald-600" />
+                          <span className="font-medium text-emerald-800">Terapist: {req.therapist.full_name}</span>
+                        </div>
+                      )}
                     </div>
 
                     {req.notes && (
-                      <div className="mt-3 flex items-start gap-2 text-[12px] text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
-                        <MessageSquare size={12} className="mt-0.5 shrink-0 text-gray-400" />
-                        <span>{req.notes}</span>
-                      </div>
+                      <p className="text-[12px] text-gray-500 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                        <span className="font-semibold text-gray-700">Hasta Notu:</span> {req.notes}
+                      </p>
                     )}
-
-                    {req.status === 'reddedildi' && req.rejection_reason && (
-                      <div className="mt-3 flex items-start gap-2 text-[12px] text-red-600 bg-red-50 rounded-lg px-3 py-2">
-                        <XCircle size={12} className="mt-0.5 shrink-0" />
-                        <span><strong>Red gerekçesi:</strong> {req.rejection_reason}</span>
-                      </div>
-                    )}
-
-                    <p className="text-[10px] text-gray-400 mt-3">Talep tarihi: {formatCreated(req.created_at)}</p>
                   </div>
 
-                  {/* Right: Actions (only for pending) */}
-                  {req.status === 'bekliyor' && (
-                    <div className="flex flex-col gap-2 shrink-0">
+                  {/* Actions */}
+                  {isPending && (
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
-                        onClick={() => handleApprove(req)}
-                        disabled={isProcessing}
-                        className="h-9 px-4 bg-emerald-600 text-white rounded-lg text-[12px] font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 transition-all shadow-sm"
+                        onClick={() => openApproveModal(req)}
+                        disabled={processing === req.id}
+                        className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
                       >
-                        {isProcessing ? (
-                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <><CheckCircle size={13} /> Onayla</>
-                        )}
+                        <CheckCircle size={14} />
+                        <span>Onayla &amp; Terapist Ata</span>
                       </button>
                       <button
                         onClick={() => { setRejectModal(req); setRejectionReason(''); }}
-                        disabled={isProcessing}
-                        className="h-9 px-4 bg-white text-red-600 rounded-lg text-[12px] font-medium border border-red-200 hover:bg-red-50 disabled:opacity-50 flex items-center gap-1.5 transition-all"
+                        disabled={processing === req.id}
+                        className="h-9 px-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-[12px] font-semibold transition-all cursor-pointer disabled:opacity-50"
                       >
-                        <XCircle size={13} /> Reddet
+                        <XCircle size={14} />
+                        <span>Reddet</span>
                       </button>
                     </div>
                   )}
                 </div>
               </div>
             );
-          })}
+          })
+        )}
+      </div>
+
+      {/* Approve Modal with Therapist Assignment */}
+      {approveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setApproveModal(null)} />
+          <div className="relative bg-white rounded-2xl border border-gray-200 shadow-2xl p-6 w-full max-w-md z-10 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
+              <h3 className="text-[15px] font-bold text-gray-900">Randevu Onayla &amp; Terapist Belirle</h3>
+              <button onClick={() => setApproveModal(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-[12px] text-emerald-800">
+                <p className="font-bold">{approveModal.patient?.full_name}</p>
+                <p>{formatDate(approveModal.requested_date)} saat {approveModal.requested_time?.substring(0, 5)}</p>
+                <p className="font-semibold mt-1">{approveModal.treatment?.name}</p>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Görevli Fizyoterapist</label>
+                <select
+                  value={selectedTherapistId}
+                  onChange={(e) => setSelectedTherapistId(e.target.value)}
+                  className="input-field bg-white"
+                >
+                  <option value="">Seçim yapılmadı (Varsayılan)</option>
+                  {staff.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.full_name} ({s.title || 'Fzt.'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <p className="text-[11px] text-gray-400">
+                💡 Onaylandığında hastaya otomatik WhatsApp onay bildirimi gönderilir ve seans takvime işlenir.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-5 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setApproveModal(null)}
+                className="h-9 px-4 rounded-xl text-[12px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={handleApproveConfirm}
+                disabled={processing === approveModal.id}
+                className="h-9 px-5 rounded-xl text-[12px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-2xs"
+              >
+                {processing === approveModal.id ? 'Onaylanıyor...' : 'Onayla & Bildir'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Reject Modal */}
       {rejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setRejectModal(null)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <button
-              onClick={() => setRejectModal(null)}
-              className="absolute top-4 right-4 w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
-            >
-              <X size={14} className="text-gray-600" />
-            </button>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setRejectModal(null)} />
+          <div className="relative bg-white rounded-2xl border border-gray-200 shadow-2xl p-6 w-full max-w-md z-10 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
+              <h3 className="text-[15px] font-bold text-gray-900">Randevu Talebini Reddet</h3>
+              <button onClick={() => setRejectModal(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={17} />
+              </button>
+            </div>
 
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
-                <XCircle size={20} className="text-red-600" />
-              </div>
+            <div className="space-y-3">
+              <p className="text-[13px] text-gray-600">
+                <span className="font-bold">{rejectModal.patient?.full_name}</span> adlı hastanın talebini reddetmek üzeresiniz.
+              </p>
+
               <div>
-                <h3 className="text-[15px] font-semibold text-gray-800">Randevu Talebini Reddet</h3>
-                <p className="text-[12px] text-gray-400">{rejectModal.patient?.full_name} — {rejectModal.requested_date} {rejectModal.requested_time?.slice(0,5)}</p>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1">Reddetme Nedeni (İsteğe Bağlı)</label>
+                <textarea
+                  rows={3}
+                  placeholder="Örn: O saatte kliniğimiz doludur..."
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-gray-200 text-[12px] outline-none focus:border-red-500"
+                />
               </div>
             </div>
 
-            <div className="mb-5">
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">
-                Red Gerekçesi <span className="text-gray-400 font-normal">(isteğe bağlı)</span>
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Örn: O gün müsait değilim, farklı bir tarih tercih eder misiniz?"
-                value={rejectionReason}
-                onChange={e => setRejectionReason(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:border-red-300 focus:ring-2 focus:ring-red-100 outline-none transition-all resize-none"
-              />
-            </div>
-
-            <div className="flex gap-3">
+            <div className="flex justify-end gap-2 mt-5 pt-3 border-t border-gray-100">
               <button
+                type="button"
                 onClick={() => setRejectModal(null)}
-                className="flex-1 h-10 border border-gray-200 rounded-xl text-[13px] text-gray-600 hover:bg-gray-50"
+                className="h-9 px-4 rounded-xl text-[12px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200"
               >
-                İptal
+                Vazgeç
               </button>
               <button
+                type="button"
                 onClick={handleReject}
                 disabled={processing === rejectModal.id}
-                className="flex-1 h-10 bg-red-600 text-white rounded-xl text-[13px] font-medium hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="h-9 px-5 rounded-xl text-[12px] font-semibold text-white bg-red-600 hover:bg-red-700"
               >
-                {processing === rejectModal.id ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  'Reddet'
-                )}
+                {processing === rejectModal.id ? 'İşleniyor...' : 'Talebi Reddet'}
               </button>
             </div>
           </div>

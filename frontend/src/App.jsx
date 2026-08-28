@@ -10,9 +10,11 @@ import Dashboard from './pages/Dashboard';
 import Patients from './pages/Patients';
 import Treatments from './pages/Treatments';
 import Sessions from './pages/Sessions';
+import Staff from './pages/Staff';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
 import Requests from './pages/Requests';
+import Settings from './pages/Settings';
 import PatientPortal from './pages/PatientPortal';
 
 import { API_URL } from './lib/api';
@@ -22,9 +24,11 @@ const pageMeta = {
   patients:   { title: 'Hasta Yönetimi',       subtitle: 'Hasta kayıtlarını görüntüleyin ve yönetin' },
   sessions:   { title: 'Seans Takvimi',        subtitle: 'Haftalık takvim üzerinden randevu planlayın' },
   treatments: { title: 'Tedavi & Hizmetler',   subtitle: 'Sunduğunuz hizmetleri düzenleyin' },
+  staff:      { title: 'Ekip & Personel',      subtitle: 'Fizyoterapistleri ve çalışan yetkilerini yönetin' },
   payments:   { title: 'Ödemeler',             subtitle: 'Tahsilat ve finans takibi' },
   reports:    { title: 'Raporlar',             subtitle: 'Grafikler ve istatistikler' },
   requests:   { title: 'Randevu Talepleri',    subtitle: 'Hastaların randevu taleplerini onaylayın veya reddedin' },
+  settings:   { title: 'Klinik Ayarları',      subtitle: 'Logo, tema rengi, çalışma saatleri ve WhatsApp entegrasyonu' },
 };
 
 function App() {
@@ -42,6 +46,7 @@ function App() {
 
   const [patients, setPatients] = useState([]);
   const [treatments, setTreatments] = useState([]);
+  const [staff, setStaff] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [payments, setPayments] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -59,23 +64,25 @@ function App() {
     if (clinic?.id) {
       fetchData();
     }
-  }, [clinic]);
+  }, [clinic?.id]);
 
   const fetchData = async () => {
     if (!clinic?.id) return;
     setLoading(true);
     try {
       // Supabase üzerinden doğrudan kliniğin verilerini çek
-      const [pRes, tRes, sRes, payRes, reqRes] = await Promise.all([
+      const [pRes, tRes, staffRes, sRes, payRes, reqRes] = await Promise.all([
         supabase.from('patients').select('*').eq('clinic_id', clinic.id).order('created_at', { ascending: false }),
         supabase.from('treatments').select('*').eq('clinic_id', clinic.id).order('created_at', { ascending: true }),
-        supabase.from('sessions').select('*, patient:patients(id, full_name, phone, total_sessions), treatment:treatments(name, price)').eq('clinic_id', clinic.id).order('session_date', { ascending: true }),
+        supabase.from('staff').select('*').eq('clinic_id', clinic.id).order('created_at', { ascending: true }),
+        supabase.from('sessions').select('*, patient:patients(id, full_name, phone, total_sessions), treatment:treatments(name, price), therapist:staff(id, full_name, role, title, color)').eq('clinic_id', clinic.id).order('session_date', { ascending: true }),
         supabase.from('payments').select('*, patient:patients(full_name), session:sessions(session_date, treatment:treatments(name))').eq('clinic_id', clinic.id).order('payment_date', { ascending: false }),
-        supabase.from('session_requests').select('*, patient:patients(id, full_name, phone), treatment:treatments(name, price)').eq('clinic_id', clinic.id).order('created_at', { ascending: false }),
+        supabase.from('session_requests').select('*, patient:patients(id, full_name, phone), treatment:treatments(name, price), therapist:staff(id, full_name, role, title, color)').eq('clinic_id', clinic.id).order('created_at', { ascending: false }),
       ]);
 
       setPatients(pRes.data || []);
       setTreatments(tRes.data || []);
+      setStaff(staffRes.data || []);
       setSessions(sRes.data || []);
       setPayments(payRes.data || []);
       setRequests(reqRes.data || []);
@@ -84,15 +91,17 @@ function App() {
       // Fallback: Backend API'ye x-clinic-id başlığı ile istek at
       try {
         const config = { headers: { 'x-clinic-id': clinic.id } };
-        const [p, t, s, pay, req] = await Promise.all([
+        const [p, t, st, s, pay, req] = await Promise.all([
           axios.get(`${API_URL}/patients`, config).catch(() => ({ data: [] })),
           axios.get(`${API_URL}/treatments`, config).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/staff`, config).catch(() => ({ data: [] })),
           axios.get(`${API_URL}/sessions`, config).catch(() => ({ data: [] })),
           axios.get(`${API_URL}/payments`, config).catch(() => ({ data: [] })),
           axios.get(`${API_URL}/session-requests`, config).catch(() => ({ data: [] })),
         ]);
         setPatients(p.data);
         setTreatments(t.data);
+        setStaff(st.data);
         setSessions(s.data);
         setPayments(pay.data);
         setRequests(req.data);
@@ -102,6 +111,11 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClinicUpdated = (updatedClinic) => {
+    localStorage.setItem('fizyo_clinic', JSON.stringify(updatedClinic));
+    setClinic(updatedClinic);
   };
 
   const handleLogout = () => {
@@ -156,10 +170,12 @@ function App() {
                 {activeTab === 'dashboard'  && <Dashboard clinic={clinic} patients={patients} sessions={sessions} payments={payments} onPatientClick={openPatientDetail} />}
                 {activeTab === 'patients'   && <Patients clinic={clinic} patients={patients} sessions={sessions} selectedPatientId={selectedPatientId} setSelectedPatientId={setSelectedPatientId} refresh={fetchData} />}
                 {activeTab === 'treatments' && <Treatments clinic={clinic} treatments={treatments} refresh={fetchData} />}
-                {activeTab === 'sessions'   && <Sessions clinic={clinic} sessions={sessions} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} />}
+                {activeTab === 'staff'      && <Staff clinic={clinic} staff={staff} refresh={fetchData} />}
+                {activeTab === 'sessions'   && <Sessions clinic={clinic} staff={staff} sessions={sessions} requests={requests} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} />}
                 {activeTab === 'payments'   && <Payments clinic={clinic} payments={payments} sessions={sessions} patients={patients} refresh={fetchData} />}
                 {activeTab === 'reports'    && <Reports clinic={clinic} patients={patients} sessions={sessions} payments={payments} treatments={treatments} />}
-                {activeTab === 'requests'   && <Requests clinic={clinic} requests={requests} refresh={fetchData} />}
+                {activeTab === 'requests'   && <Requests clinic={clinic} staff={staff} requests={requests} refresh={fetchData} />}
+                {activeTab === 'settings'   && <Settings clinic={clinic} onClinicUpdated={handleClinicUpdated} />}
               </>
             )}
           </div>

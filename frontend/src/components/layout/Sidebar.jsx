@@ -1,5 +1,5 @@
 import { 
-  Users, Activity, CalendarDays, Wallet, LayoutGrid, BarChart3, Menu, X, ClipboardList, Building2, LogOut
+  Users, Activity, CalendarDays, Wallet, LayoutGrid, BarChart3, Menu, X, ClipboardList, Building2, LogOut, Settings as SettingsIcon, UserCheck
 } from 'lucide-react';
 
 const navItems = [
@@ -7,9 +7,11 @@ const navItems = [
   { id: 'patients', label: 'Hastalar', icon: Users },
   { id: 'sessions', label: 'Seanslar', icon: CalendarDays },
   { id: 'treatments', label: 'Tedaviler', icon: Activity },
+  { id: 'staff', label: 'Ekip & Personel', icon: UserCheck },
   { id: 'payments', label: 'Ödemeler', icon: Wallet },
   { id: 'reports', label: 'Raporlar', icon: BarChart3 },
   { id: 'requests', label: 'Talepler', icon: ClipboardList },
+  { id: 'settings', label: 'Ayarlar', icon: SettingsIcon },
 ];
 
 export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobileOpen, onLogout, pendingCount = 0, clinic }) {
@@ -18,10 +20,14 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
       {/* Logo */}
       <div className="h-14 flex items-center justify-between px-5 border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center shadow-xs">
-            <Activity size={14} className="text-white" strokeWidth={2.5} />
-          </div>
-          <span className="text-[14px] font-bold text-gray-900 tracking-tight">FizyoPanel</span>
+          {clinic?.logo_url ? (
+            <img src={clinic.logo_url} alt="Logo" className="w-7 h-7 rounded-lg object-contain" />
+          ) : (
+            <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center shadow-xs">
+              <Activity size={14} className="text-white" strokeWidth={2.5} />
+            </div>
+          )}
+          <span className="text-[14px] font-bold text-gray-900 tracking-tight">{clinic?.name || 'FizyoPanel'}</span>
         </div>
         {/* Mobile close */}
         <button onClick={() => setMobileOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600">
@@ -101,7 +107,6 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
   );
 }
 
-// Mobile hamburger for Header
 export function MobileMenuButton({ onClick }) {
   return (
     <button onClick={onClick} className="md:hidden w-9 h-9 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 mr-3">
