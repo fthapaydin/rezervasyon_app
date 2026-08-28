@@ -57,13 +57,35 @@ app.post('/api/auth/clinic-login', async (req, res) => {
   }
 });
 
+// Tüm aktif klinikleri listele (İl/İlçe filtresi ile arama)
+app.get('/api/clinics', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { city, district } = req.query;
+  try {
+    let query = supabase
+      .from('clinics')
+      .select('id, name, slug, owner_name, phone, address, city, district, logo_url, theme_color, status')
+      .eq('status', 'aktif')
+      .order('name', { ascending: true });
+
+    if (city) query = query.ilike('city', `%${city}%`);
+    if (district) query = query.ilike('district', `%${district}%`);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Slug'a göre klinik bilgisi çek
 app.get('/api/clinics/by-slug/:slug', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
   try {
     const { data: clinic, error } = await supabase
       .from('clinics')
-      .select('id, name, slug, owner_name, phone, address, logo_url, theme_color, work_start_time, work_end_time, working_days, status')
+      .select('id, name, slug, owner_name, phone, address, city, district, logo_url, theme_color, work_start_time, work_end_time, working_days, status')
       .eq('slug', req.params.slug)
       .maybeSingle();
 
@@ -74,11 +96,11 @@ app.get('/api/clinics/by-slug/:slug', async (req, res) => {
   }
 });
 
-// Klinik Ayarlarını Güncelle (Tema, Logo, Çalışma Saatleri, WhatsApp)
+// Klinik Ayarlarını Güncelle (Tema, Logo, Çalışma Saatleri, Konum, WhatsApp)
 app.put('/api/clinics/:id', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
   const { 
-    name, owner_name, phone, address, logo_url, theme_color, 
+    name, owner_name, phone, address, city, district, logo_url, theme_color, 
     work_start_time, work_end_time, working_days, whatsapp_api_key, whatsapp_phone_id, auto_whatsapp_enabled 
   } = req.body;
 
@@ -86,7 +108,7 @@ app.put('/api/clinics/:id', async (req, res) => {
     const { data, error } = await supabase
       .from('clinics')
       .update({
-        name, owner_name, phone, address, logo_url, theme_color,
+        name, owner_name, phone, address, city, district, logo_url, theme_color,
         work_start_time, work_end_time, working_days, whatsapp_api_key, whatsapp_phone_id, auto_whatsapp_enabled
       })
       .eq('id', req.params.id)

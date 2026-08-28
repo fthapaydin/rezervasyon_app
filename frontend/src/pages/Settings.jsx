@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
+import { TURKEY_CITIES } from '../lib/turkeyCities';
 import { API_URL } from '../lib/api';
 import { 
-  Settings as SettingsIcon, Building2, Palette, Clock, MessageSquare, Save, CheckCircle2, ShieldAlert, Sparkles 
+  Settings as SettingsIcon, Building2, Palette, Clock, MessageSquare, Save, CheckCircle2, MapPin 
 } from 'lucide-react';
 
 const THEME_COLORS = [
@@ -22,6 +23,8 @@ export default function Settings({ clinic, onClinicUpdated }) {
     name: clinic?.name || '',
     owner_name: clinic?.owner_name || '',
     phone: clinic?.phone || '',
+    city: clinic?.city || 'İstanbul',
+    district: clinic?.district || 'Kadıköy',
     address: clinic?.address || '',
     logo_url: clinic?.logo_url || '',
     theme_color: clinic?.theme_color || '#059669',
@@ -35,6 +38,17 @@ export default function Settings({ clinic, onClinicUpdated }) {
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const selectedCityObj = TURKEY_CITIES.find((c) => c.name === formData.city) || TURKEY_CITIES[0];
+
+  const handleCityChange = (cityName) => {
+    const cityObj = TURKEY_CITIES.find((c) => c.name === cityName);
+    setFormData((prev) => ({
+      ...prev,
+      city: cityName,
+      district: cityObj?.districts[0] || 'Merkez',
+    }));
+  };
 
   const toggleDay = (day) => {
     setFormData((prev) => {
@@ -56,7 +70,6 @@ export default function Settings({ clinic, onClinicUpdated }) {
     setSavedSuccess(false);
 
     try {
-      // 1. Supabase üzerinden güncelle
       const { data, error } = await supabase
         .from('clinics')
         .update(formData)
@@ -65,7 +78,6 @@ export default function Settings({ clinic, onClinicUpdated }) {
         .single();
 
       if (error) {
-        // Fallback: Backend API
         const res = await axios.put(`${API_URL}/clinics/${clinic.id}`, formData);
         onClinicUpdated(res.data);
       } else if (data) {
@@ -113,6 +125,33 @@ export default function Settings({ clinic, onClinicUpdated }) {
             />
           </div>
 
+          {/* İl & İlçe Seçimi */}
+          <div>
+            <label className="block text-[12px] font-semibold text-gray-600 mb-1">Şehir (İl) *</label>
+            <select
+              value={formData.city}
+              onChange={(e) => handleCityChange(e.target.value)}
+              className="input-field bg-white"
+            >
+              {TURKEY_CITIES.map((c) => (
+                <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-semibold text-gray-600 mb-1">İlçe *</label>
+            <select
+              value={formData.district}
+              onChange={(e) => setFormData({ ...formData, district: e.target.value })}
+              className="input-field bg-white"
+            >
+              {selectedCityObj.districts.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-[12px] font-semibold text-gray-600 mb-1">İletişim Telefonu</label>
             <input
@@ -135,10 +174,10 @@ export default function Settings({ clinic, onClinicUpdated }) {
           </div>
 
           <div className="sm:col-span-2">
-            <label className="block text-[12px] font-semibold text-gray-600 mb-1">Klinik Adresi</label>
+            <label className="block text-[12px] font-semibold text-gray-600 mb-1">Açık Adres</label>
             <input
               type="text"
-              placeholder="İlçe, İl"
+              placeholder="Mahalle, Cadde, No..."
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               className="input-field"

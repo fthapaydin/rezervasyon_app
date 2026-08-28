@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS clinics (
   password VARCHAR NOT NULL,
   status VARCHAR DEFAULT 'aktif',      -- 'aktif' | 'pasif' | 'deneme'
   plan VARCHAR DEFAULT 'standart',     -- 'standart' | 'premium' | 'kurumsal'
+  city VARCHAR DEFAULT 'İstanbul',     -- İl
+  district VARCHAR DEFAULT 'Kadıköy',  -- İlçe
   address TEXT,
   logo_url TEXT,                       -- Özel Logo URL
   theme_color VARCHAR DEFAULT '#059669', -- Tema Rengi (#059669, #2563eb, #7c3aed vb.)
@@ -108,6 +110,8 @@ CREATE TABLE IF NOT EXISTS session_requests (
 );
 
 -- 8. VAR OLAN TABLOLARDA EKSİK SÜTUNLARI GÜVENLE EKLE
+ALTER TABLE clinics ADD COLUMN IF NOT EXISTS city VARCHAR DEFAULT 'İstanbul';
+ALTER TABLE clinics ADD COLUMN IF NOT EXISTS district VARCHAR DEFAULT 'Kadıköy';
 ALTER TABLE clinics ADD COLUMN IF NOT EXISTS logo_url TEXT;
 ALTER TABLE clinics ADD COLUMN IF NOT EXISTS theme_color VARCHAR DEFAULT '#059669';
 ALTER TABLE clinics ADD COLUMN IF NOT EXISTS work_start_time VARCHAR DEFAULT '08:00';
@@ -121,7 +125,7 @@ ALTER TABLE sessions ADD COLUMN IF NOT EXISTS therapist_id UUID REFERENCES staff
 ALTER TABLE session_requests ADD COLUMN IF NOT EXISTS therapist_id UUID REFERENCES staff(id) ON DELETE SET NULL;
 
 -- 9. VARSAYILAN DEMO KLİNİK & DEMO PERSONEL
-INSERT INTO clinics (id, name, slug, owner_name, phone, email, password, status, plan, theme_color)
+INSERT INTO clinics (id, name, slug, owner_name, phone, email, password, status, plan, city, district, theme_color)
 VALUES (
   'c1111111-1111-1111-1111-111111111111',
   'FizyoPanel Demo Klinik',
@@ -132,11 +136,13 @@ VALUES (
   'demo123',
   'aktif',
   'premium',
+  'İstanbul',
+  'Kadıköy',
   '#059669'
 )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET city = 'İstanbul', district = 'Kadıköy';
 
--- Demo Terapistler Ekle
+-- Demo Terapist
 INSERT INTO staff (id, clinic_id, full_name, role, title, color, phone, email)
 VALUES 
   ('s1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', 'Dr. Fatih Apaydın', 'admin', 'Klinik Sahibi / Baş Fzt.', '#059669', '05555555555', 'fatih@fizyopanel.com'),
