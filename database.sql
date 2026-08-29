@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   clinic_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
   patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
   treatment_id UUID REFERENCES treatments(id) ON DELETE SET NULL,
-  therapist_id UUID REFERENCES staff(id) ON DELETE SET NULL, -- Seansı yapacak terapist
+  therapist_id UUID REFERENCES staff(id) ON DELETE SET NULL,
   session_date DATE NOT NULL,
   session_time TIME NOT NULL,
   status VARCHAR DEFAULT 'bekliyor',
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS session_requests (
   clinic_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
   patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
   treatment_id UUID REFERENCES treatments(id) ON DELETE SET NULL,
-  therapist_id UUID REFERENCES staff(id) ON DELETE SET NULL, -- İstenen terapist
+  therapist_id UUID REFERENCES staff(id) ON DELETE SET NULL,
   requested_date DATE NOT NULL,
   requested_time TIME NOT NULL,
   status VARCHAR DEFAULT 'bekliyor',
@@ -109,7 +109,17 @@ CREATE TABLE IF NOT EXISTS session_requests (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 8. VAR OLAN TABLOLARDA EKSİK SÜTUNLARI GÜVENLE EKLE
+-- 8. TÜM KLİNİKLER İÇİN GENEL DUYURU & KAMPANYA TABLOSU
+CREATE TABLE IF NOT EXISTS announcements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR NOT NULL,
+  message TEXT NOT NULL,
+  type VARCHAR DEFAULT 'info',        -- 'info' | 'warning' | 'success' | 'campaign'
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 9. VAR OLAN TABLOLARDA EKSİK SÜTUNLARI GÜVENLE EKLE
 ALTER TABLE clinics ADD COLUMN IF NOT EXISTS city VARCHAR DEFAULT 'İstanbul';
 ALTER TABLE clinics ADD COLUMN IF NOT EXISTS district VARCHAR DEFAULT 'Kadıköy';
 ALTER TABLE clinics ADD COLUMN IF NOT EXISTS logo_url TEXT;
@@ -124,7 +134,7 @@ ALTER TABLE clinics ADD COLUMN IF NOT EXISTS auto_whatsapp_enabled BOOLEAN DEFAU
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS therapist_id UUID REFERENCES staff(id) ON DELETE SET NULL;
 ALTER TABLE session_requests ADD COLUMN IF NOT EXISTS therapist_id UUID REFERENCES staff(id) ON DELETE SET NULL;
 
--- 9. VARSAYILAN DEMO KLİNİK & DEMO PERSONEL
+-- 10. VARSAYILAN DEMO KLİNİK & DEMO PERSONEL
 INSERT INTO clinics (id, name, slug, owner_name, phone, email, password, status, plan, city, district, theme_color)
 VALUES (
   'c1111111-1111-1111-1111-111111111111',
@@ -150,7 +160,17 @@ VALUES
   ('a3333333-3333-3333-3333-333333333333', 'c1111111-1111-1111-1111-111111111111', 'Fzt. Mehmet Demir', 'therapist', 'Spor Fizyoterapisti', '#ea580c', '05553332211', 'mehmet@fizyopanel.com')
 ON CONFLICT (id) DO NOTHING;
 
--- 10. RLS (ROW LEVEL SECURITY) İZİNLERİ
+-- Varsayılan Örnek Duyuru
+INSERT INTO announcements (title, message, type, is_active)
+VALUES (
+  '🎉 FizyoPanel 2.0 Güncellemesi Yayında!',
+  '81 İl ve İlçe desteği, Masaüstü QR Standı ve Çoklu Terapist filtreleme özellikleri panelinize eklendi.',
+  'campaign',
+  true
+)
+ON CONFLICT DO NOTHING;
+
+-- 11. RLS (ROW LEVEL SECURITY) İZİNLERİ
 ALTER TABLE clinics DISABLE ROW LEVEL SECURITY;
 ALTER TABLE staff DISABLE ROW LEVEL SECURITY;
 ALTER TABLE patients DISABLE ROW LEVEL SECURITY;
@@ -158,6 +178,7 @@ ALTER TABLE treatments DISABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE payments DISABLE ROW LEVEL SECURITY;
 ALTER TABLE session_requests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements DISABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public all clinics" ON clinics;
 CREATE POLICY "Allow public all clinics" ON clinics FOR ALL USING (true) WITH CHECK (true);
@@ -179,3 +200,6 @@ CREATE POLICY "Allow public all payments" ON payments FOR ALL USING (true) WITH 
 
 DROP POLICY IF EXISTS "Allow public all session_requests" ON session_requests;
 CREATE POLICY "Allow public all session_requests" ON session_requests FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public all announcements" ON announcements;
+CREATE POLICY "Allow public all announcements" ON announcements FOR ALL USING (true) WITH CHECK (true);

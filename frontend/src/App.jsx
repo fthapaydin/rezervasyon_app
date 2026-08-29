@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase';
 
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
+import AnnouncementBanner from './components/AnnouncementBanner';
 import Login from './pages/Login';
 
 import Dashboard from './pages/Dashboard';
@@ -158,6 +159,8 @@ function App() {
           onMenuClick={() => setMobileOpen(true)}
           onLogout={handleLogout}
         />
+
+        <AnnouncementBanner />
 
         <main className="flex-1 overflow-y-auto bg-[#f8fafb]">
           <div className="max-w-[1200px] mx-auto p-4 md:p-8">
