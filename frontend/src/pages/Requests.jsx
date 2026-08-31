@@ -39,12 +39,16 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
 
   const handleApproveConfirm = async () => {
     if (!approveModal) return;
+    if (staff.length > 1 && !selectedTherapistId) {
+      alert('Lütfen randevuyu yönetecek fizyoterapisti seçiniz.');
+      return;
+    }
     setProcessing(approveModal.id);
 
     try {
       await axios.put(`${API_URL}/session-requests/${approveModal.id}`, {
         status: 'onaylandi',
-        therapist_id: selectedTherapistId || null
+        therapist_id: selectedTherapistId || (staff.length === 1 ? staff[0].id : null)
       });
 
       // Otomatik WhatsApp bildirim tetiklemesi
@@ -237,13 +241,16 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
               </div>
 
               <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Görevli Fizyoterapist</label>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">
+                  Görevli Fizyoterapist {staff.length > 1 ? <span className="text-red-500">*</span> : ''}
+                </label>
                 <select
+                  required={staff.length > 1}
                   value={selectedTherapistId}
                   onChange={(e) => setSelectedTherapistId(e.target.value)}
                   className="input-field bg-white"
                 >
-                  <option value="">Seçim yapılmadı (Varsayılan)</option>
+                  <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Seçim yapılmadı (Varsayılan)'}</option>
                   {staff.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.full_name} ({s.title || 'Fzt.'})

@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import {
   DndContext, useDraggable, useDroppable, DragOverlay,
-  PointerSensor, useSensor, useSensors,
+  PointerSensor, useSensor, useSensors, pointerWithin
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { 
@@ -10,6 +10,7 @@ import {
   MessageCircle, Calendar, ListFilter, FileSpreadsheet,
   Edit2, Trash2, XCircle, Stethoscope, GripVertical, Move
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { sendWhatsAppReminder } from '../lib/reminder';
 import { exportSessionsToExcel } from '../lib/excelExport';
 import { API_URL } from '../lib/api';
@@ -50,10 +51,10 @@ function DraggableCard({ session, children }) {
         {session._type !== 'request' && (
           <button
             {...listeners}
-            className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-4 h-8 rounded-r-md bg-gray-200/60 hover:bg-blue-400 flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover/card:opacity-100 transition-all z-20"
+            className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-4 h-8 rounded-r-md bg-gray-200/80 hover:bg-blue-500 flex items-center justify-center cursor-grab active:cursor-grabbing opacity-40 group-hover/card:opacity-100 transition-all z-20"
             title="Sürükle & Bırak"
           >
-            <GripVertical size={10} className="text-gray-500 group-hover/card:text-white" />
+            <GripVertical size={10} className="text-gray-600 group-hover/card:text-white" />
           </button>
         )}
         {children}
@@ -63,13 +64,17 @@ function DraggableCard({ session, children }) {
 }
 
 /* ─── Droppable Cell ─── */
-function DroppableCell({ id, children, onClick, className }) {
-  const { isOver, setNodeRef } = useDroppable({ id });
+function DroppableCell({ id, date, hour, children, onClick, className }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id,
+    data: { date, hour }
+  });
+
   return (
     <td
       ref={setNodeRef}
       onClick={onClick}
-      className={`${className} ${isOver ? '!bg-blue-100 ring-2 ring-blue-400 ring-inset' : ''}`}
+      className={`${className} ${isOver ? '!bg-blue-100 ring-2 ring-blue-500 ring-inset shadow-inner' : ''}`}
     >
       {children}
     </td>
@@ -112,12 +117,12 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
 
   const filteredSessions = useMemo(() => {
     if (selectedTherapistId === 'all') return sessions;
-    return sessions.filter(s => s.therapist_id === selectedTherapistId);
+    return sessions.filter(s => (s.therapist_id === selectedTherapistId || s.therapist?.id === selectedTherapistId));
   }, [sessions, selectedTherapistId]);
 
   const filteredRequests = useMemo(() => {
     if (selectedTherapistId === 'all') return requests;
-    return requests.filter(r => r.therapist_id === selectedTherapistId);
+    return requests.filter(r => (r.therapist_id === selectedTherapistId || r.therapist?.id === selectedTherapistId));
   }, [requests, selectedTherapistId]);
 
   const sessionMap = useMemo(() => {
@@ -147,42 +152,124 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   };
 
   const handleCellClick = (dateStr, hourStr) => {
-    setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff[0]?.id || ''), session_date: dateStr, session_time: hourStr, notes: '' });
+    setFormData({
+      patient_id: '',
+      treatment_id: treatments[0]?.id || '',
+      therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''),
+      session_date: dateStr,
+      session_time: hourStr,
+      notes: ''
+    });
     setModalMode('single');
   };
 
   const handleSingleSubmit = async (e) => {
-    e.preventDefault(); setSubmitting(true);
-    try { await axios.post(`${API_URL}/sessions`, { ...formData, clinic_id: clinic?.id, therapist_id: formData.therapist_id || null }); setModalMode(null); refresh(); }
-    catch { alert('Seans oluşturulurken bir hata oluştu'); } finally { setSubmitting(false); }
+    e.preventDefault(); 
+    if (staff.length > 1 && !formData.therapist_id) {
+      alert('Lütfen bir fizyoterapist seçiniz.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payload = {
+        patient_id: formData.patient_id,
+        treatment_id: formData.treatment_id,
+        therapist_id: formData.therapist_id || null,
+        session_date: formData.session_date,
+        session_time: formData.session_time,
+        notes: formData.notes || null,
+        status: 'bekliyor'
+      };
+      
+      const { error } = await supabase.from('sessions').insert([payload]);
+      if (error) throw error;
+      
+      axios.post(`${API_URL}/sessions`, payload).catch(() => {});
+      setModalMode(null); 
+      refresh(); 
+    }
+    catch (err) {
+      console.error(err);
+      alert('Seans oluşturulurken bir hata oluştu'); 
+    } 
+    finally { setSubmitting(false); }
   };
 
   const handleEditClick = (session) => {
     setEditSession(session);
-    setFormData({ id: session.id, patient_id: session.patient_id, treatment_id: session.treatment_id, therapist_id: session.therapist_id || '', session_date: session.session_date, session_time: session.session_time?.substring(0, 5), notes: session.notes || '' });
+    setFormData({
+      id: session.id,
+      patient_id: session.patient_id,
+      treatment_id: session.treatment_id,
+      therapist_id: session.therapist_id || session.therapist?.id || (staff.length === 1 ? staff[0]?.id : ''),
+      session_date: session.session_date,
+      session_time: session.session_time?.substring(0, 5),
+      notes: session.notes || ''
+    });
     setModalMode('edit');
   };
 
   const handleEditSubmit = async (e) => {
-    e.preventDefault(); setSubmitting(true);
-    try { await axios.put(`${API_URL}/sessions/${formData.id}`, { ...formData, therapist_id: formData.therapist_id || null }); setModalMode(null); refresh(); }
-    catch { alert('Seans güncellenirken bir hata oluştu'); } finally { setSubmitting(false); }
+    e.preventDefault(); 
+    if (staff.length > 1 && !formData.therapist_id) {
+      alert('Lütfen bir fizyoterapist seçiniz.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payload = {
+        patient_id: formData.patient_id,
+        treatment_id: formData.treatment_id,
+        therapist_id: formData.therapist_id || null,
+        session_date: formData.session_date,
+        session_time: formData.session_time,
+        notes: formData.notes || null,
+      };
+
+      const { error } = await supabase
+        .from('sessions')
+        .update(payload)
+        .eq('id', formData.id);
+      
+      if (error) throw error;
+
+      axios.put(`${API_URL}/sessions/${formData.id}`, payload).catch(() => {});
+      setModalMode(null); 
+      refresh(); 
+    }
+    catch (err) {
+      console.error(err);
+      alert('Seans güncellenirken bir hata oluştu'); 
+    } 
+    finally { setSubmitting(false); }
   };
 
   const deleteSession = async (id) => {
     if (!window.confirm("Bu seansı silmek istediğinize emin misiniz?")) return;
-    try { await axios.delete(`${API_URL}/sessions/${id}`); refresh(); } catch { alert('Silme işlemi başarısız'); }
+    try {
+      await supabase.from('sessions').delete().eq('id', id);
+      axios.delete(`${API_URL}/sessions/${id}`).catch(() => {});
+      refresh();
+    } catch { 
+      alert('Silme işlemi başarısız'); 
+    }
   };
 
   const handleRecurSubmit = async (e) => {
-    e.preventDefault(); setSubmitting(true);
+    e.preventDefault(); 
+    if (staff.length > 1 && !recurData.therapist_id) {
+      alert('Lütfen bir fizyoterapist seçiniz.');
+      return;
+    }
+    setSubmitting(true);
     try { await axios.post(`${API_URL}/sessions/recurring`, { ...recurData, clinic_id: clinic?.id, therapist_id: recurData.therapist_id || null }); setModalMode(null); refresh(); }
     catch { alert('Tekrarlayan seanslar oluşturulurken bir hata oluştu'); } finally { setSubmitting(false); }
   };
 
   const updateSessionStatus = async (id, status, sessionData) => {
     try {
-      await axios.put(`${API_URL}/sessions/${id}`, { status });
+      await supabase.from('sessions').update({ status }).eq('id', id);
+      axios.put(`${API_URL}/sessions/${id}`, { status }).catch(() => {});
       refresh();
       if (status === 'tamamlandi' && sessionData?.patient?.phone) {
         axios.post(`${API_URL}/whatsapp/send-template`, { clinic_id: clinic?.id, to_phone: sessionData.patient.phone, type: 'completed', patient_name: sessionData.patient.full_name, date: sessionData.session_date, time: sessionData.session_time?.substring(0, 5), therapist_name: sessionData.therapist?.full_name, treatment_name: sessionData.treatment?.name }).catch(err => console.error(err));
@@ -191,14 +278,22 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   };
 
   const approveRequest = async (id) => {
-    try { await axios.put(`${API_URL}/session-requests/${id}`, { status: 'onaylandi' }); refresh(); }
+    try { 
+      await supabase.from('session_requests').update({ status: 'onaylandi' }).eq('id', id);
+      axios.put(`${API_URL}/session-requests/${id}`, { status: 'onaylandi' }).catch(() => {});
+      refresh(); 
+    }
     catch { alert('Onaylama işlemi başarısız'); }
   };
 
   const rejectRequest = async (id) => {
     const reason = window.prompt("Reddetme gerekçesi (isteğe bağlı):");
     if (reason === null) return;
-    try { await axios.put(`${API_URL}/session-requests/${id}`, { status: 'reddedildi', rejection_reason: reason || null }); refresh(); }
+    try { 
+      await supabase.from('session_requests').update({ status: 'reddedildi', rejection_reason: reason || null }).eq('id', id);
+      axios.put(`${API_URL}/session-requests/${id}`, { status: 'reddedildi', rejection_reason: reason || null }).catch(() => {});
+      refresh(); 
+    }
     catch { alert('Reddetme işlemi başarısız'); }
   };
 
@@ -209,15 +304,55 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
     setActiveDragItem(null);
     const { active, over } = event;
     if (!over || !active.data.current) return;
+
     const session = active.data.current;
     if (session._type === 'request') return;
-    const parts = over.id.split('|');
-    if (parts.length !== 3 || parts[0] !== 'cell') return;
-    const newDate = parts[1], newTime = parts[2];
-    const oldDate = session.session_date, oldTime = session.session_time?.substring(0, 5);
-    if (newDate === oldDate && newTime === oldTime) return;
-    try { await axios.put(`${API_URL}/sessions/${session.id}`, { session_date: newDate, session_time: newTime }); refresh(); }
-    catch { alert('Seans taşıma başarısız oldu'); }
+
+    let targetDate = null;
+    let targetTime = null;
+
+    // 1. Droppable data kontrolü
+    if (over.data?.current?.date && over.data?.current?.hour) {
+      targetDate = over.data.current.date;
+      targetTime = over.data.current.hour;
+    } 
+    // 2. ID string kontrolü (cell|2026-08-25|14:00)
+    else if (typeof over.id === 'string' && over.id.startsWith('cell|')) {
+      const parts = over.id.split('|');
+      targetDate = parts[1];
+      targetTime = parts[2];
+    }
+    // 3. Başka bir seans kartı üzerine bırakıldıysa
+    else if (over.data?.current?.session_date && over.data?.current?.session_time) {
+      targetDate = over.data.current.session_date;
+      targetTime = over.data.current.session_time.substring(0, 5);
+    }
+
+    if (!targetDate || !targetTime) return;
+
+    const oldDate = session.session_date;
+    const oldTime = session.session_time?.substring(0, 5);
+    if (targetDate === oldDate && targetTime === oldTime) return;
+
+    try {
+      // 1. Supabase'i doğrudan güncelle
+      await supabase
+        .from('sessions')
+        .update({ session_date: targetDate, session_time: targetTime })
+        .eq('id', session.id);
+
+      // 2. Backend'e de güncelleme gönder
+      axios.put(`${API_URL}/sessions/${session.id}`, {
+        session_date: targetDate,
+        session_time: targetTime
+      }).catch(() => {});
+
+      // 3. Verileri anında yenile
+      refresh();
+    } catch (err) {
+      console.error('Drag drop error:', err);
+      alert('Seans taşınırken bir hata oluştu');
+    }
   }, [refresh]);
 
   const weekLabel = `${weekDays[0].toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} - ${weekDays[6].toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
@@ -251,8 +386,8 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
           <button onClick={() => exportSessionsToExcel(sessions)} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center gap-1.5 transition-all"><FileSpreadsheet size={14} /> <span className="hidden sm:inline">Excel</span></button>
-          <button onClick={() => { setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: staff[0]?.id || '', session_date: today, session_time: '09:00', notes: '' }); setModalMode('single'); }} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"><Plus size={14}/> Tekli Seans</button>
-          <button onClick={() => { setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: staff[0]?.id || '', session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 }); setModalMode('recurring'); }} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white bg-blue-600 hover:bg-blue-700 flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"><Repeat size={13}/> Tekrarlayan</button>
+          <button onClick={() => { setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_date: today, session_time: '09:00', notes: '' }); setModalMode('single'); }} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"><Plus size={14}/> Tekli Seans</button>
+          <button onClick={() => { setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 }); setModalMode('recurring'); }} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white bg-blue-600 hover:bg-blue-700 flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"><Repeat size={13}/> Tekrarlayan</button>
         </div>
       </div>
 
@@ -263,7 +398,12 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
             <FormField label="Hasta *"><select required value={formData.patient_id} className="input-field" onChange={e => setFormData({...formData, patient_id: e.target.value})}><option value="">Hasta seçiniz...</option>{patients.map(p => <option key={p.id} value={p.id}>{p.full_name}{p.complaint ? ` — (${p.complaint})` : ''}</option>)}</select></FormField>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Tedavi *"><select required value={formData.treatment_id} className="input-field" onChange={e => setFormData({...formData, treatment_id: e.target.value})}><option value="">Tedavi seçiniz...</option>{treatments.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes} dk) — {t.price} ₺</option>)}</select></FormField>
-              <FormField label="Fizyoterapist"><select value={formData.therapist_id} className="input-field" onChange={e => setFormData({...formData, therapist_id: e.target.value})}><option value="">Terapist seçiniz...</option>{staff.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}</select></FormField>
+              <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
+                <select required={staff.length > 1} value={formData.therapist_id} className="input-field" onChange={e => setFormData({...formData, therapist_id: e.target.value})}>
+                  <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist seçiniz...'}</option>
+                  {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+                </select>
+              </FormField>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Tarih *"><input required type="date" value={formData.session_date} className="input-field" onChange={e => setFormData({...formData, session_date: e.target.value})} /></FormField>
@@ -281,7 +421,12 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
             <FormField label="Hasta *"><select required value={recurData.patient_id} className="input-field" onChange={e => setRecurData({...recurData, patient_id: e.target.value})}><option value="">Hasta seçiniz...</option>{patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}</select></FormField>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Tedavi *"><select required value={recurData.treatment_id} className="input-field" onChange={e => setRecurData({...recurData, treatment_id: e.target.value})}><option value="">Tedavi...</option>{treatments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></FormField>
-              <FormField label="Fizyoterapist"><select value={recurData.therapist_id} className="input-field" onChange={e => setRecurData({...recurData, therapist_id: e.target.value})}><option value="">Terapist...</option>{staff.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}</select></FormField>
+              <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
+                <select required={staff.length > 1} value={recurData.therapist_id} className="input-field" onChange={e => setRecurData({...recurData, therapist_id: e.target.value})}>
+                  <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist...'}</option>
+                  {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+                </select>
+              </FormField>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <FormField label="Başlangıç *"><input required type="date" value={recurData.start_date} className="input-field" onChange={e => setRecurData({...recurData, start_date: e.target.value})} /></FormField>
@@ -306,7 +451,12 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
               <FormField label="Yeni Tarih *"><input required type="date" value={formData.session_date} className="input-field border-blue-200 focus:border-blue-500" onChange={e => setFormData({...formData, session_date: e.target.value})} /></FormField>
               <FormField label="Yeni Saat *"><input required type="time" value={formData.session_time} className="input-field border-blue-200 focus:border-blue-500" onChange={e => setFormData({...formData, session_time: e.target.value})} /></FormField>
             </div>
-            <FormField label="Fizyoterapist"><select value={formData.therapist_id} className="input-field" onChange={e => setFormData({...formData, therapist_id: e.target.value})}><option value="">Terapist seçiniz...</option>{staff.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}</select></FormField>
+            <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
+              <select required={staff.length > 1} value={formData.therapist_id} className="input-field border-blue-200 focus:border-blue-500" onChange={e => setFormData({...formData, therapist_id: e.target.value})}>
+                <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist seçiniz...'}</option>
+                {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+              </select>
+            </FormField>
             <FormField label="Not"><input type="text" value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} /></FormField>
             <ModalActions onCancel={() => setModalMode(null)} submitLabel={submitting ? 'Kaydediliyor...' : 'Kaydet'} submitting={submitting} color="blue" />
           </form>
@@ -315,7 +465,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
 
       {/* ═══ Calendar View (Drag & Drop) ═══ */}
       {viewMode === 'calendar' ? (
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-md overflow-hidden">
             {/* Legend bar */}
             <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-blue-50 to-emerald-50 border-b-2 border-gray-200 text-[11px]">
@@ -362,6 +512,8 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                           <DroppableCell
                             key={di}
                             id={cellId}
+                            date={dateStr}
+                            hour={hour}
                             onClick={() => cellSessions.length === 0 && handleCellClick(dateStr, hour)}
                             className={`border-r-2 border-gray-200 last:border-r-0 align-top transition-all cursor-pointer relative ${
                               cellSessions.length === 0
