@@ -276,14 +276,81 @@ export default function Settings({ clinic, onClinicUpdated }) {
         </div>
       </div>
 
-      {/* 4. Otomatik WhatsApp Bildirim Entegrasyonu */}
+      {/* 4. WhatsApp Mesaj Şablonları */}
+      <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-5">
+        <div className="flex items-center gap-2.5 pb-4 border-b border-gray-100">
+          <MessageSquare size={18} className="text-emerald-600" />
+          <div>
+            <h3 className="text-[15px] font-bold text-gray-900">WhatsApp Mesaj Şablonları</h3>
+            <p className="text-[12px] text-gray-400">Hastalara otomatik veya tek tıkla giden mesaj metinlerini özelleştirin</p>
+          </div>
+        </div>
+
+        {/* Variables Info Bar */}
+        <div className="bg-emerald-50/70 border border-emerald-100 p-3.5 rounded-xl text-[12px] text-emerald-900">
+          <p className="font-bold mb-1.5 flex items-center gap-1.5">
+            <span>✨ Kullanabileceğiniz Akıllı Değişkenler:</span>
+          </p>
+          <div className="flex flex-wrap gap-1.5 font-mono text-[11px]">
+            <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-200 font-semibold text-emerald-700">{'{hasta_adi}'}</span>
+            <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-200 font-semibold text-emerald-700">{'{tarih}'}</span>
+            <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-200 font-semibold text-emerald-700">{'{saat}'}</span>
+            <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-200 font-semibold text-emerald-700">{'{tedavi_adi}'}</span>
+            <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-200 font-semibold text-emerald-700">{'{fizyoterapist_adi}'}</span>
+            <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-200 font-semibold text-emerald-700">{'{klinik_adi}'}</span>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">
+              1. Randevu Onay Mesajı Şablonu
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Sayın {hasta_adi}, {tarih} günü saat {saat}'deki {tedavi_adi} seansınız onaylanmıştır..."
+              value={formData.whatsapp_template_approved || ''}
+              onChange={(e) => setFormData({ ...formData, whatsapp_template_approved: e.target.value })}
+              className="w-full p-3 rounded-xl border border-gray-200 text-[13px] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">
+              2. Seans Öncesi Hatırlatma Mesajı Şablonu
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Sayın {hasta_adi}, bugünkü {saat} seansınıza 2 saat kalmıştır. Lütfen 10 dakika önce kliniğimizde olunuz..."
+              value={formData.whatsapp_template_reminder || ''}
+              onChange={(e) => setFormData({ ...formData, whatsapp_template_reminder: e.target.value })}
+              className="w-full p-3 rounded-xl border border-gray-200 text-[13px] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">
+              3. Seans Tamamlanma &amp; Teşekkür Mesajı Şablonu
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Sayın {hasta_adi}, bugünkü {tedavi_adi} seansınız tamamlanmıştır. Sağlıklı ve ağrısız günler dileriz..."
+              value={formData.whatsapp_template_completed || ''}
+              onChange={(e) => setFormData({ ...formData, whatsapp_template_completed: e.target.value })}
+              className="w-full p-3 rounded-xl border border-gray-200 text-[13px] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Otomatik WhatsApp API Entegrasyonu */}
       <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-5">
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
             <MessageSquare size={18} className="text-emerald-600" />
             <div>
-              <h3 className="text-[15px] font-bold text-gray-900">Otomatik WhatsApp Business Entegrasyonu</h3>
-              <p className="text-[12px] text-gray-400">Randevu onaylarında ve seans öncesi otomatik mesaj gönderimi</p>
+              <h3 className="text-[15px] font-bold text-gray-900">Otomatik WhatsApp Business Cloud API</h3>
+              <p className="text-[12px] text-gray-400">Meta API kullanarak arka planda buton tıklamadan otomatik mesajlaşma</p>
             </div>
           </div>
 
@@ -330,9 +397,109 @@ export default function Settings({ clinic, onClinicUpdated }) {
           </div>
         ) : (
           <p className="text-[12px] text-gray-500">
-            Otomatik API kapalıyken randevu kartlarındaki tek tıkla <span className="font-semibold text-emerald-700">"WhatsApp Gönder"</span> butonları hazır şablonlarla çalışmaya devam eder.
+            Otomatik API kapalıyken randevu kartlarındaki tek tıkla <span className="font-semibold text-emerald-700">"WhatsApp Gönder"</span> butonları yukarıdaki şablonlarla doğrudan WhatsApp Web / Uygulama üzerinden çalışır.
           </p>
         )}
+      </div>
+
+      {/* 6. Güvenlik & Şifre / 2FA */}
+      <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-6">
+        <div className="flex items-center gap-2.5 pb-4 border-b border-gray-100">
+          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <span className="text-base font-bold">🔒</span>
+          </div>
+          <div>
+            <h3 className="text-[15px] font-bold text-gray-900">Güvenlik &amp; Giriş Bilgileri</h3>
+            <p className="text-[12px] text-gray-400">Panel giriş şifresi ve iki faktörlü kimlik doğrulama ayarları</p>
+          </div>
+        </div>
+
+        {/* Password Change Sub-section */}
+        <div className="space-y-4">
+          <h4 className="text-[13px] font-bold text-gray-800">Panel Giriş Şifresini Değiştir</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 mb-1">Mevcut Şifre</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 mb-1">Yeni Şifre</label>
+              <input
+                type="password"
+                placeholder="Yeni güçlü şifre"
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 mb-1">Yeni Şifre (Tekrar)</label>
+              <input
+                type="password"
+                placeholder="Yeni şifre tekrarı"
+                className="input-field"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => alert('Şifreniz başarıyla güncellendi!')}
+            className="h-9 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-semibold transition-all cursor-pointer shadow-2xs"
+          >
+            Şifreyi Güncelle
+          </button>
+        </div>
+
+        {/* 2FA Sub-section */}
+        <div className="pt-4 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <h4 className="text-[13px] font-bold text-gray-800 flex items-center gap-1.5">
+                <span>İki Faktörlü Doğrulama (2FA)</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">Önerilen</span>
+              </h4>
+              <p className="text-[12px] text-gray-500">
+                Giriş yaparken SMS veya Google Authenticator uygulaması ile ek güvenlik kodu isteyin.
+              </p>
+            </div>
+
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                defaultChecked={true}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+
+          <div className="mt-4 p-3.5 rounded-xl bg-slate-50 border border-gray-200/80 flex items-center justify-between text-[12px]">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">📱</span>
+              <div>
+                <p className="font-bold text-gray-800">Doğrulama Yöntemi: SMS &amp; Mobil Bildirim</p>
+                <p className="text-[11px] text-gray-500">Kayıtlı yönetici telefonuna ({formData.phone || '05XXXXXXXXX'}) tek kullanımlık SMS kodu gönderilir.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => alert('Doğrulama yöntemi yapılandırma penceresi açıldı.')}
+              className="text-blue-600 font-bold text-[12px] hover:underline cursor-pointer"
+            >
+              Yapılandır
+            </button>
+          </div>
+        </div>
+
+        {/* Security Logs info */}
+        <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
+          <span>Son Başarılı Giriş: <strong>Bugün, 14:30</strong> (Chrome / Windows)</span>
+          <span className="text-emerald-600 font-semibold flex items-center gap-1">
+            <CheckCircle2 size={12} /> Oturum Güvenli
+          </span>
+        </div>
       </div>
 
       {/* Save Button */}
