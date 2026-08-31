@@ -68,17 +68,16 @@ function App() {
   }, [clinic?.id]);
 
   const fetchData = async () => {
-    if (!clinic?.id) return;
     setLoading(true);
     try {
-      // Supabase üzerinden doğrudan kliniğin verilerini çek
+      // Supabase üzerinden doğrudan verileri çek
       const [pRes, tRes, staffRes, sRes, payRes, reqRes] = await Promise.all([
-        supabase.from('patients').select('*').eq('clinic_id', clinic.id).order('created_at', { ascending: false }),
-        supabase.from('treatments').select('*').eq('clinic_id', clinic.id).order('created_at', { ascending: true }),
-        supabase.from('staff').select('*').eq('clinic_id', clinic.id).order('created_at', { ascending: true }),
-        supabase.from('sessions').select('*, patient:patients(id, full_name, phone, total_sessions), treatment:treatments(name, price), therapist:staff(id, full_name, role, title, color)').eq('clinic_id', clinic.id).order('session_date', { ascending: true }),
-        supabase.from('payments').select('*, patient:patients(full_name), session:sessions(session_date, treatment:treatments(name))').eq('clinic_id', clinic.id).order('payment_date', { ascending: false }),
-        supabase.from('session_requests').select('*, patient:patients(id, full_name, phone), treatment:treatments(name, price), therapist:staff(id, full_name, role, title, color)').eq('clinic_id', clinic.id).order('created_at', { ascending: false }),
+        supabase.from('patients').select('*').order('created_at', { ascending: false }),
+        supabase.from('treatments').select('*').order('created_at', { ascending: true }),
+        supabase.from('staff').select('*').order('created_at', { ascending: true }),
+        supabase.from('sessions').select('*, patient:patients(id, full_name, phone, total_sessions), treatment:treatments(name, price), therapist:staff(id, full_name, role, title, color)').order('session_date', { ascending: true }),
+        supabase.from('payments').select('*, patient:patients(full_name), session:sessions(session_date, treatment:treatments(name))').order('payment_date', { ascending: false }),
+        supabase.from('session_requests').select('*, patient:patients(id, full_name, phone), treatment:treatments(name, price), therapist:staff(id, full_name, role, title, color)').order('created_at', { ascending: false }),
       ]);
 
       setPatients(pRes.data || []);
@@ -89,26 +88,6 @@ function App() {
       setRequests(reqRes.data || []);
     } catch (e) {
       console.error('Veri çekme hatası:', e);
-      // Fallback: Backend API'ye x-clinic-id başlığı ile istek at
-      try {
-        const config = { headers: { 'x-clinic-id': clinic.id } };
-        const [p, t, st, s, pay, req] = await Promise.all([
-          axios.get(`${API_URL}/patients`, config).catch(() => ({ data: [] })),
-          axios.get(`${API_URL}/treatments`, config).catch(() => ({ data: [] })),
-          axios.get(`${API_URL}/staff`, config).catch(() => ({ data: [] })),
-          axios.get(`${API_URL}/sessions`, config).catch(() => ({ data: [] })),
-          axios.get(`${API_URL}/payments`, config).catch(() => ({ data: [] })),
-          axios.get(`${API_URL}/session-requests`, config).catch(() => ({ data: [] })),
-        ]);
-        setPatients(p.data);
-        setTreatments(t.data);
-        setStaff(st.data);
-        setSessions(s.data);
-        setPayments(pay.data);
-        setRequests(req.data);
-      } catch (err) {
-        console.error(err);
-      }
     } finally {
       setLoading(false);
     }
