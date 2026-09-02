@@ -5,6 +5,8 @@ import { API_URL } from '../lib/api';
 import { 
   Users, Plus, X, Pencil, Trash2, ShieldCheck, Stethoscope, UserCheck, Phone, Mail, CheckCircle2 
 } from 'lucide-react';
+import { useToast } from '../components/ui/Toast';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 const ROLE_MAP = {
   admin:     { label: 'Klinik Sahibi / Yönetici', icon: ShieldCheck, bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
@@ -23,7 +25,11 @@ const COLOR_PRESETS = [
 ];
 
 export default function Staff({ clinic, staff = [], refresh }) {
+  const { toast } = useToast();
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [staffToDelete, setStaffToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -57,7 +63,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
     setFormData({
       full_name: member.full_name || '',
       role: member.role || 'therapist',
-      title: member.title || 'Fizyoterapist',
+      title: member.title || '',
       color: member.color || '#059669',
       phone: member.phone || '',
       email: member.email || '',
@@ -80,6 +86,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
         if (error) {
           await axios.post(`${API_URL}/staff`, { ...formData, clinic_id: clinic?.id });
         }
+        toast.success(`"${formData.full_name}" ekibe eklendi.`, 'Personel Kaydedildi');
       } else {
         const { error } = await supabase
           .from('staff')
@@ -88,32 +95,49 @@ export default function Staff({ clinic, staff = [], refresh }) {
         if (error) {
           await axios.put(`${API_URL}/staff/${selectedStaff.id}`, formData);
         }
+        toast.success(`"${formData.full_name}" bilgileri güncellendi.`, 'Personel Güncellendi');
       }
 
       setShowModal(false);
       refresh();
     } catch (err) {
-      alert(err.message || 'Personel kaydedilirken hata oluştu.');
+      toast.error(err.message || 'Personel kaydedilirken hata oluştu.', 'Hata');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (member) => {
-    if (!window.confirm(`"${member.full_name}" isimli personeli silmek istediğinize emin misiniz?`)) return;
+  const confirmDelete = async () => {
+    if (!staffToDelete) return;
+    setDeleting(true);
     try {
-      const { error } = await supabase.from('staff').delete().eq('id', member.id);
+      const { error } = await supabase.from('staff').delete().eq('id', staffToDelete.id);
       if (error) {
-        await axios.delete(`${API_URL}/staff/${member.id}`);
+        await axios.delete(`${API_URL}/staff/${staffToDelete.id}`);
       }
+      toast.success(`"${staffToDelete.full_name}" başarıyla silindi.`, 'Personel Silindi');
+      setShowDeleteModal(false);
+      setStaffToDelete(null);
       refresh();
     } catch (err) {
-      alert(err.message || 'Silme işlemi sırasında hata oluştu.');
+      toast.error(err.message || 'Silme işlemi sırasında hata oluştu.', 'Hata');
+    } finally {
+      setDeleting(false);
     }
   };
 
   return (
     <div className="space-y-6">
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDelete}
+        title="Personeli Sil"
+        message={`"${staffToDelete?.full_name}" isimli personeli silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+        confirmText="Sil"
+        loading={deleting}
+      />
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -169,8 +193,11 @@ export default function Staff({ clinic, staff = [], refresh }) {
                         <Pencil size={14} />
                       </button>
                       <button
-                        onClick={() => handleDelete(member)}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setStaffToDelete(member);
+                          setShowDeleteModal(true);
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 transition-colors cursor-pointer"
                         title="Sil"
                       >
                         <Trash2 size={14} />

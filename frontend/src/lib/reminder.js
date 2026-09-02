@@ -25,23 +25,25 @@ export function generateReminderText(session) {
 }
 
 export function sendWhatsAppReminder(session) {
-  const phone = formatPhoneNumber(session.patient?.phone);
+  const phone = formatPhoneNumber(session?.patient?.phone);
   if (!phone) {
-    alert('Hastaya ait geçerli bir telefon numarası bulunamadı.');
-    return;
+    console.warn('Hastaya ait geçerli bir telefon numarası bulunamadı.');
+    return false;
   }
   const text = generateReminderText(session);
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   window.open(url, '_blank');
+  return true;
 }
 
 export function sendSmsReminder(session) {
-  const phone = formatPhoneNumber(session.patient?.phone);
+  const phone = formatPhoneNumber(session?.patient?.phone);
   if (!phone) {
-    alert('Hastaya ait geçerli bir telefon numarası bulunamadı.');
-    return;
+    console.warn('Hastaya ait geçerli bir telefon numarası bulunamadı.');
+    return false;
   }
   const text = generateReminderText(session);
   const url = `sms:${phone}?body=${encodeURIComponent(text)}`;
   window.open(url, '_blank');
+  return true;
 }

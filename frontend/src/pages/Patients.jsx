@@ -3,6 +3,9 @@ import axios from 'axios';
 import { Plus, X, Phone, Search, ArrowLeft, Mail, MapPin, CheckCircle2, Clock, FileDown, AlertTriangle, MessageCircle, Pencil, Trash2 } from 'lucide-react';
 import { generateSessionReport, generatePatientSummary } from '../lib/pdfGenerator';
 import { sendWhatsAppReminder } from '../lib/reminder';
+import { useToast } from '../components/ui/Toast';
+import ConfirmModal from '../components/ui/ConfirmModal';
+import EmptyState from '../components/ui/EmptyState';
 
 import { API_URL } from '../lib/api';
 
@@ -16,6 +19,7 @@ export default function Patients({ clinic, patients, sessions, selectedPatientId
 
 // ─── Patient List ────────────────────────────────────────
 function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [formData, setFormData] = useState({
@@ -35,7 +39,7 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
     // Strict phone validation
     const cleanedPhone = formData.phone.replace(/\D/g, '');
     if (cleanedPhone.length < 10 || cleanedPhone.length > 11) {
-      alert('Lütfen geçerli bir telefon numarası giriniz (10 veya 11 haneli sayı, Örn: 05551234567).');
+      toast.warning('Lütfen geçerli bir telefon numarası giriniz (10 veya 11 haneli sayı, Örn: 05551234567).', 'Geçersiz Telefon');
       return;
     }
 
@@ -48,12 +52,13 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
         age: formData.age ? parseInt(formData.age, 10) : null,
         total_sessions: parseInt(formData.total_sessions, 10) || 10
       });
+      toast.success(`"${formData.full_name}" başarıyla kaydedildi.`, 'Hasta Eklendi');
       setShowForm(false);
       setFormData({ full_name: '', phone: '', email: '', age: '', gender: '', address: '', complaint: '', total_sessions: 10, notes: '' });
       refresh();
     } catch (err) {
       const errorMsg = err.response?.data?.error || err.message || 'Hasta kaydedilirken hata oluştu';
-      alert(`Kayıt Hatası: ${errorMsg}`);
+      toast.error(errorMsg, 'Kayıt Hatası');
     } finally {
       setSubmitting(false);
     }
@@ -240,22 +245,25 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
 
 // ─── Patient Detail ────────────────────────────────────
 function PatientDetail({ id, onBack, refresh }) {
+  const { toast } = useToast();
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editData, setEditData] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editData, setEditData] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchPatientDetail = () => {
-    setLoading(true);
-    axios.get(`${API_URL}/patients/${id}`)
-      .then(res => {
-        setPatient(res.data);
-        setEditData(res.data);
-      })
-      .catch(err => console.error(err))
-      .finally(() => setLoading(false));
+  const fetchPatientDetail = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/patients/${id}`);
+      setPatient(res.data);
+      setEditData(res.data);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -266,7 +274,7 @@ function PatientDetail({ id, onBack, refresh }) {
     e.preventDefault();
     const cleanedPhone = editData.phone.replace(/\D/g, '');
     if (cleanedPhone.length < 10 || cleanedPhone.length > 11) {
-      alert('Lütfen geçerli bir telefon numarası giriniz (Örn: 05XXXXXXXXX).');
+      toast.warning('Lütfen geçerli bir telefon numarası giriniz (Örn: 05XXXXXXXXX).', 'Geçersiz Telefon');
       return;
     }
 
@@ -284,11 +292,12 @@ function PatientDetail({ id, onBack, refresh }) {
         notes: editData.notes
       };
       await axios.put(`${API_URL}/patients/${id}`, payload);
+      toast.success('Hasta bilgileri güncellendi.', 'Başarılı');
       setShowEditModal(false);
       fetchPatientDetail();
       refresh();
     } catch (err) {
-      alert(err.response?.data?.error || 'Güncelleme sırasında hata oluştu.');
+      toast.error(err.response?.data?.error || 'Güncelleme sırasında hata oluştu.', 'Hata');
     } finally {
       setSubmitting(false);
     }
@@ -296,16 +305,15 @@ function PatientDetail({ id, onBack, refresh }) {
 
   const handleDeletePatient = async () => {
     if (!patient) return;
-    const confirmMsg = `"${patient.full_name}" isimli hastayı ve hastaya ait TÜM randevu ve ödeme geçmişini kalıcı olarak silmek istediğinize emin misiniz?`;
-    if (!window.confirm(confirmMsg)) return;
-
     setDeleting(true);
     try {
       await axios.delete(`${API_URL}/patients/${id}`);
+      toast.success(`"${patient.full_name}" ve tüm geçmiş kayıtları silindi.`, 'Hasta Silindi');
+      setShowDeleteModal(false);
       refresh();
       onBack();
     } catch (err) {
-      alert(err.response?.data?.error || 'Silme işlemi sırasında hata oluştu.');
+      toast.error(err.response?.data?.error || 'Silme işlemi sırasında hata oluştu.', 'Silme Başarısız');
       setDeleting(false);
     }
   };
@@ -343,11 +351,11 @@ function PatientDetail({ id, onBack, refresh }) {
             <Pencil size={13} className="text-gray-500" /> Düzenle
           </button>
           <button 
-            onClick={handleDeletePatient}
+            onClick={() => setShowDeleteModal(true)}
             disabled={deleting}
-            className="h-9 px-3 rounded-lg text-[12px] font-medium text-red-600 bg-white border border-red-200 hover:bg-red-50 flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-50"
+            className="h-9 px-3 rounded-lg text-[12px] font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <Trash2 size={13} /> {deleting ? 'Siliniyor...' : 'Hastayı Sil'}
+            <Trash2 size={13} /> Hastayı Sil
           </button>
           <button 
             onClick={() => generateSessionReport(patient, sessions)}
@@ -536,8 +544,18 @@ function PatientDetail({ id, onBack, refresh }) {
         </div>
       )}
 
-
-      {/* Progress bar */}
+      {/* Delete Patient Confirm Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeletePatient}
+        isLoading={deleting}
+        title="Hastayı Silmek İstediğinize Emin misiniz?"
+        message={`"${patient?.full_name}" isimli hastayı ve bu hastaya ait TÜM randevu ve ödeme geçmişi kalıcı olarak silinecektir. Bu işlem geri alınamaz.`}
+        confirmText="Evet, Hastayı Sil"
+        cancelText="Vazgeç"
+        type="danger"
+      />
       <div className="bg-white rounded-xl border border-gray-200/80 p-5">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[12px] font-medium text-gray-500">Tedavi İlerlemesi</span>

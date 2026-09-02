@@ -1,8 +1,8 @@
 // Excel CSV Export with UTF-8 BOM for full Turkish character support
 export function exportSessionsToExcel(sessions, filename = 'seanslar_listesi') {
   if (!sessions || sessions.length === 0) {
-    alert('Dışa aktarılacak seans kaydı bulunamadı.');
-    return;
+    console.warn('Dışa aktarılacak seans kaydı bulunamadı.');
+    return false;
   }
 
   const headers = [

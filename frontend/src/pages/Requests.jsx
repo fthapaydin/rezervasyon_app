@@ -4,6 +4,7 @@ import { API_URL } from '../lib/api';
 import { 
   CheckCircle, XCircle, Clock, Calendar, Phone, Stethoscope, MessageSquare, X, Send, UserCheck 
 } from 'lucide-react';
+import { useToast } from '../components/ui/Toast';
 
 const STATUS_MAP = {
   bekliyor:    { label: 'Bekliyor',    cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
@@ -22,6 +23,7 @@ function formatCreated(d) {
 }
 
 export default function Requests({ clinic, staff = [], requests = [], refresh }) {
+  const { toast } = useToast();
   const [filter, setFilter] = useState('bekliyor');
   const [rejectModal, setRejectModal] = useState(null); // request object
   const [approveModal, setApproveModal] = useState(null); // request object for therapist assignment
@@ -40,7 +42,7 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
   const handleApproveConfirm = async () => {
     if (!approveModal) return;
     if (staff.length > 1 && !selectedTherapistId) {
-      alert('Lütfen randevuyu yönetecek fizyoterapisti seçiniz.');
+      toast.warning('Lütfen randevuyu yönetecek fizyoterapisti seçiniz.', 'Terapist Seçimi Gerekli');
       return;
     }
     setProcessing(approveModal.id);
@@ -66,10 +68,11 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
         }).catch(err => console.error(err));
       }
 
+      toast.success(`"${approveModal.patient?.full_name}" randevusu onaylandı ve takvime eklendi.`, 'Randevu Onaylandı');
       setApproveModal(null);
       refresh();
     } catch (err) {
-      alert(err.response?.data?.error || 'İşlem başarısız oldu.');
+      toast.error(err.response?.data?.error || 'İşlem başarısız oldu.', 'Hata');
     } finally {
       setProcessing(null);
     }
@@ -83,11 +86,12 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
         status: 'reddedildi',
         rejection_reason: rejectionReason || null
       });
+      toast.info(`"${rejectModal.patient?.full_name}" randevu talebi reddedildi.`, 'Talep Reddedildi');
       setRejectModal(null);
       setRejectionReason('');
       refresh();
     } catch (err) {
-      alert(err.response?.data?.error || 'İşlem başarısız oldu.');
+      toast.error(err.response?.data?.error || 'İşlem başarısız oldu.', 'Hata');
     } finally {
       setProcessing(null);
     }

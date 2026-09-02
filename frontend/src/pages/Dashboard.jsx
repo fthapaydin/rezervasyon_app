@@ -1,7 +1,11 @@
-import { Users, CalendarDays, CheckCircle, Wallet, TrendingUp, AlertTriangle, MessageCircle } from 'lucide-react';
+import { 
+  Users, CalendarDays, CheckCircle, Wallet, TrendingUp, AlertTriangle, 
+  MessageCircle, Plus, ArrowUpRight, Clock, Sparkles, Activity, QrCode
+} from 'lucide-react';
 import { sendWhatsAppReminder } from '../lib/reminder';
+import EmptyState from '../components/ui/EmptyState';
 
-export default function Dashboard({ patients, sessions, payments, onPatientClick }) {
+export default function Dashboard({ patients, sessions, payments, onPatientClick, setActiveTab }) {
   const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
   const pending = sessions.filter(s => s.status === 'bekliyor');
   const completed = sessions.filter(s => s.status === 'tamamlandi');
@@ -11,98 +15,188 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
   const totalDebt = Math.max(0, totalSessionValue - totalRevenue);
 
   const stats = [
-    { label: 'Toplam Hasta',    value: patients.length,        icon: Users,          color: 'text-blue-600 bg-blue-50' },
-    { label: 'Bekleyen Seans',  value: pending.length,         icon: CalendarDays,   color: 'text-amber-600 bg-amber-50' },
-    { label: 'Toplam Gelir',    value: `${totalRevenue.toLocaleString('tr-TR')} ₺`, icon: Wallet, color: 'text-emerald-600 bg-emerald-50' },
-    { label: 'Toplam Alacak',   value: `${totalDebt.toLocaleString('tr-TR')} ₺`, icon: AlertTriangle, color: 'text-red-500 bg-red-50' },
+    { 
+      label: 'Toplam Kayıtlı Hasta',    
+      value: patients.length,        
+      icon: Users,          
+      color: 'text-blue-600 bg-blue-50 border-blue-100',
+      badge: `${patients.length} Aktif Kayıt`,
+      badgeColor: 'text-blue-700 bg-blue-50'
+    },
+    { 
+      label: 'Bekleyen Seanslar',  
+      value: pending.length,         
+      icon: CalendarDays,   
+      color: 'text-amber-600 bg-amber-50 border-amber-100',
+      badge: 'Günün & Haftanın Takvimi',
+      badgeColor: 'text-amber-700 bg-amber-50'
+    },
+    { 
+      label: 'Toplam Tahsilat',    
+      value: `${totalRevenue.toLocaleString('tr-TR')} ₺`, 
+      icon: Wallet, 
+      color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+      badge: 'Kasa & Ödeme Geliri',
+      badgeColor: 'text-emerald-700 bg-emerald-50'
+    },
+    { 
+      label: 'Kalan Toplam Alacak',   
+      value: `${totalDebt.toLocaleString('tr-TR')} ₺`, 
+      icon: AlertTriangle, 
+      color: 'text-rose-500 bg-rose-50 border-rose-100',
+      badge: 'Takip Edilen Borç',
+      badgeColor: 'text-rose-700 bg-rose-50'
+    },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ─── Stat Cards Grid ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(s => {
           const Icon = s.icon;
           return (
-            <div key={s.label} className="bg-white rounded-xl border border-gray-200/80 p-4 md:p-5 hover:shadow-sm transition-shadow">
+            <div 
+              key={s.label} 
+              className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs hover:shadow-md transition-all group"
+            >
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-wide">{s.label}</span>
-                <div className={`w-8 h-8 rounded-lg ${s.color} flex items-center justify-center`}>
-                  <Icon size={16} />
+                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{s.label}</span>
+                <div className={`w-10 h-10 rounded-xl ${s.color} border flex items-center justify-center transition-transform group-hover:scale-105`}>
+                  <Icon size={18} strokeWidth={2.2} />
                 </div>
               </div>
-              <p className="text-xl md:text-2xl font-bold text-gray-900">{s.value}</p>
+              <p className="text-2xl font-black text-gray-900 tracking-tight">{s.value}</p>
+              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.badgeColor}`}>
+                  {s.badge}
+                </span>
+                <ArrowUpRight size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+              </div>
             </div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Upcoming Sessions */}
-        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200/80">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-[13px] font-semibold text-gray-800">Yaklaşan Seanslar</h3>
-            <span className="text-[11px] text-gray-400 font-medium">{pending.length} bekliyor</span>
+      {/* ─── Main Columns ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Upcoming Sessions Panel (3 cols) */}
+        <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-200/80 shadow-xs overflow-hidden flex flex-col">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/40">
+            <div className="flex items-center gap-2">
+              <Clock size={16} className="text-emerald-600" />
+              <h3 className="text-[14px] font-bold text-gray-900">Yaklaşan Seans Randevuları</h3>
+            </div>
+            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-full">
+              {pending.length} randevu bekliyor
+            </span>
           </div>
-          <div className="divide-y divide-gray-50">
-            {pending.length === 0 && (
-              <div className="px-5 py-10 text-center text-[13px] text-gray-400">Yaklaşan seans yok</div>
-            )}
-            {pending.slice(0, 5).map(s => (
-              <div key={s.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-[12px] font-bold">
-                    {s.patient?.full_name?.charAt(0)}
-                  </div>
-                  <div>
-                    <button onClick={() => onPatientClick?.(s.patient?.id)} className="text-[13px] font-semibold text-gray-800 hover:text-emerald-700 transition-colors text-left block">
-                      {s.patient?.full_name}
-                    </button>
-                    <p className="text-[11px] text-gray-400">{s.treatment?.name}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-[13px] font-semibold text-gray-700">{s.session_time?.substring(0,5)}</p>
-                    <p className="text-[11px] text-gray-400">{new Date(s.session_date).toLocaleDateString('tr-TR')}</p>
-                  </div>
-                  <button
-                    onClick={() => sendWhatsAppReminder(s)}
-                    className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors border border-emerald-200 shadow-2xs"
-                    title="WhatsApp Hatırlatıcı Gönder"
-                  >
-                    <MessageCircle size={15} />
-                  </button>
-                </div>
+
+          <div className="flex-1">
+            {pending.length === 0 ? (
+              <div className="p-8">
+                <EmptyState 
+                  icon={CalendarDays}
+                  title="Yaklaşan seans randevusu yok"
+                  description="Şu an için bekleyen randevunuz bulunmuyor. Takvim üzerinden yeni bir seans ekleyebilirsiniz."
+                />
               </div>
-            ))}
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {pending.slice(0, 6).map(s => {
+                  const patientInitial = s.patient?.full_name ? s.patient.full_name.charAt(0).toUpperCase() : '?';
+                  return (
+                    <div 
+                      key={s.id} 
+                      className="px-6 py-3.5 flex items-center justify-between hover:bg-gray-50/70 transition-colors"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-[13px] font-bold shrink-0 border border-emerald-200">
+                          {patientInitial}
+                        </div>
+                        <div className="min-w-0">
+                          <button 
+                            onClick={() => onPatientClick?.(s.patient?.id)} 
+                            className="text-[13px] font-bold text-gray-900 hover:text-emerald-700 transition-colors text-left block truncate cursor-pointer"
+                          >
+                            {s.patient?.full_name || 'İsimsiz Hasta'}
+                          </button>
+                          <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                            {s.treatment?.name || 'Fizyoterapi Seansı'}
+                            {s.therapist?.full_name && (
+                              <span className="text-gray-400"> • {s.therapist.full_name}</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right">
+                          <p className="text-[13px] font-bold text-gray-800 font-mono">
+                            {s.session_time?.substring(0, 5)}
+                          </p>
+                          <p className="text-[11px] text-gray-400">
+                            {new Date(s.session_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => sendWhatsAppReminder(s)}
+                          className="w-8 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-all border border-emerald-200 shadow-2xs cursor-pointer hover:scale-105 active:scale-95"
+                          title="WhatsApp Randevu Hatırlatması Gönder"
+                        >
+                          <MessageCircle size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Revenue + Summary */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="bg-emerald-600 rounded-xl p-5 text-white">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp size={18} />
-              <span className="text-[12px] font-semibold opacity-80 uppercase tracking-wide">Toplam Gelir</span>
+        {/* Financial & Status Summary (2 cols) */}
+        <div className="lg:col-span-2 space-y-5">
+          {/* Revenue Card */}
+          <div className="bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-800 rounded-2xl p-6 text-white shadow-lg shadow-emerald-900/10 relative overflow-hidden">
+            <div className="absolute right-0 bottom-0 w-32 h-32 bg-white/5 rounded-full blur-xl pointer-events-none" />
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center backdrop-blur-xs">
+                <TrendingUp size={16} />
+              </div>
+              <span className="text-[11px] font-bold tracking-wider uppercase opacity-90">Klinik Ciro Durumu</span>
             </div>
-            <p className="text-2xl md:text-3xl font-bold">{totalRevenue.toLocaleString('tr-TR')} ₺</p>
+            <p className="text-3xl font-black tracking-tight">{totalRevenue.toLocaleString('tr-TR')} ₺</p>
+            <p className="text-[12px] text-emerald-100/80 mt-2">
+              Kayıtlı {payments.length} adet tahsilat işlemi üzerinden hesaplandı.
+            </p>
           </div>
-          
-          <div className="bg-white rounded-xl border border-gray-200/80 p-5">
-            <h4 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide mb-3">Seans Özeti</h4>
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-400"></div><span className="text-[13px] text-gray-600">Bekliyor</span></div>
-                <span className="text-[13px] font-bold text-gray-800">{pending.length}</span>
+
+          {/* Session Breakdown Card */}
+          <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-xs">
+            <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-4">
+              Seans Dağılım Özeti
+            </h4>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/50 border border-amber-100/60">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></div>
+                  <span className="text-[13px] font-semibold text-gray-700">Bekleyen Randevular</span>
+                </div>
+                <span className="text-[13px] font-black text-amber-700 font-mono">{pending.length}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500"></div><span className="text-[13px] text-gray-600">Tamamlandı</span></div>
-                <span className="text-[13px] font-bold text-gray-800">{completed.length}</span>
+
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-100/60">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                  <span className="text-[13px] font-semibold text-gray-700">Tamamlanan Seanslar</span>
+                </div>
+                <span className="text-[13px] font-black text-emerald-700 font-mono">{completed.length}</span>
               </div>
-              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                <span className="text-[13px] font-medium text-gray-500">Toplam</span>
-                <span className="text-[13px] font-bold text-gray-900">{sessions.length}</span>
+
+              <div className="flex items-center justify-between pt-3 border-t border-gray-100 px-1">
+                <span className="text-[13px] font-bold text-gray-500">Toplam Seans Kaydı</span>
+                <span className="text-[14px] font-black text-gray-900 font-mono">{sessions.length}</span>
               </div>
             </div>
           </div>

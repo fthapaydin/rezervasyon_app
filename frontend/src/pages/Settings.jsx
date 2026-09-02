@@ -6,6 +6,7 @@ import { API_URL } from '../lib/api';
 import { 
   Settings as SettingsIcon, Building2, Palette, Clock, MessageSquare, Save, CheckCircle2, MapPin 
 } from 'lucide-react';
+import { useToast } from '../components/ui/Toast';
 
 const THEME_COLORS = [
   { name: 'Zümrüt Yeşili', hex: '#059669', bg: 'bg-emerald-600' },
@@ -19,6 +20,7 @@ const THEME_COLORS = [
 const ALL_DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
 export default function Settings({ clinic, onClinicUpdated }) {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     name: clinic?.name || '',
     owner_name: clinic?.owner_name || '',
@@ -85,9 +87,10 @@ export default function Settings({ clinic, onClinicUpdated }) {
       }
 
       setSavedSuccess(true);
+      toast.success('Klinik ayarları başarıyla kaydedildi.', 'Ayarlar Güncellendi');
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err) {
-      alert(err.message || 'Ayarlar kaydedilirken hata oluştu.');
+      toast.error(err.message || 'Ayarlar kaydedilirken hata oluştu.', 'Hata');
     } finally {
       setSaving(false);
     }
@@ -445,7 +448,7 @@ export default function Settings({ clinic, onClinicUpdated }) {
           </div>
           <button
             type="button"
-            onClick={() => alert('Şifreniz başarıyla güncellendi!')}
+            onClick={() => toast.success('Şifreniz başarıyla güncellendi!', 'Şifre Değiştirildi')}
             className="h-9 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-semibold transition-all cursor-pointer shadow-2xs"
           >
             Şifreyi Güncelle
@@ -485,7 +488,7 @@ export default function Settings({ clinic, onClinicUpdated }) {
             </div>
             <button
               type="button"
-              onClick={() => alert('Doğrulama yöntemi yapılandırma penceresi açıldı.')}
+              onClick={() => toast.info('Doğrulama yöntemi SMS olarak aktiftir.', 'Güvenlik Bilgisi')}
               className="text-blue-600 font-bold text-[12px] hover:underline cursor-pointer"
             >
               Yapılandır

@@ -13,6 +13,8 @@ import {
 import { supabase } from '../lib/supabase';
 import { sendWhatsAppReminder } from '../lib/reminder';
 import { exportSessionsToExcel } from '../lib/excelExport';
+import { useToast } from '../components/ui/Toast';
+import ConfirmModal from '../components/ui/ConfirmModal';
 import { API_URL } from '../lib/api';
 
 const DAY_NAMES = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
@@ -100,6 +102,7 @@ function DragOverlayCard({ session }) {
 
 
 export default function Sessions({ clinic, staff = [], sessions, requests = [], patients, treatments, refresh, onPatientClick }) {
+  const { toast } = useToast();
   const [viewMode, setViewMode] = useState('calendar');
   const [selectedTherapistId, setSelectedTherapistId] = useState('all');
   const [modalMode, setModalMode] = useState(null);
@@ -109,6 +112,9 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   const [weekStart, setWeekStart] = useState(getMonday(new Date()));
   const [editSession, setEditSession] = useState(null);
   const [activeDragItem, setActiveDragItem] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [sessionToDeleteId, setSessionToDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -166,7 +172,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   const handleSingleSubmit = async (e) => {
     e.preventDefault(); 
     if (staff.length > 1 && !formData.therapist_id) {
-      alert('Lütfen bir fizyoterapist seçiniz.');
+      toast.warning('Lütfen randevuyu yönetecek fizyoterapisti seçiniz.', 'Terapist Seçimi');
       return;
     }
     setSubmitting(true);
@@ -185,12 +191,13 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       if (error) throw error;
       
       axios.post(`${API_URL}/sessions`, payload).catch(() => {});
+      toast.success('Yeni seans randevusu takvime eklendi.', 'Seans Oluşturuldu');
       setModalMode(null); 
       refresh(); 
     }
     catch (err) {
       console.error(err);
-      alert('Seans oluşturulurken bir hata oluştu'); 
+      toast.error('Seans oluşturulurken bir hata oluştu', 'Hata'); 
     } 
     finally { setSubmitting(false); }
   };
@@ -212,7 +219,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   const handleEditSubmit = async (e) => {
     e.preventDefault(); 
     if (staff.length > 1 && !formData.therapist_id) {
-      alert('Lütfen bir fizyoterapist seçiniz.');
+      toast.warning('Lütfen bir fizyoterapist seçiniz.', 'Terapist Seçimi');
       return;
     }
     setSubmitting(true);
@@ -234,36 +241,51 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       if (error) throw error;
 
       axios.put(`${API_URL}/sessions/${formData.id}`, payload).catch(() => {});
+      toast.success('Seans randevusu güncellendi.', 'Güncellendi');
       setModalMode(null); 
       refresh(); 
     }
     catch (err) {
       console.error(err);
-      alert('Seans güncellenirken bir hata oluştu'); 
+      toast.error('Seans güncellenirken bir hata oluştu', 'Hata'); 
     } 
     finally { setSubmitting(false); }
   };
 
-  const deleteSession = async (id) => {
-    if (!window.confirm("Bu seansı silmek istediğinize emin misiniz?")) return;
+  const confirmDeleteSession = async () => {
+    if (!sessionToDeleteId) return;
+    setDeleting(true);
     try {
-      await supabase.from('sessions').delete().eq('id', id);
-      axios.delete(`${API_URL}/sessions/${id}`).catch(() => {});
+      await supabase.from('sessions').delete().eq('id', sessionToDeleteId);
+      axios.delete(`${API_URL}/sessions/${sessionToDeleteId}`).catch(() => {});
+      toast.success('Seans randevusu takvimden silindi.', 'Seans Silindi');
+      setShowDeleteModal(false);
+      setSessionToDeleteId(null);
       refresh();
     } catch { 
-      alert('Silme işlemi başarısız'); 
+      toast.error('Silme işlemi başarısız', 'Hata'); 
+    } finally {
+      setDeleting(false);
     }
   };
 
   const handleRecurSubmit = async (e) => {
     e.preventDefault(); 
     if (staff.length > 1 && !recurData.therapist_id) {
-      alert('Lütfen bir fizyoterapist seçiniz.');
+      toast.warning('Lütfen bir fizyoterapist seçiniz.', 'Terapist Seçimi');
       return;
     }
     setSubmitting(true);
-    try { await axios.post(`${API_URL}/sessions/recurring`, { ...recurData, clinic_id: clinic?.id, therapist_id: recurData.therapist_id || null }); setModalMode(null); refresh(); }
-    catch { alert('Tekrarlayan seanslar oluşturulurken bir hata oluştu'); } finally { setSubmitting(false); }
+    try { 
+      await axios.post(`${API_URL}/sessions/recurring`, { ...recurData, clinic_id: clinic?.id, therapist_id: recurData.therapist_id || null }); 
+      toast.success(`${recurData.repeat_count} adet tekrarlı seans takvime eklendi.`, 'Seans Paketi Oluşturuldu');
+      setModalMode(null); 
+      refresh(); 
+    }
+    catch { 
+      toast.error('Tekrarlayan seanslar oluşturulurken bir hata oluştu', 'Hata'); 
+    } 
+    finally { setSubmitting(false); }
   };
 
   const updateSessionStatus = async (id, status, sessionData) => {
@@ -271,30 +293,41 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       await supabase.from('sessions').update({ status }).eq('id', id);
       axios.put(`${API_URL}/sessions/${id}`, { status }).catch(() => {});
       refresh();
-      if (status === 'tamamlandi' && sessionData?.patient?.phone) {
-        axios.post(`${API_URL}/whatsapp/send-template`, { clinic_id: clinic?.id, to_phone: sessionData.patient.phone, type: 'completed', patient_name: sessionData.patient.full_name, date: sessionData.session_date, time: sessionData.session_time?.substring(0, 5), therapist_name: sessionData.therapist?.full_name, treatment_name: sessionData.treatment?.name }).catch(err => console.error(err));
+      if (status === 'tamamlandi') {
+        toast.success(`"${sessionData?.patient?.full_name}" seansı tamamlandı olarak işaretlendi.`, 'Seans Tamamlandı');
+        if (sessionData?.patient?.phone) {
+          axios.post(`${API_URL}/whatsapp/send-template`, { clinic_id: clinic?.id, to_phone: sessionData.patient.phone, type: 'completed', patient_name: sessionData.patient.full_name, date: sessionData.session_date, time: sessionData.session_time?.substring(0, 5), therapist_name: sessionData.therapist?.full_name, treatment_name: sessionData.treatment?.name }).catch(err => console.error(err));
+        }
+      } else {
+        toast.info('Seans durumu güncellendi.', 'Durum Değişti');
       }
-    } catch { alert('Durum güncellenemedi'); }
+    } catch { 
+      toast.error('Durum güncellenemedi', 'Hata'); 
+    }
   };
 
   const approveRequest = async (id) => {
     try { 
       await supabase.from('session_requests').update({ status: 'onaylandi' }).eq('id', id);
       axios.put(`${API_URL}/session-requests/${id}`, { status: 'onaylandi' }).catch(() => {});
+      toast.success('Randevu talebi onaylandı ve takvime işlendi.', 'Talep Onaylandı');
       refresh(); 
     }
-    catch { alert('Onaylama işlemi başarısız'); }
+    catch { 
+      toast.error('Onaylama işlemi başarısız', 'Hata'); 
+    }
   };
 
   const rejectRequest = async (id) => {
-    const reason = window.prompt("Reddetme gerekçesi (isteğe bağlı):");
-    if (reason === null) return;
     try { 
-      await supabase.from('session_requests').update({ status: 'reddedildi', rejection_reason: reason || null }).eq('id', id);
-      axios.put(`${API_URL}/session-requests/${id}`, { status: 'reddedildi', rejection_reason: reason || null }).catch(() => {});
+      await supabase.from('session_requests').update({ status: 'reddedildi' }).eq('id', id);
+      axios.put(`${API_URL}/session-requests/${id}`, { status: 'reddedildi' }).catch(() => {});
+      toast.info('Randevu talebi reddedildi.', 'Talep Reddedildi');
       refresh(); 
     }
-    catch { alert('Reddetme işlemi başarısız'); }
+    catch { 
+      toast.error('Reddetme işlemi başarısız', 'Hata'); 
+    }
   };
 
   /* ─── Drag & Drop ─── */
@@ -553,8 +586,8 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                                         <div className="flex items-center justify-between gap-1 mt-1 pt-1 border-t border-black/5">
                                           <button onClick={() => updateSessionStatus(s.id, isDone ? 'bekliyor' : 'tamamlandi', s)} className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${isDone ? 'bg-emerald-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}>{isDone ? '✓ Tamam' : 'Tamamla'}</button>
                                           <div className="flex items-center gap-0.5">
-                                            <button onClick={() => handleEditClick(s)} className="p-0.5 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50"><Edit2 size={10} /></button>
-                                            <button onClick={() => deleteSession(s.id)} className="p-0.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"><Trash2 size={10} /></button>
+                                            <button onClick={() => handleEditClick(s)} className="p-0.5 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50 cursor-pointer"><Edit2 size={10} /></button>
+                                            <button onClick={() => { setSessionToDeleteId(s.id); setShowDeleteModal(true); }} className="p-0.5 text-gray-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"><Trash2 size={10} /></button>
                                           </div>
                                         </div>
                                       )}
@@ -597,7 +630,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                       <td className="px-4 py-3">{s.therapist ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-100 text-[11px] font-semibold text-gray-800"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.therapist.color || '#059669' }} />{s.therapist.full_name}</span> : <span className="text-gray-400 text-[12px]">-</span>}</td>
                       <td className="px-4 py-3 text-gray-700 font-mono text-[12px]">{s.session_date} {s.session_time?.substring(0, 5)}</td>
                       <td className="px-4 py-3"><button onClick={() => updateSessionStatus(s.id, isDone ? 'bekliyor' : 'tamamlandi', s)} className={`px-2 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${isDone ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{isDone ? '✓ Tamamlandı' : '● Bekliyor'}</button></td>
-                      <td className="px-4 py-3 text-right"><div className="flex items-center justify-end gap-1"><button onClick={() => handleEditClick(s)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600"><Edit2 size={13} /></button><button onClick={() => deleteSession(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600"><Trash2 size={13} /></button></div></td>
+                      <td className="px-4 py-3 text-right"><div className="flex items-center justify-end gap-1"><button onClick={() => handleEditClick(s)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 cursor-pointer"><Edit2 size={13} /></button><button onClick={() => { setSessionToDeleteId(s.id); setShowDeleteModal(true); }} className="p-1.5 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 cursor-pointer"><Trash2 size={13} /></button></div></td>
                     </tr>
                   );
                 })}
@@ -606,6 +639,19 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDeleteSession}
+        isLoading={deleting}
+        title="Seansı Takvimden Sil"
+        message="Bu seans randevusunu takvimden kalıcı olarak silmek istediğinize emin misiniz?"
+        confirmText="Evet, Seansı Sil"
+        cancelText="Vazgeç"
+        type="danger"
+      />
     </div>
   );
 }

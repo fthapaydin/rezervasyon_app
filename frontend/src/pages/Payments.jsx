@@ -2,10 +2,12 @@ import { useState, useMemo } from 'react';
 import axios from 'axios';
 import { Plus, X, CheckCircle, FileText, AlertCircle, Filter } from 'lucide-react';
 import { generatePaymentReceipt } from '../lib/pdfGenerator';
+import { useToast } from '../components/ui/Toast';
 
 import { API_URL } from '../lib/api';
 
 export default function Payments({ clinic, payments, sessions, patients, refresh }) {
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'debtors'
   const [formData, setFormData] = useState({ patient_id: '', session_id: '', amount: '', payment_method: 'Nakit', installments: 1 });
@@ -35,11 +37,12 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
         ...formData,
         clinic_id: clinic?.id,
       });
+      toast.success(`${Number(formData.amount).toLocaleString('tr-TR')} ₺ tutarındaki tahsilat kaydedildi.`, 'Ödeme Alındı');
       setShowForm(false);
       setFormData({ patient_id: '', session_id: '', amount: '', payment_method: 'Nakit', installments: 1 });
       refresh();
-    } catch {
-      alert('Hata oluştu');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Ödeme kaydedilirken hata oluştu', 'Hata');
     } finally {
       setSubmitting(false);
     }
