@@ -27,7 +27,7 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
               <Activity size={14} className="text-white" strokeWidth={2.5} />
             </div>
           )}
-          <span className="text-[14px] font-bold text-gray-900 tracking-tight">{clinic?.name || 'FizyoPanel'}</span>
+          <span className="text-[14px] font-bold text-gray-900 tracking-tight">{clinic?.name || 'KlinikBul'}</span>
         </div>
         {/* Mobile close */}
         <button onClick={() => setMobileOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600">

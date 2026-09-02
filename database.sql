@@ -138,11 +138,11 @@ ALTER TABLE session_requests ADD COLUMN IF NOT EXISTS therapist_id UUID REFERENC
 INSERT INTO clinics (id, name, slug, owner_name, phone, email, password, status, plan, city, district, theme_color)
 VALUES (
   'c1111111-1111-1111-1111-111111111111',
-  'FizyoPanel Demo Klinik',
+  'KlinikBul Demo Klinik',
   'demo-klinik',
   'Dr. Fatih Apaydın',
   '05555555555',
-  'demo@fizyopanel.com',
+  'demo@fizyotim.com',
   'demo123',
   'aktif',
   'premium',
@@ -155,9 +155,9 @@ ON CONFLICT (email) DO UPDATE SET city = 'İstanbul', district = 'Kadıköy';
 -- Demo Terapistler Ekle
 INSERT INTO staff (id, clinic_id, full_name, role, title, color, phone, email)
 VALUES 
-  ('a1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', 'Dr. Fatih Apaydın', 'admin', 'Klinik Sahibi / Baş Fzt.', '#059669', '05555555555', 'fatih@fizyopanel.com'),
-  ('a2222222-2222-2222-2222-222222222222', 'c1111111-1111-1111-1111-111111111111', 'Fzt. Ayşe Yılmaz', 'therapist', 'Manuel Terapist', '#2563eb', '05554443322', 'ayse@fizyopanel.com'),
-  ('a3333333-3333-3333-3333-333333333333', 'c1111111-1111-1111-1111-111111111111', 'Fzt. Mehmet Demir', 'therapist', 'Spor Fizyoterapisti', '#ea580c', '05553332211', 'mehmet@fizyopanel.com')
+  ('a1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', 'Dr. Fatih Apaydın', 'admin', 'Klinik Sahibi / Baş Fzt.', '#059669', '05555555555', 'fatih@fizyotim.com'),
+  ('a2222222-2222-2222-2222-222222222222', 'c1111111-1111-1111-1111-111111111111', 'Fzt. Ayşe Yılmaz', 'therapist', 'Manuel Terapist', '#2563eb', '05554443322', 'ayse@fizyotim.com'),
+  ('a3333333-3333-3333-3333-333333333333', 'c1111111-1111-1111-1111-111111111111', 'Fzt. Mehmet Demir', 'therapist', 'Spor Fizyoterapisti', '#ea580c', '05553332211', 'mehmet@fizyotim.com')
 ON CONFLICT (id) DO NOTHING;
 
 -- Varsayılan Örnek Duyuru

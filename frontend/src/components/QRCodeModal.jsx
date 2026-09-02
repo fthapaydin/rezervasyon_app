@@ -122,7 +122,7 @@ export default function QRCodeModal({ clinic, onClose }) {
           {/* Stand Footer */}
           <div className="mt-4 pt-3 border-t border-emerald-100 text-[10px] text-gray-400 font-medium flex items-center justify-between px-2">
             <span>{clinic?.phone || ''}</span>
-            <span>FizyoPanel ile Güvenli Randevu</span>
+            <span>Fizyotim ile Güvenli Randevu</span>
           </div>
         </div>
 

@@ -6,7 +6,7 @@ export function generateSessionReport(patient, patientSessions) {
   const doc = new jsPDF();
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('FizyoPanel - Seans Raporu', 14, 20);
+  doc.text('Fizyotim - Seans Raporu', 14, 20);
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
@@ -44,7 +44,7 @@ export function generatePaymentReceipt(payment) {
   const doc = new jsPDF();
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('FizyoPanel - Odeme Makbuzu', 14, 20);
+  doc.text('Fizyotim - Odeme Makbuzu', 14, 20);
 
   doc.setDrawColor(16, 185, 129);
   doc.setLineWidth(0.5);
@@ -74,7 +74,7 @@ export function generatePaymentReceipt(payment) {
 
   doc.setFontSize(8);
   doc.setTextColor(150);
-  doc.text('Bu belge FizyoPanel sistemi tarafindan otomatik olusturulmustur.', 14, 280);
+  doc.text('Bu belge Fizyotim sistemi tarafından otomatik oluşturulmuştur.', 14, 280);
 
   doc.save(`makbuz_${new Date(payment.payment_date).toISOString().split('T')[0]}.pdf`);
 }
@@ -84,7 +84,7 @@ export function generatePatientSummary(patient, patientSessions, patientPayments
   const doc = new jsPDF();
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('FizyoPanel - Hasta Ozet Raporu', 14, 20);
+  doc.text('Fizyotim - Hasta Ozet Raporu', 14, 20);
 
   doc.setDrawColor(16, 185, 129);
   doc.setLineWidth(0.5);
