@@ -21,7 +21,7 @@ export function generateReminderText(session) {
   const timeFormatted = session.session_time ? session.session_time.substring(0, 5) : '';
   const treatmentName = session.treatment?.name || 'Fizyoterapi Seansı';
 
-  return `Merhaba Sayın ${patientName},\n\nFizyoPanel Kliniği'nden randevu hatırlatmasıdır:\n📅 Tarih: ${dateFormatted}\n⏰ Saat: ${timeFormatted}\n🩺 Tedavi: ${treatmentName}\n\nRandevu saatinizde kliniğimizde bulunmanızı rica eder, sağlıklı günler dileriz.`;
+  return `Merhaba Sayın ${patientName},\n\nFizyotim Kliniği'nden randevu hatırlatmasıdır:\n📅 Tarih: ${dateFormatted}\n⏰ Saat: ${timeFormatted}\n🩺 Tedavi: ${treatmentName}\n\nRandevu saatinizde kliniğimizde bulunmanızı rica eder, sağlıklı günler dileriz.`;
 }
 
 export function sendWhatsAppReminder(session) {

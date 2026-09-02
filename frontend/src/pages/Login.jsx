@@ -11,9 +11,9 @@ export default function Login({ onLogin }) {
   const [error, setError] = useState('');
 
   const triggerDemoLogin = async () => {
-    setEmail('demo@fizyopanel.com');
+    setEmail('demo@fizyotim.com');
     setPassword('demo123');
-    await handleLoginWithCredentials('demo@fizyopanel.com', 'demo123');
+    await handleLoginWithCredentials('demo@fizyotim.com', 'demo123');
   };
 
   const handleLoginWithCredentials = async (loginEmail, loginPass) => {
@@ -80,7 +80,7 @@ export default function Login({ onLogin }) {
           <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center mx-auto mb-4 shadow-md shadow-emerald-600/20">
             <Activity size={24} className="text-white" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900">FizyoPanel</h1>
+          <h1 className="text-xl font-bold text-gray-900">Fizyotim</h1>
           <p className="text-[13px] text-gray-400 mt-1">Klinik Yönetim & Rezervasyon Sistemi</p>
         </div>
 

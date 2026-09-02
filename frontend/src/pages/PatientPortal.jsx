@@ -89,7 +89,7 @@ export default function PatientPortal() {
           <div className="inline-flex items-center justify-center w-14 h-14 bg-emerald-600 rounded-2xl mb-4 shadow-lg shadow-emerald-200">
             <span className="text-white font-bold text-xl">FP</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">FizyoPanel</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Fizyotim</h1>
           <p className="text-sm text-gray-500 mt-1">Online Randevu Talebi</p>
         </div>
 
@@ -297,7 +297,7 @@ export default function PatientPortal() {
         )}
 
         <p className="text-center text-[11px] text-gray-400 mt-6">
-          FizyoPanel — Fizyoterapi Klinik Yönetim Sistemi
+          Fizyotim — Fizyoterapi Klinik Yönetim Sistemi
         </p>
       </div>
     </div>

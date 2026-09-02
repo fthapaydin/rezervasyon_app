@@ -163,7 +163,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Varsayılan Örnek Duyuru
 INSERT INTO announcements (title, message, type, is_active)
 VALUES (
-  '🎉 FizyoPanel 2.0 Güncellemesi Yayında!',
+  '🎉 Fizyotim 2.0 Güncellemesi Yayında!',
   '81 İl ve İlçe desteği, Masaüstü QR Standı ve Çoklu Terapist filtreleme özellikleri panelinize eklendi.',
   'campaign',
   true
