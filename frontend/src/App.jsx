@@ -5,6 +5,7 @@ import { supabase } from './lib/supabase';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import AnnouncementBanner from './components/AnnouncementBanner';
+import AnnouncementsModal from './components/AnnouncementsModal';
 import Login from './pages/Login';
 
 import Dashboard from './pages/Dashboard';
@@ -44,6 +45,7 @@ function App() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showAnnouncementsModal, setShowAnnouncementsModal] = useState(false);
 
   const [patients, setPatients] = useState([]);
   const [treatments, setTreatments] = useState([]);
@@ -137,9 +139,10 @@ function App() {
           onRefresh={fetchData}
           onMenuClick={() => setMobileOpen(true)}
           onLogout={handleLogout}
+          onOpenAnnouncements={() => setShowAnnouncementsModal(true)}
         />
 
-        <AnnouncementBanner />
+        <AnnouncementBanner onOpenModal={() => setShowAnnouncementsModal(true)} />
 
         <main className="flex-1 overflow-y-auto bg-[#f8fafb]">
           <div className="max-w-[1200px] mx-auto p-4 md:p-8">
@@ -157,12 +160,18 @@ function App() {
                 {activeTab === 'payments'   && <Payments clinic={clinic} payments={payments} sessions={sessions} patients={patients} refresh={fetchData} />}
                 {activeTab === 'reports'    && <Reports clinic={clinic} patients={patients} sessions={sessions} payments={payments} treatments={treatments} />}
                 {activeTab === 'requests'   && <Requests clinic={clinic} staff={staff} requests={requests} refresh={fetchData} />}
-                {activeTab === 'settings'   && <Settings clinic={clinic} onClinicUpdated={handleClinicUpdated} />}
+                {activeTab === 'settings'   && <Settings clinic={clinic} onClinicUpdated={handleClinicUpdated} onOpenAnnouncements={() => setShowAnnouncementsModal(true)} />}
               </>
             )}
           </div>
         </main>
       </div>
+
+      {/* Announcements & Changelog Modal */}
+      <AnnouncementsModal
+        isOpen={showAnnouncementsModal}
+        onClose={() => setShowAnnouncementsModal(false)}
+      />
     </div>
   );
 }

@@ -19,7 +19,7 @@ const THEME_COLORS = [
 
 const ALL_DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
-export default function Settings({ clinic, onClinicUpdated }) {
+export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements }) {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     name: clinic?.name || '',
@@ -502,6 +502,71 @@ export default function Settings({ clinic, onClinicUpdated }) {
           <span className="text-emerald-600 font-semibold flex items-center gap-1">
             <CheckCircle2 size={12} /> Oturum Güvenli
           </span>
+        </div>
+      </div>
+
+      {/* 5. Duyuru & Bildirim Tercihleri */}
+      <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-5">
+        <div className="flex items-center gap-2.5 pb-4 border-b border-gray-100">
+          <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center">
+            <SettingsIcon size={16} />
+          </div>
+          <div>
+            <h3 className="text-[14px] font-bold text-gray-900">Duyuru &amp; Bildirim Tercihleri</h3>
+            <p className="text-[11px] text-gray-400">Sistem yenilikleri ve bilgilendirme şeritlerinin görünürlüğünü yönetin</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50/70 border border-gray-200/80">
+            <div className="space-y-0.5 max-w-lg">
+              <h4 className="text-[13px] font-bold text-gray-800">
+                Üst Şerit Duyuru Bildirimleri
+              </h4>
+              <p className="text-[12px] text-gray-500">
+                Yeni bir güncelleme, kampanya veya duyuru yayınlandığında ekranın en üstünde renkli bilgi şeridi gösterilsin.
+              </p>
+            </div>
+
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={localStorage.getItem('show_announcement_banners') !== 'false'}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  localStorage.setItem('show_announcement_banners', val ? 'true' : 'false');
+                  window.dispatchEvent(new Event('announcement_pref_changed'));
+                  toast.success(`Duyuru bildirimleri ${val ? 'açıldı' : 'kapatıldı'}.`, 'Tercih Kaydedildi');
+                }}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            {onOpenAnnouncements && (
+              <button
+                type="button"
+                onClick={onOpenAnnouncements}
+                className="h-10 px-4 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-[12px] font-bold flex items-center gap-2 transition-all cursor-pointer shadow-2xs"
+              >
+                <span>📢 Duyuru &amp; Güncelleme Geçmişini Aç</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem('dismissed_announcements');
+                window.dispatchEvent(new Event('announcement_pref_changed'));
+                toast.success('Kapatılmış tüm duyurular sıfırlandı.', 'Başarılı');
+              }}
+              className="text-[12px] text-gray-500 hover:text-gray-800 font-semibold underline cursor-pointer"
+            >
+              Kapatılan Duyuruları Tekrar Göster (Sıfırla)
+            </button>
+          </div>
         </div>
       </div>
 

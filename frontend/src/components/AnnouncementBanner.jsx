@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Sparkles, Info, AlertTriangle, CheckCircle2, Megaphone, X } from 'lucide-react';
+import { Sparkles, Info, AlertTriangle, CheckCircle2, Megaphone, X, ChevronRight } from 'lucide-react';
 
 const TYPE_STYLES = {
   campaign: {
@@ -25,16 +25,29 @@ const TYPE_STYLES = {
   },
 };
 
-export default function AnnouncementBanner() {
+export default function AnnouncementBanner({ onOpenModal }) {
   const [announcements, setAnnouncements] = useState([]);
+  const [showBanners, setShowBanners] = useState(() => {
+    return localStorage.getItem('show_announcement_banners') !== 'false';
+  });
   const [dismissedIds, setDismissedIds] = useState(() => {
     try {
-      const saved = sessionStorage.getItem('dismissed_announcements');
+      const saved = localStorage.getItem('dismissed_announcements');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
+
+  const syncPreferences = () => {
+    setShowBanners(localStorage.getItem('show_announcement_banners') !== 'false');
+    try {
+      const saved = localStorage.getItem('dismissed_announcements');
+      setDismissedIds(saved ? JSON.parse(saved) : []);
+    } catch {
+      setDismissedIds([]);
+    }
+  };
 
   useEffect(() => {
     const fetchAnnouncements = async () => {
@@ -54,6 +67,9 @@ export default function AnnouncementBanner() {
 
     fetchAnnouncements();
 
+    // Listen for preference changes from modal/settings
+    window.addEventListener('announcement_pref_changed', syncPreferences);
+
     // Supabase Realtime Subscription for instant announcement updates
     const channel = supabase
       .channel('announcements_realtime')
@@ -65,6 +81,7 @@ export default function AnnouncementBanner() {
       .subscribe();
 
     return () => {
+      window.removeEventListener('announcement_pref_changed', syncPreferences);
       supabase.removeChannel(channel);
     };
   }, []);
@@ -73,11 +90,16 @@ export default function AnnouncementBanner() {
     const next = [...dismissedIds, id];
     setDismissedIds(next);
     try {
-      sessionStorage.setItem('dismissed_announcements', JSON.stringify(next));
+      // Kalıcı olarak localStorage'a kaydet (bir daha asla gösterilmez)
+      localStorage.setItem('dismissed_announcements', JSON.stringify(next));
+      window.dispatchEvent(new Event('announcement_pref_changed'));
     } catch {
       // ignore
     }
   };
+
+  // Kullanıcı duyuruları kapattıysa hiçbir şey gösterme
+  if (!showBanners) return null;
 
   const visibleAnnouncements = announcements.filter((a) => !dismissedIds.includes(a.id));
 
@@ -94,27 +116,39 @@ export default function AnnouncementBanner() {
             key={item.id}
             className={`${style.bg} px-4 py-2.5 shadow-sm transition-all animate-in fade-in slide-in-from-top-2 duration-200 flex items-center justify-between gap-3 text-[13px]`}
           >
-            <div className="flex items-center gap-2.5 max-w-5xl mx-auto flex-1">
+            <div className="flex items-center gap-2.5 max-w-5xl mx-auto flex-1 min-w-0">
               <span className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
                 <Icon size={15} className="text-white" />
               </span>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/25 uppercase tracking-wider">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/25 uppercase tracking-wider shrink-0">
                   {style.badge}
                 </span>
-                <strong className="font-bold">{item.title}</strong>
+                <strong className="font-bold truncate">{item.title}</strong>
                 <span className="text-white/90 hidden sm:inline">—</span>
-                <span className="text-white/90 text-[12px] sm:text-[13px]">{item.message}</span>
+                <span className="text-white/90 text-[12px] sm:text-[13px] truncate">{item.message}</span>
               </div>
             </div>
 
-            <button
-              onClick={() => handleDismiss(item.id)}
-              className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
-              title="Kapat"
-            >
-              <X size={13} />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {onOpenModal && (
+                <button
+                  onClick={onOpenModal}
+                  className="hidden md:inline-flex items-center gap-1 text-[11px] font-bold text-white/90 hover:text-white bg-white/15 hover:bg-white/25 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                >
+                  <span>Tümünü Gör</span>
+                  <ChevronRight size={13} />
+                </button>
+              )}
+
+              <button
+                onClick={() => handleDismiss(item.id)}
+                className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                title="Kapat (Bir daha gösterme)"
+              >
+                <X size={13} />
+              </button>
+            </div>
           </div>
         );
       })}

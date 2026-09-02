@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { RefreshCw, Link2, Check, QrCode, ExternalLink } from 'lucide-react';
+import { RefreshCw, Link2, Check, QrCode, Megaphone, Bell } from 'lucide-react';
 import { MobileMenuButton } from './Sidebar';
 import QRCodeModal from '../QRCodeModal';
 import { useToast } from '../ui/Toast';
 
-export default function Header({ title, subtitle, clinic, onRefresh, onMenuClick, onLogout }) {
+export default function Header({ title, subtitle, clinic, onRefresh, onMenuClick, onLogout, onOpenAnnouncements }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -40,6 +40,18 @@ export default function Header({ title, subtitle, clinic, onRefresh, onMenuClick
         </div>
 
         <div className="flex items-center gap-2.5">
+          {/* Announcements & Changelog Button */}
+          {onOpenAnnouncements && (
+            <button
+              onClick={onOpenAnnouncements}
+              className="h-9 px-3 rounded-xl border border-indigo-200/90 bg-indigo-50/60 hover:bg-indigo-100/70 text-indigo-800 text-[12px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              title="Sistem Duyuruları & Güncelleme Geçmişi"
+            >
+              <Megaphone size={14} className="text-indigo-600" />
+              <span className="hidden sm:inline">Duyurular</span>
+            </button>
+          )}
+
           {clinic && (
             <>
               {/* QR Stand Button */}
