@@ -87,7 +87,7 @@ export default function PatientPortal() {
         {/* Logo & Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-emerald-600 rounded-2xl mb-4 shadow-lg shadow-emerald-200">
-            <span className="text-white font-bold text-xl">FP</span>
+            <span className="text-white font-bold text-xl">FT</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Fizyotim</h1>
           <p className="text-sm text-gray-500 mt-1">Online Randevu Talebi</p>
