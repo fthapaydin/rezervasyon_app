@@ -1,48 +1,88 @@
 // Programatik bildirim sesi üreteci (Web Audio API)
-// Harici ses dosyası gerektirmez — tarayıcı içinde üretilir
+// Harici dosya indirme gerektirmez, doğrudan tarayıcı içinde kristal netliğinde üretilir.
 
 let audioContext = null;
 
-function getAudioContext() {
+export function getAudioContext() {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      audioContext = new AudioCtx();
+    }
   }
   return audioContext;
 }
 
+// Tarayıcı autoplay kısıtlamasını aşmak için ilk kullanıcı etkileşiminde sesi aç
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        // Unlocked
+      }).catch(() => {});
+    }
+    window.removeEventListener('click', unlockAudio);
+    window.removeEventListener('keydown', unlockAudio);
+    window.removeEventListener('touchstart', unlockAudio);
+  };
+  window.addEventListener('click', unlockAudio, { passive: true });
+  window.addEventListener('keydown', unlockAudio, { passive: true });
+  window.addEventListener('touchstart', unlockAudio, { passive: true });
+}
+
 /**
- * Profesyonel "ding" bildirim sesi çalar
- * İki tonlu kısa chime (C5 + E5)
+ * Kliniğe yeni randevu talebi geldiğinde çalan
+ * Dikkat çekici, yüksek sesli, melodik profesyonel klinik çağrı zili (3 tonlu Chime)
  */
-export function playNotificationSound() {
+export async function playNotificationSound() {
   try {
     const ctx = getAudioContext();
+    if (!ctx) return;
 
-    // Birinci ton (C5 - 523 Hz)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(523.25, ctx.currentTime);
-    gain1.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(ctx.currentTime);
-    osc1.stop(ctx.currentTime + 0.4);
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
 
-    // İkinci ton (E5 - 659 Hz, 100ms gecikmeli)
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
-    gain2.gain.setValueAtTime(0, ctx.currentTime);
-    gain2.gain.setValueAtTime(0.25, ctx.currentTime + 0.1);
-    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(ctx.currentTime + 0.1);
-    osc2.stop(ctx.currentTime + 0.6);
+    const now = ctx.currentTime;
+
+    // 1. Ton: E5 (659.25 Hz) - Parlak başlangıç
+    playChimeTone(ctx, 659.25, now, 0.45, 0.7);
+
+    // 2. Ton: G#5 (830.61 Hz) - 120ms sonra yükselen ton
+    playChimeTone(ctx, 830.61, now + 0.12, 0.45, 0.75);
+
+    // 3. Ton: B5 (987.77 Hz) - 240ms sonra doruk tonu
+    playChimeTone(ctx, 987.77, now + 0.24, 0.55, 0.85);
+
+    // 4. Ton: E6 (1318.51 Hz) - 400ms sonra kristal yankı tonu
+    playChimeTone(ctx, 1318.51, now + 0.40, 0.80, 0.9);
+
   } catch (err) {
-    console.warn('Bildirim sesi çalınamadı:', err);
+    console.warn('Bildirim sesi çalma hatası:', err);
+  }
+}
+
+function playChimeTone(ctx, freq, startTime, duration, volume = 0.5) {
+  try {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    // Çan/marimba tınısı için üçgen + sinüs karışımı hissi
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, startTime);
+
+    // Zarif atak ve üstel sönümlenme (bell decay)
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.05);
+  } catch (e) {
+    // ignore
   }
 }

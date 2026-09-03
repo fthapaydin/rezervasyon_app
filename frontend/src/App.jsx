@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { supabase } from './lib/supabase';
+import { useToast } from './components/ui/Toast';
+import { playNotificationSound } from './lib/notificationSound';
 
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -34,6 +36,7 @@ const pageMeta = {
 };
 
 function App() {
+  const { toast } = useToast();
   const [clinic, setClinic] = useState(() => {
     try {
       const saved = localStorage.getItem('fizyo_clinic');
@@ -56,6 +59,7 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const lastPendingCountRef = useRef(null);
 
   // Check if we're on the /portal route BEFORE auth check
   const isPortal = window.location.pathname === '/portal';
@@ -63,30 +67,32 @@ function App() {
     return <PatientPortal />;
   }
 
+  // Tarayıcı masaüstü bildirim izni iste
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (clinic?.id) {
-      fetchData();
+      fetchData(true);
     }
   }, [clinic?.id]);
 
-  // 🔔 Yeni randevu talebi geldiğinde ses bildirimi
+  // 🔔 1. Supabase Realtime Subscription (Yeni talep anında yakala)
   useEffect(() => {
     if (!clinic?.id) return;
 
     const channel = supabase
-      .channel('new_request_notifications')
+      .channel('new_request_realtime_channel')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'session_requests' },
-        async (payload) => {
-          // Ses çal
-          try {
-            const { playNotificationSound } = await import('./lib/notificationSound');
-            playNotificationSound();
-          } catch {}
-
-          // Verileri yenile
-          fetchData();
+        { event: '*', schema: 'public', table: 'session_requests' },
+        () => {
+          fetchData(false);
         }
       )
       .subscribe();
@@ -96,8 +102,88 @@ function App() {
     };
   }, [clinic?.id]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  // 🔔 2. Arka plan otomatik senkronizasyon (Her 25 saniyede bir sessiz kontrol)
+  useEffect(() => {
+    if (!clinic?.id) return;
+
+    const pollTimer = setInterval(() => {
+      fetchData(false);
+    }, 25000);
+
+    return () => clearInterval(pollTimer);
+  }, [clinic?.id]);
+
+  const pendingCount = requests.filter(r => r.status === 'bekliyor').length;
+
+  // 🔔 3. Yeni talep geldiğinde anında Ses + Toast + Masaüstü Push uyarısı
+  useEffect(() => {
+    if (lastPendingCountRef.current !== null && pendingCount > lastPendingCountRef.current) {
+      // Yeni bir talep eklendi!
+      playNotificationSound();
+
+      const latestReq = requests.find(r => r.status === 'bekliyor');
+      const patientName = latestReq?.patient?.full_name || 'Bir hasta';
+
+      toast.warning(
+        `"${patientName}" online randevu talebinde bulundu!`,
+        '🚨 Yeni Randevu Talebi!'
+      );
+
+      // Masaüstü bildirim
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          const notif = new Notification('🚨 Yeni Randevu Talebi!', {
+            body: `${patientName} randevu talebi gönderdi. İncelemek için tıklayınız.`,
+            icon: '/favicon.svg',
+            tag: 'new-session-request',
+            renotify: true
+          });
+          notif.onclick = () => {
+            window.focus();
+            setActiveTab('requests');
+          };
+        } catch {}
+      }
+    }
+
+    lastPendingCountRef.current = pendingCount;
+  }, [pendingCount, requests]);
+
+  // 🔔 4. Onay bekleyen talep varken "Dakikada Bir" Sesli Hatırlatma
+  useEffect(() => {
+    if (pendingCount === 0) return;
+
+    // Her 60 saniyede bir (1 dakika) personeli uyarmak için ses çal
+    const minuteReminder = setInterval(() => {
+      playNotificationSound();
+    }, 60000);
+
+    return () => clearInterval(minuteReminder);
+  }, [pendingCount]);
+
+  // 🔔 5. Sekme Başlığı Yanıp Sönme Efekti (Arka plandaki kullanıcı için)
+  useEffect(() => {
+    if (pendingCount === 0) {
+      document.title = 'Fizyotim — Klinik Yönetim Sistemi';
+      return;
+    }
+
+    let toggle = false;
+    const titleBlinker = setInterval(() => {
+      document.title = toggle 
+        ? `🚨 (${pendingCount}) YENİ RANDEVU! — Fizyotim` 
+        : `🔔 Onay Bekleyen Talep (${pendingCount}) — Fizyotim`;
+      toggle = !toggle;
+    }, 1200);
+
+    return () => {
+      clearInterval(titleBlinker);
+      document.title = 'Fizyotim — Klinik Yönetim Sistemi';
+    };
+  }, [pendingCount]);
+
+  const fetchData = async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
     try {
       // Supabase üzerinden doğrudan verileri çek
       const [pRes, tRes, staffRes, sRes, payRes, reqRes] = await Promise.all([
@@ -118,7 +204,7 @@ function App() {
     } catch (e) {
       console.error('Veri çekme hatası:', e);
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   };
 
@@ -136,8 +222,6 @@ function App() {
     setSelectedPatientId(id);
     setActiveTab('patients');
   };
-
-  const pendingCount = requests.filter(r => r.status === 'bekliyor').length;
 
   // Not logged in -> Show clinic login screen
   if (!clinic) {
@@ -167,6 +251,8 @@ function App() {
           onMenuClick={() => setMobileOpen(true)}
           onLogout={handleLogout}
           onOpenAnnouncements={() => setShowAnnouncementsModal(true)}
+          pendingCount={pendingCount}
+          onNavigateToRequests={() => setActiveTab('requests')}
         />
 
         <AnnouncementBanner onOpenModal={() => setShowAnnouncementsModal(true)} />
@@ -179,7 +265,7 @@ function App() {
               </div>
             ) : (
               <>
-                {activeTab === 'dashboard'  && <Dashboard clinic={clinic} patients={patients} sessions={sessions} payments={payments} onPatientClick={openPatientDetail} />}
+                {activeTab === 'dashboard'  && <Dashboard clinic={clinic} patients={patients} sessions={sessions} payments={payments} requests={requests} onPatientClick={openPatientDetail} onNavigateToRequests={() => setActiveTab('requests')} setActiveTab={setActiveTab} />}
                 {activeTab === 'patients'   && <Patients clinic={clinic} patients={patients} sessions={sessions} selectedPatientId={selectedPatientId} setSelectedPatientId={setSelectedPatientId} refresh={fetchData} />}
                 {activeTab === 'treatments' && <Treatments clinic={clinic} treatments={treatments} refresh={fetchData} />}
                 {activeTab === 'staff'      && <Staff clinic={clinic} staff={staff} refresh={fetchData} />}

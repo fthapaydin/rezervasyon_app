@@ -1,10 +1,21 @@
 import { useState } from 'react';
-import { RefreshCw, Link2, Check, QrCode, Megaphone, Bell } from 'lucide-react';
+import { RefreshCw, Link2, Check, QrCode, Megaphone, Bell, Volume2, ArrowRight } from 'lucide-react';
 import { MobileMenuButton } from './Sidebar';
 import QRCodeModal from '../QRCodeModal';
 import { useToast } from '../ui/Toast';
+import { playNotificationSound } from '../../lib/notificationSound';
 
-export default function Header({ title, subtitle, clinic, onRefresh, onMenuClick, onLogout, onOpenAnnouncements }) {
+export default function Header({ 
+  title, 
+  subtitle, 
+  clinic, 
+  onRefresh, 
+  onMenuClick, 
+  onLogout, 
+  onOpenAnnouncements, 
+  pendingCount = 0, 
+  onNavigateToRequests 
+}) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -28,6 +39,11 @@ export default function Header({ title, subtitle, clinic, onRefresh, onMenuClick
     setTimeout(() => setIsRefreshing(false), 500);
   };
 
+  const handleTestSound = () => {
+    playNotificationSound();
+    toast.info('Klinik randevu bildirim sesi çalındı.', 'Ses Testi');
+  };
+
   return (
     <>
       <header className="h-16 bg-white border-b border-gray-200/80 px-4 md:px-8 flex items-center justify-between shrink-0 select-none">
@@ -40,6 +56,28 @@ export default function Header({ title, subtitle, clinic, onRefresh, onMenuClick
         </div>
 
         <div className="flex items-center gap-2.5">
+          {/* 🚨 Pending Requests Urgent Badge */}
+          {pendingCount > 0 && (
+            <button
+              onClick={onNavigateToRequests}
+              className="h-9 px-3.5 rounded-xl border border-rose-400 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-[12px] font-black flex items-center gap-1.5 shadow-md shadow-rose-200 animate-pulse cursor-pointer"
+              title={`${pendingCount} adet onay bekleyen randevu talebi var! İncelemek için tıklayın.`}
+            >
+              <span className="text-sm animate-bounce">🔔</span>
+              <span>{pendingCount} Yeni Randevu</span>
+            </button>
+          )}
+
+          {/* Sound Test Button */}
+          <button
+            onClick={handleTestSound}
+            className="h-9 px-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-800 text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+            title="Randevu bildirim sesini test et"
+          >
+            <Volume2 size={13} className="text-emerald-600" />
+            <span className="hidden xl:inline">Zil Testi</span>
+          </button>
+
           {/* Announcements & Changelog Button */}
           {onOpenAnnouncements && (
             <button

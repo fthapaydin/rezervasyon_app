@@ -5,10 +5,13 @@ import {
 import { sendWhatsAppReminder } from '../lib/reminder';
 import EmptyState from '../components/ui/EmptyState';
 
-export default function Dashboard({ patients, sessions, payments, onPatientClick, setActiveTab }) {
+export default function Dashboard({ patients, sessions, payments, onPatientClick, setActiveTab, requests = [], onNavigateToRequests }) {
   const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
   const pending = sessions.filter(s => s.status === 'bekliyor');
   const completed = sessions.filter(s => s.status === 'tamamlandi');
+
+  // Pending online requests from patients
+  const pendingRequests = requests.filter(r => r.status === 'bekliyor');
 
   // Total debt calculation
   const totalSessionValue = sessions.reduce((sum, s) => sum + Number(s.treatment?.price || 0), 0);
@@ -51,6 +54,39 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
 
   return (
     <div className="space-y-6">
+      {/* 🚨 Onay Bekleyen Randevu Talepleri Vurgu Bannerı */}
+      {pendingRequests.length > 0 && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-600 via-red-600 to-amber-600 text-white shadow-lg shadow-rose-600/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-3 duration-200">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center text-2xl shrink-0 animate-bounce">
+              🔔
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-[15px] font-black tracking-tight">
+                  Onay Bekleyen {pendingRequests.length} Yeni Randevu Talebi Var!
+                </h4>
+                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-white text-rose-700 uppercase tracking-wider shadow-2xs">
+                  Acil İnceleme
+                </span>
+              </div>
+              <p className="text-[12px] text-white/90 mt-0.5 truncate">
+                {pendingRequests[0]?.patient?.full_name ? `Son talep: ${pendingRequests[0].patient.full_name} (${pendingRequests[0].requested_date} - ${pendingRequests[0].requested_time?.substring(0, 5)})` : 'Hastalar online randevu takviminden talep oluşturdu.'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onNavigateToRequests ? onNavigateToRequests() : (setActiveTab && setActiveTab('requests'))}
+            className="h-10 px-5 rounded-xl bg-white text-rose-700 hover:bg-rose-50 font-black text-[13px] shadow-sm transition-all flex items-center gap-1.5 shrink-0 cursor-pointer self-end sm:self-auto"
+          >
+            <span>Talepleri İncele &amp; Onayla</span>
+            <ArrowUpRight size={16} />
+          </button>
+        </div>
+      )}
+
       {/* ─── Stat Cards Grid ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(s => {
