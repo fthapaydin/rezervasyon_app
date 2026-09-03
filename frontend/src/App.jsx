@@ -69,6 +69,33 @@ function App() {
     }
   }, [clinic?.id]);
 
+  // 🔔 Yeni randevu talebi geldiğinde ses bildirimi
+  useEffect(() => {
+    if (!clinic?.id) return;
+
+    const channel = supabase
+      .channel('new_request_notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'session_requests' },
+        async (payload) => {
+          // Ses çal
+          try {
+            const { playNotificationSound } = await import('./lib/notificationSound');
+            playNotificationSound();
+          } catch {}
+
+          // Verileri yenile
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [clinic?.id]);
+
   const fetchData = async () => {
     setLoading(true);
     try {

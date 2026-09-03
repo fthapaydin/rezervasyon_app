@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { supabase } from '../lib/supabase';
 import { API_URL } from '../lib/api';
 import { 
   CheckCircle, XCircle, Clock, Calendar, Phone, Stethoscope, MessageSquare, X, Send, UserCheck 
@@ -25,8 +26,8 @@ function formatCreated(d) {
 export default function Requests({ clinic, staff = [], requests = [], refresh }) {
   const { toast } = useToast();
   const [filter, setFilter] = useState('bekliyor');
-  const [rejectModal, setRejectModal] = useState(null); // request object
-  const [approveModal, setApproveModal] = useState(null); // request object for therapist assignment
+  const [rejectModal, setRejectModal] = useState(null);
+  const [approveModal, setApproveModal] = useState(null);
   const [selectedTherapistId, setSelectedTherapistId] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(null);
@@ -47,14 +48,34 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
     }
     setProcessing(approveModal.id);
 
-    try {
-      await axios.put(`${API_URL}/session-requests/${approveModal.id}`, {
-        status: 'onaylandi',
-        therapist_id: selectedTherapistId || (staff.length === 1 ? staff[0].id : null)
-      });
+    const therapistId = selectedTherapistId || (staff.length === 1 ? staff[0].id : null);
 
-      // Otomatik WhatsApp bildirim tetiklemesi
-      const assignedTherapist = staff.find(s => s.id === selectedTherapistId);
+    try {
+      // 1. Talebi onayla (doğrudan Supabase)
+      const { error: updateErr } = await supabase
+        .from('session_requests')
+        .update({ status: 'onaylandi', therapist_id: therapistId })
+        .eq('id', approveModal.id);
+
+      if (updateErr) throw updateErr;
+
+      // 2. Takvime seans ekle (clinic_id olmadan — canlı DB'de bu kolon yok)
+      const { error: sessionErr } = await supabase
+        .from('sessions')
+        .insert([{
+          patient_id: approveModal.patient_id,
+          treatment_id: approveModal.treatment_id,
+          therapist_id: therapistId,
+          session_date: approveModal.requested_date,
+          session_time: approveModal.requested_time,
+          notes: approveModal.notes || null,
+          status: 'bekliyor'
+        }]);
+
+      if (sessionErr) throw sessionErr;
+
+      // 3. WhatsApp bildirim (arka planda, hata yutulur)
+      const assignedTherapist = staff.find(s => s.id === therapistId);
       if (approveModal.patient?.phone) {
         axios.post(`${API_URL}/whatsapp/send-template`, {
           clinic_id: clinic?.id,
@@ -65,14 +86,15 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
           time: approveModal.requested_time?.substring(0, 5),
           therapist_name: assignedTherapist?.full_name,
           treatment_name: approveModal.treatment?.name
-        }).catch(err => console.error(err));
+        }).catch(() => {});
       }
 
       toast.success(`"${approveModal.patient?.full_name}" randevusu onaylandı ve takvime eklendi.`, 'Randevu Onaylandı');
       setApproveModal(null);
       refresh();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'İşlem başarısız oldu.', 'Hata');
+      console.error('Onaylama hatası:', err);
+      toast.error(err.message || 'İşlem başarısız oldu.', 'Hata');
     } finally {
       setProcessing(null);
     }
@@ -82,16 +104,20 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
     if (!rejectModal) return;
     setProcessing(rejectModal.id);
     try {
-      await axios.put(`${API_URL}/session-requests/${rejectModal.id}`, {
-        status: 'reddedildi',
-        rejection_reason: rejectionReason || null
-      });
+      const { error } = await supabase
+        .from('session_requests')
+        .update({ status: 'reddedildi', rejection_reason: rejectionReason || null })
+        .eq('id', rejectModal.id);
+
+      if (error) throw error;
+
       toast.info(`"${rejectModal.patient?.full_name}" randevu talebi reddedildi.`, 'Talep Reddedildi');
       setRejectModal(null);
       setRejectionReason('');
       refresh();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'İşlem başarısız oldu.', 'Hata');
+      console.error('Reddetme hatası:', err);
+      toast.error(err.message || 'İşlem başarısız oldu.', 'Hata');
     } finally {
       setProcessing(null);
     }

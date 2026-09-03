@@ -307,25 +307,54 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   };
 
   const approveRequest = async (id) => {
-    try { 
-      await supabase.from('session_requests').update({ status: 'onaylandi' }).eq('id', id);
-      axios.put(`${API_URL}/session-requests/${id}`, { status: 'onaylandi' }).catch(() => {});
+    try {
+      // Talebi bul
+      const req = requests.find(r => r.id === id);
+
+      // 1. Talebi onayla
+      const { error: updateErr } = await supabase
+        .from('session_requests')
+        .update({ status: 'onaylandi' })
+        .eq('id', id);
+      if (updateErr) throw updateErr;
+
+      // 2. Takvime seans ekle (kaybolma sorunu düzeltildi)
+      if (req) {
+        const { error: sessionErr } = await supabase
+          .from('sessions')
+          .insert([{
+            patient_id: req.patient_id,
+            treatment_id: req.treatment_id,
+            therapist_id: req.therapist_id || null,
+            session_date: req.requested_date,
+            session_time: req.requested_time,
+            notes: req.notes || null,
+            status: 'bekliyor'
+          }]);
+        if (sessionErr) console.error('Seans ekleme hatası:', sessionErr);
+      }
+
       toast.success('Randevu talebi onaylandı ve takvime işlendi.', 'Talep Onaylandı');
       refresh(); 
     }
-    catch { 
+    catch (err) {
+      console.error('Onaylama hatası:', err);
       toast.error('Onaylama işlemi başarısız', 'Hata'); 
     }
   };
 
   const rejectRequest = async (id) => {
     try { 
-      await supabase.from('session_requests').update({ status: 'reddedildi' }).eq('id', id);
-      axios.put(`${API_URL}/session-requests/${id}`, { status: 'reddedildi' }).catch(() => {});
+      const { error } = await supabase
+        .from('session_requests')
+        .update({ status: 'reddedildi' })
+        .eq('id', id);
+      if (error) throw error;
       toast.info('Randevu talebi reddedildi.', 'Talep Reddedildi');
       refresh(); 
     }
-    catch { 
+    catch (err) {
+      console.error('Reddetme hatası:', err);
       toast.error('Reddetme işlemi başarısız', 'Hata'); 
     }
   };
