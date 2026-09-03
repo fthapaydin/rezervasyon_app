@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RefreshCw, Link2, Check, QrCode, Megaphone, Bell, Volume2, ArrowRight } from 'lucide-react';
+import { RefreshCw, Link2, Check, QrCode, Megaphone, Bell, Volume2, ArrowRight, ExternalLink } from 'lucide-react';
 import { MobileMenuButton } from './Sidebar';
 import QRCodeModal from '../QRCodeModal';
 import { useToast } from '../ui/Toast';
@@ -102,11 +102,23 @@ export default function Header({
               {/* Booking Link Copy Button */}
               <button
                 onClick={handleCopyLink}
-                className="h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-[12px] font-medium transition-colors cursor-pointer hidden sm:inline-flex items-center"
+                className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-[12px] font-medium transition-colors cursor-pointer hidden sm:inline-flex items-center"
                 title="Online randevu linkini kopyalar"
               >
                 {copied ? 'Kopyalandı' : 'Randevu Linki'}
               </button>
+
+              {/* Direct Open in New Tab Button */}
+              <a
+                href={bookingUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-[12px] font-medium transition-colors cursor-pointer hidden sm:inline-flex items-center gap-1.5"
+                title="Online randevu takvimini yeni sekmede aç"
+              >
+                <ExternalLink size={12} className="text-slate-500" />
+                <span className="hidden md:inline">Sayfaya Git</span>
+              </a>
             </>
           )}
 
