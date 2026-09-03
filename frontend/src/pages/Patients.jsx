@@ -349,6 +349,13 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
       toast.warning('Lütfen randevu tarihi ve saati seçiniz.');
       return;
     }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (copyDate < todayStr) {
+      toast.warning('Geçmiş bir tarihe randevu kopyalanamaz.', 'Geçmiş Tarih Engeli');
+      return;
+    }
+
     setCopying(true);
     try {
       // Çakışma kontrolü
@@ -889,11 +896,23 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                     <td className="px-5 py-3.5">
                       {s.status === 'tamamlandi' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Tamamlandı
+                          ✓ Tamamlandı
+                        </span>
+                      ) : s.status === 'ertelendi' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                          ⏰ Ertelendi
+                        </span>
+                      ) : s.status === 'iptal' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                          ✕ İptal Edildi
+                        </span>
+                      ) : s.status === 'gelmedi' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                          🚫 Gelmedi
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                          Bekliyor
+                          ● Bekliyor
                         </span>
                       )}
                     </td>
@@ -1000,6 +1019,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 <input
                   required
                   type="date"
+                  min={new Date().toISOString().split('T')[0]}
                   value={copyDate}
                   onChange={e => setCopyDate(e.target.value)}
                   className="input-field font-medium text-slate-900"

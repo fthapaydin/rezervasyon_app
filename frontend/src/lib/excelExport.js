@@ -22,7 +22,7 @@ export function exportSessionsToExcel(sessions, filename = 'seanslar_listesi') {
     `"${(s.patient?.phone || '').replace(/"/g, '""')}"`,
     `"${(s.treatment?.name || '').replace(/"/g, '""')}"`,
     s.treatment?.price ? Number(s.treatment.price).toLocaleString('tr-TR') : '0',
-    s.status === 'tamamlandi' ? 'Tamamlandı' : 'Bekliyor'
+    s.status === 'tamamlandi' ? 'Tamamlandı' : s.status === 'ertelendi' ? 'Ertelendi' : s.status === 'iptal' ? 'İptal Edildi' : s.status === 'gelmedi' ? 'Gelmedi' : 'Bekliyor'
   ]);
 
   // Semicolon delimiter (Standard for Turkish Excel) with UTF-8 BOM

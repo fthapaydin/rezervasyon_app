@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import {
   DndContext, useDraggable, useDroppable, DragOverlay,
@@ -6,10 +6,10 @@ import {
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { 
-  Plus, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Repeat, 
+  Plus, X, ChevronLeft, ChevronRight, ChevronDown, Clock, CheckCircle2, Repeat, 
   MessageCircle, Calendar, List, ListFilter, FileSpreadsheet,
   Edit2, Trash2, XCircle, Stethoscope, GripVertical, Move,
-  Copy, ClipboardCheck, Layers, Check
+  Copy, ClipboardCheck, Layers, Check, UserX, AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { sendWhatsAppReminder } from '../lib/reminder';
@@ -129,6 +129,18 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   const [showCopySessionModal, setShowCopySessionModal] = useState(false);
   const [copyingSingle, setCopyingSingle] = useState(false);
 
+  // Randevu Durum Menüsü & Geçmiş Tarih İzni
+  const [activeStatusDropdown, setActiveStatusDropdown] = useState(null);
+  const [allowPastBooking, setAllowPastBooking] = useState(false);
+
+  useEffect(() => {
+    const closeDropdown = () => setActiveStatusDropdown(null);
+    if (activeStatusDropdown) {
+      window.addEventListener('click', closeDropdown);
+      return () => window.removeEventListener('click', closeDropdown);
+    }
+  }, [activeStatusDropdown]);
+
   const openSingleCopy = (s) => {
     const srcDate = new Date(s.session_date + 'T00:00:00');
     const targetDateStr = formatDate(addDays(srcDate, 7));
@@ -201,6 +213,15 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
 
     const timeFormatted = formData.session_time?.substring(0, 5);
 
+    // Geçmiş Tarih Kontrolü
+    if (formData.session_date < today && !allowPastBooking) {
+      toast.warning(
+        `Seçtiğiniz tarih geçmiş bir güne aittir (${formData.session_date}). Geçmişe dönük randevu kaydetmek için 'Geçmişe dönük kayıt' kutucuğunu işaretleyiniz.`,
+        'Geçmiş Tarih Koruması'
+      );
+      return;
+    }
+
     // Çakışma Kontrolü 1: Aynı hastanın aynı gün ve saatte başka seansı var mı?
     const patientConflict = sessions.find(s => 
       s.session_date === formData.session_date && 
@@ -270,6 +291,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       therapist_id: session.therapist_id || session.therapist?.id || (staff.length === 1 ? staff[0]?.id : ''),
       session_date: session.session_date,
       session_time: session.session_time?.substring(0, 5),
+      status: session.status || 'bekliyor',
       notes: session.notes || ''
     });
     setModalMode('edit');
@@ -279,6 +301,11 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
     e.preventDefault(); 
     if (staff.length > 1 && !formData.therapist_id) {
       toast.warning('Lütfen bir fizyoterapist seçiniz.', 'Terapist Seçimi');
+      return;
+    }
+
+    if (formData.status === 'tamamlandi' && isSessionInFuture(formData.session_date, formData.session_time)) {
+      toast.warning('Zamanı henüz gelmemiş ileri tarihli bir randevu tamamlandı olarak kaydedilemez.', 'Randevu Zamanı Gelmedi');
       return;
     }
 
@@ -326,6 +353,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
         therapist_id: formData.therapist_id || null,
         session_date: formData.session_date,
         session_time: formData.session_time,
+        status: formData.status || 'bekliyor',
         notes: formData.notes || null,
       };
 
@@ -580,6 +608,13 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       toast.warning('Lütfen randevu tarihi ve saati seçiniz.');
       return;
     }
+
+    // Geçmiş Tarih Engeli
+    if (copySessionDate < today) {
+      toast.warning('Geçmiş bir tarihe randevu kopyalanamaz.', 'Geçmiş Tarih Engeli');
+      return;
+    }
+
     setCopyingSingle(true);
     try {
       // Çakışma kontrolü
@@ -661,8 +696,14 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
         if (sessionData?.patient?.phone) {
           axios.post(`${API_URL}/whatsapp/send-template`, { clinic_id: clinic?.id, to_phone: sessionData.patient.phone, type: 'completed', patient_name: sessionData.patient.full_name, date: sessionData.session_date, time: sessionData.session_time?.substring(0, 5), therapist_name: sessionData.therapist?.full_name, treatment_name: sessionData.treatment?.name }).catch(err => console.error(err));
         }
+      } else if (status === 'ertelendi') {
+        toast.info(`"${sessionData?.patient?.full_name}" seansı ertelendi olarak güncellendi.`, 'Seans Ertelendi');
+      } else if (status === 'iptal') {
+        toast.warning(`"${sessionData?.patient?.full_name}" seansı iptal edildi.`, 'Randevu İptal');
+      } else if (status === 'gelmedi') {
+        toast.warning(`"${sessionData?.patient?.full_name}" randevuya gelmedi (No-Show) olarak kaydedildi.`, 'Hasta Gelmedi');
       } else {
-        toast.info('Seans durumu güncellendi.', 'Durum Değişti');
+        toast.info('Seans durumu "Bekliyor" olarak güncellendi.', 'Durum Değişti');
       }
     } catch { 
       toast.error('Durum güncellenemedi', 'Hata'); 
@@ -755,6 +796,34 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
 
     if (!targetDate || !targetTime) return;
 
+    // Geçmiş tarihe taşıma engeli
+    if (targetDate < today) {
+      toast.warning(
+        `Randevular geçmiş bir güne taşınamaz! (Hedef: ${targetDate})`,
+        'Geçmiş Tarih Engeli'
+      );
+      return;
+    }
+
+    // Çakışma Kontrolü
+    const conflict = sessions.some(ex => 
+      ex.id !== session.id &&
+      ex.session_date === targetDate && 
+      ex.session_time?.substring(0, 5) === targetTime && 
+      ex.status !== 'iptal' &&
+      (
+        ex.patient_id === session.patient_id || 
+        (session.therapist_id && ex.therapist_id === session.therapist_id)
+      )
+    );
+    if (conflict) {
+      toast.warning(
+        `Seçilen saatte (${targetTime}) terapistin veya hastanın başka bir randevusu bulunmaktadır.`,
+        'Saat Çakışması'
+      );
+      return;
+    }
+
     const oldDate = session.session_date;
     const oldTime = session.session_time?.substring(0, 5);
     if (targetDate === oldDate && targetTime === oldTime) return;
@@ -846,9 +915,27 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
               </FormField>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Tarih *"><input required type="date" value={formData.session_date} className="input-field" onChange={e => setFormData({...formData, session_date: e.target.value})} /></FormField>
+              <FormField label="Tarih *">
+                <input 
+                  required 
+                  type="date" 
+                  min={allowPastBooking ? undefined : today}
+                  value={formData.session_date} 
+                  className="input-field" 
+                  onChange={e => setFormData({...formData, session_date: e.target.value})} 
+                />
+              </FormField>
               <FormField label="Saat *"><input required type="time" value={formData.session_time} className="input-field" onChange={e => setFormData({...formData, session_time: e.target.value})} /></FormField>
             </div>
+            <label className="flex items-center gap-2 text-[11px] text-slate-500 hover:text-slate-800 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={allowPastBooking}
+                onChange={e => setAllowPastBooking(e.target.checked)}
+                className="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer"
+              />
+              <span>Geçmişe dönük randevu girişi yapıyorum</span>
+            </label>
             <FormField label="Not"><input type="text" placeholder="Opsiyonel..." value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} /></FormField>
             <ModalActions onCancel={() => setModalMode(null)} submitLabel={submitting ? 'Kaydediliyor...' : 'Randevuyu Kaydet'} submitting={submitting} />
           </form>
@@ -869,7 +956,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
               </FormField>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <FormField label="Başlangıç *"><input required type="date" value={recurData.start_date} className="input-field" onChange={e => setRecurData({...recurData, start_date: e.target.value})} /></FormField>
+              <FormField label="Başlangıç *"><input required type="date" min={today} value={recurData.start_date} className="input-field" onChange={e => setRecurData({...recurData, start_date: e.target.value})} /></FormField>
               <FormField label="Saat *"><input required type="time" value={recurData.session_time} className="input-field" onChange={e => setRecurData({...recurData, session_time: e.target.value})} /></FormField>
               <FormField label="Seans Sayısı *"><input required type="number" min="2" max="30" value={recurData.repeat_count} className="input-field" onChange={e => setRecurData({...recurData, repeat_count: parseInt(e.target.value, 10) || 8})} /></FormField>
             </div>
@@ -888,15 +975,26 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
               </div>
             )}
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Yeni Tarih *"><input required type="date" value={formData.session_date} className="input-field border-blue-200 focus:border-blue-500" onChange={e => setFormData({...formData, session_date: e.target.value})} /></FormField>
-              <FormField label="Yeni Saat *"><input required type="time" value={formData.session_time} className="input-field border-blue-200 focus:border-blue-500" onChange={e => setFormData({...formData, session_time: e.target.value})} /></FormField>
+              <FormField label="Tarih *"><input required type="date" value={formData.session_date} className="input-field border-blue-200 focus:border-blue-500" onChange={e => setFormData({...formData, session_date: e.target.value})} /></FormField>
+              <FormField label="Saat *"><input required type="time" value={formData.session_time} className="input-field border-blue-200 focus:border-blue-500" onChange={e => setFormData({...formData, session_time: e.target.value})} /></FormField>
             </div>
-            <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
-              <select required={staff.length > 1} value={formData.therapist_id} className="input-field border-blue-200 focus:border-blue-500" onChange={e => setFormData({...formData, therapist_id: e.target.value})}>
-                <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist seçiniz...'}</option>
-                {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
-              </select>
-            </FormField>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
+                <select required={staff.length > 1} value={formData.therapist_id} className="input-field border-blue-200 focus:border-blue-500" onChange={e => setFormData({...formData, therapist_id: e.target.value})}>
+                  <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist seçiniz...'}</option>
+                  {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+                </select>
+              </FormField>
+              <FormField label="Randevu Durumu">
+                <select value={formData.status || 'bekliyor'} className="input-field border-blue-200 focus:border-blue-500 font-semibold text-slate-800" onChange={e => setFormData({...formData, status: e.target.value})}>
+                  <option value="bekliyor">● Bekliyor (Planlandı)</option>
+                  <option value="tamamlandi">✓ Tamamlandı</option>
+                  <option value="ertelendi">⏰ Ertelendi</option>
+                  <option value="gelmedi">🚫 Gelmedi (No-Show)</option>
+                  <option value="iptal">✕ İptal Edildi</option>
+                </select>
+              </FormField>
+            </div>
             <FormField label="Not"><input type="text" value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} /></FormField>
             <ModalActions onCancel={() => setModalMode(null)} submitLabel={submitting ? 'Kaydediliyor...' : 'Kaydet'} submitting={submitting} color="blue" />
           </form>
@@ -965,15 +1063,40 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                                 const isReq = s._type === 'request';
                                 const sn = isReq ? null : getSessionNumber(s);
                                 const isDone = !isReq && s.status === 'tamamlandi';
+                                const isDelayed = !isReq && s.status === 'ertelendi';
+                                const isCancelled = !isReq && s.status === 'iptal';
+                                const isNoShow = !isReq && s.status === 'gelmedi';
                                 const isFuture = !isReq && isSessionInFuture(s.session_date, s.session_time);
-                                const cardBorder = isReq ? 'border-l-amber-500' : isDone ? 'border-l-emerald-500' : 'border-l-blue-500';
-                                const cardBg = isReq ? 'bg-amber-50/80 hover:bg-amber-50' : isDone ? 'bg-emerald-50/60 hover:bg-emerald-50' : 'bg-white hover:bg-blue-50/40';
+
+                                const cardBorder = isReq
+                                  ? 'border-l-amber-500'
+                                  : isDone
+                                  ? 'border-l-emerald-500'
+                                  : isDelayed
+                                  ? 'border-l-amber-500'
+                                  : isCancelled
+                                  ? 'border-l-rose-400'
+                                  : isNoShow
+                                  ? 'border-l-purple-500'
+                                  : 'border-l-blue-500';
+
+                                const cardBg = isReq
+                                  ? 'bg-amber-50/80 hover:bg-amber-50'
+                                  : isDone
+                                  ? 'bg-emerald-50/60 hover:bg-emerald-50'
+                                  : isDelayed
+                                  ? 'bg-amber-50/70 hover:bg-amber-100/60'
+                                  : isCancelled
+                                  ? 'bg-rose-50/30 hover:bg-rose-50/50 opacity-60'
+                                  : isNoShow
+                                  ? 'bg-purple-50/50 hover:bg-purple-100/50'
+                                  : 'bg-white hover:bg-blue-50/40';
 
                                 return (
                                   <DraggableCard key={isReq ? `req-${s.id}` : `ses-${s.id}`} session={s}>
-                                    <div onClick={(e) => e.stopPropagation()} className={`text-[11px] rounded-lg p-2 border border-gray-200/80 border-l-[3px] ${cardBorder} ${cardBg} transition-all shadow-xs hover:shadow-md flex flex-col gap-0.5`}>
+                                    <div onClick={(e) => e.stopPropagation()} className={`text-[11px] rounded-lg p-2 border border-gray-200/80 border-l-[3px] ${cardBorder} ${cardBg} transition-all shadow-xs hover:shadow-md flex flex-col gap-0.5 relative`}>
                                       <div className="flex items-start justify-between gap-1">
-                                        <button onClick={() => onPatientClick?.(s.patient_id || s.patient?.id)} className="font-bold text-[11px] hover:underline text-left truncate flex-1 leading-tight">{s.patient?.full_name}</button>
+                                        <button onClick={() => onPatientClick?.(s.patient_id || s.patient?.id)} className={`font-bold text-[11px] hover:underline text-left truncate flex-1 leading-tight ${isCancelled ? 'line-through text-slate-400' : ''}`}>{s.patient?.full_name}</button>
                                         {!isReq && sn && <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-black/5 shrink-0">{sn.current}/{sn.total}</span>}
                                         {isReq && <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-amber-200/70 text-amber-800 shrink-0 uppercase">Talep</span>}
                                       </div>
@@ -991,31 +1114,94 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                                         </div>
                                       ) : (
                                         <div className="flex items-center justify-between gap-1 mt-1 pt-1 border-t border-black/5">
-                                          {isDone ? (
+                                          <div className="relative">
                                             <button 
-                                              onClick={() => updateSessionStatus(s.id, 'bekliyor', s)} 
-                                              className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-600 text-white cursor-pointer"
-                                              title="Geri al (Bekliyor yap)"
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveStatusDropdown(activeStatusDropdown === s.id ? null : s.id);
+                                              }}
+                                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold flex items-center gap-0.5 cursor-pointer shadow-2xs transition-all ${
+                                                isDone
+                                                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                                  : isDelayed
+                                                  ? 'bg-amber-600 text-white hover:bg-amber-700'
+                                                  : isCancelled
+                                                  ? 'bg-rose-600 text-white hover:bg-rose-700'
+                                                  : isNoShow
+                                                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                                  : isFuture
+                                                  ? 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200'
+                                                  : 'bg-slate-900 text-white hover:bg-slate-800'
+                                              }`}
+                                              title="Durumu değiştir"
                                             >
-                                              ✓ Tamam
+                                              <span>
+                                                {isDone
+                                                  ? '✓ Tamam'
+                                                  : isDelayed
+                                                  ? '⏰ Ertelendi'
+                                                  : isCancelled
+                                                  ? '✕ İptal'
+                                                  : isNoShow
+                                                  ? '🚫 Gelmedi'
+                                                  : isFuture
+                                                  ? 'Bekliyor'
+                                                  : 'Tamamla'}
+                                              </span>
+                                              <ChevronDown size={8} />
                                             </button>
-                                          ) : isFuture ? (
-                                            <button 
-                                              onClick={() => updateSessionStatus(s.id, 'tamamlandi', s)} 
-                                              className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-400 border border-slate-200 cursor-not-allowed"
-                                              title="Zamanı henüz gelmedi (İleri tarihli randevu)"
-                                            >
-                                              Bekliyor
-                                            </button>
-                                          ) : (
-                                            <button 
-                                              onClick={() => updateSessionStatus(s.id, 'tamamlandi', s)} 
-                                              className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-900 hover:bg-slate-800 text-white cursor-pointer shadow-2xs"
-                                              title="Seansı tamamlandı olarak işaretle"
-                                            >
-                                              Tamamla
-                                            </button>
-                                          )}
+
+                                            {activeStatusDropdown === s.id && (
+                                              <div 
+                                                onClick={(e) => e.stopPropagation()} 
+                                                className="absolute left-0 bottom-full mb-1 w-36 bg-white rounded-xl shadow-xl border border-slate-200 p-1 z-50 animate-in fade-in zoom-in-95 duration-100"
+                                              >
+                                                <button
+                                                  type="button"
+                                                  onClick={() => { updateSessionStatus(s.id, 'tamamlandi', s); setActiveStatusDropdown(null); }}
+                                                  className="w-full px-2 py-1 text-left text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                                                >
+                                                  <CheckCircle2 size={12} className="text-emerald-600" />
+                                                  <span>Tamamlandı</span>
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => { updateSessionStatus(s.id, 'ertelendi', s); setActiveStatusDropdown(null); }}
+                                                  className="w-full px-2 py-1 text-left text-[11px] font-semibold text-amber-700 hover:bg-amber-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                                                >
+                                                  <Clock size={12} className="text-amber-600" />
+                                                  <span>Ertelendi</span>
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => { updateSessionStatus(s.id, 'gelmedi', s); setActiveStatusDropdown(null); }}
+                                                  className="w-full px-2 py-1 text-left text-[11px] font-semibold text-purple-700 hover:bg-purple-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                                                >
+                                                  <UserX size={12} className="text-purple-600" />
+                                                  <span>Gelmedi</span>
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => { updateSessionStatus(s.id, 'iptal', s); setActiveStatusDropdown(null); }}
+                                                  className="w-full px-2 py-1 text-left text-[11px] font-semibold text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                                                >
+                                                  <XCircle size={12} className="text-rose-500" />
+                                                  <span>İptal Edildi</span>
+                                                </button>
+                                                <div className="my-1 border-t border-slate-100" />
+                                                <button
+                                                  type="button"
+                                                  onClick={() => { updateSessionStatus(s.id, 'bekliyor', s); setActiveStatusDropdown(null); }}
+                                                  className="w-full px-2 py-1 text-left text-[11px] font-medium text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                                                >
+                                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-0.5" />
+                                                  <span>Bekliyor</span>
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+
                                           <div className="flex items-center gap-0.5">
                                             <button 
                                               onClick={(e) => { e.stopPropagation(); openSingleCopy(s); }} 
@@ -1069,31 +1255,93 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                       <td className="px-4 py-3">{s.therapist ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-100 text-[11px] font-semibold text-gray-800"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.therapist.color || '#059669' }} />{s.therapist.full_name}</span> : <span className="text-gray-400 text-[12px]">-</span>}</td>
                       <td className="px-4 py-3 text-gray-700 font-mono text-[12px]">{s.session_date} {s.session_time?.substring(0, 5)}</td>
                       <td className="px-4 py-3">
-                        {isDone ? (
+                        <div className="relative inline-block">
                           <button 
-                            onClick={() => updateSessionStatus(s.id, 'bekliyor', s)} 
-                            className="px-2 py-1 rounded-lg text-[11px] font-semibold cursor-pointer bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            title="Geri al (Bekliyor durumuna çevir)"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveStatusDropdown(activeStatusDropdown === `list-${s.id}` ? null : `list-${s.id}`);
+                            }}
+                            className={`px-2 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors ${
+                              s.status === 'tamamlandi'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                                : s.status === 'ertelendi'
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+                                : s.status === 'iptal'
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
+                                : s.status === 'gelmedi'
+                                ? 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100'
+                                : isFuture
+                                ? 'bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100'
+                                : 'bg-slate-900 text-white hover:bg-slate-800'
+                            }`}
+                            title="Durumu değiştir"
                           >
-                            ✓ Tamamlandı
+                            <span>
+                              {s.status === 'tamamlandi'
+                                ? '✓ Tamamlandı'
+                                : s.status === 'ertelendi'
+                                ? '⏰ Ertelendi'
+                                : s.status === 'iptal'
+                                ? '✕ İptal Edildi'
+                                : s.status === 'gelmedi'
+                                ? '🚫 Gelmedi'
+                                : isFuture
+                                ? '● Bekliyor (Gelecek)'
+                                : 'Tamamla'}
+                            </span>
+                            <ChevronDown size={10} />
                           </button>
-                        ) : isFuture ? (
-                          <button 
-                            onClick={() => updateSessionStatus(s.id, 'tamamlandi', s)} 
-                            className="px-2 py-1 rounded-lg text-[11px] font-medium cursor-not-allowed bg-slate-50 text-slate-400 border border-slate-200"
-                            title="Randevu tarihi/saati henüz gelmedi (İleri tarihli)"
-                          >
-                            ● Bekliyor (Gelecek)
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={() => updateSessionStatus(s.id, 'tamamlandi', s)} 
-                            className="px-2 py-1 rounded-lg text-[11px] font-semibold cursor-pointer bg-slate-900 text-white hover:bg-slate-800 shadow-2xs"
-                            title="Seansı tamamlandı olarak işaretle"
-                          >
-                            Tamamla
-                          </button>
-                        )}
+
+                          {activeStatusDropdown === `list-${s.id}` && (
+                            <div 
+                              onClick={(e) => e.stopPropagation()} 
+                              className="absolute left-0 top-full mt-1 w-36 bg-white rounded-xl shadow-xl border border-slate-200 p-1 z-50 animate-in fade-in zoom-in-95 duration-100"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => { updateSessionStatus(s.id, 'tamamlandi', s); setActiveStatusDropdown(null); }}
+                                className="w-full px-2 py-1 text-left text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <CheckCircle2 size={12} className="text-emerald-600" />
+                                <span>Tamamlandı</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { updateSessionStatus(s.id, 'ertelendi', s); setActiveStatusDropdown(null); }}
+                                className="w-full px-2 py-1 text-left text-[11px] font-semibold text-amber-700 hover:bg-amber-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Clock size={12} className="text-amber-600" />
+                                <span>Ertelendi</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { updateSessionStatus(s.id, 'gelmedi', s); setActiveStatusDropdown(null); }}
+                                className="w-full px-2 py-1 text-left text-[11px] font-semibold text-purple-700 hover:bg-purple-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <UserX size={12} className="text-purple-600" />
+                                <span>Gelmedi</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { updateSessionStatus(s.id, 'iptal', s); setActiveStatusDropdown(null); }}
+                                className="w-full px-2 py-1 text-left text-[11px] font-semibold text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <XCircle size={12} className="text-rose-500" />
+                                <span>İptal Edildi</span>
+                              </button>
+                              <div className="my-1 border-t border-slate-100" />
+                              <button
+                                type="button"
+                                onClick={() => { updateSessionStatus(s.id, 'bekliyor', s); setActiveStatusDropdown(null); }}
+                                className="w-full px-2 py-1 text-left text-[11px] font-medium text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-0.5" />
+                                <span>Bekliyor</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -1227,6 +1475,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
               <input
                 required
                 type="date"
+                min={today}
                 value={copySessionDate}
                 onChange={e => setCopySessionDate(e.target.value)}
                 className="input-field"

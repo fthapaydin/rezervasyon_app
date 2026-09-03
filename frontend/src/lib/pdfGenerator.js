@@ -24,7 +24,7 @@ export function generateSessionReport(patient, patientSessions) {
       new Date(s.session_date).toLocaleDateString('tr-TR'),
       s.session_time?.substring(0, 5),
       s.treatment?.name || '-',
-      s.status === 'tamamlandi' ? 'Tamamlandi' : 'Bekliyor'
+      s.status === 'tamamlandi' ? 'Tamamlandi' : s.status === 'ertelendi' ? 'Ertelendi' : s.status === 'iptal' ? 'Iptal' : s.status === 'gelmedi' ? 'Gelmedi' : 'Bekliyor'
     ]),
     styles: { fontSize: 9 },
     headStyles: { fillColor: [16, 185, 129] },
@@ -128,7 +128,7 @@ export function generatePatientSummary(patient, patientSessions, patientPayments
       i + 1,
       new Date(s.session_date).toLocaleDateString('tr-TR'),
       s.treatment?.name || '-',
-      s.status === 'tamamlandi' ? 'Tamamlandi' : 'Bekliyor'
+      s.status === 'tamamlandi' ? 'Tamamlandi' : s.status === 'ertelendi' ? 'Ertelendi' : s.status === 'iptal' ? 'Iptal' : s.status === 'gelmedi' ? 'Gelmedi' : 'Bekliyor'
     ]),
     styles: { fontSize: 8 },
     headStyles: { fillColor: [16, 185, 129] },
