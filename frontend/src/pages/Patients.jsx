@@ -236,11 +236,19 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
                         : <span className="text-[12px] text-gray-300">—</span>}
                     </td>
                     <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[100px]">
-                          <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }}></div>
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[90px]">
+                          <div 
+                            className={`h-full rounded-full transition-all ${info.completed >= totalPlanned ? 'bg-slate-900' : 'bg-emerald-500'}`} 
+                            style={{ width: `${pct}%` }}
+                          />
                         </div>
                         <span className="text-[12px] text-gray-500 font-medium whitespace-nowrap">{info.completed}/{totalPlanned}</span>
+                        {info.completed >= totalPlanned && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-900 text-white shadow-2xs">
+                            Paket Doldu
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -273,6 +281,12 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
   const [copyTreatmentId, setCopyTreatmentId] = useState('');
   const [copyNotes, setCopyNotes] = useState('');
   const [copying, setCopying] = useState(false);
+
+  // Paket Yenileme / Seans Ekleme Durumları
+  const [renewModalOpen, setRenewModalOpen] = useState(false);
+  const [addedSessions, setAddedSessions] = useState(8);
+  const [packageNote, setPackageNote] = useState('');
+  const [renewing, setRenewing] = useState(false);
 
   const [staffList, setStaffList] = useState(staff);
   const [treatmentList, setTreatmentList] = useState(treatments);
@@ -388,6 +402,56 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
     }
   };
 
+  const openRenewPackageModal = () => {
+    setAddedSessions(8);
+    setPackageNote('');
+    setRenewModalOpen(true);
+  };
+
+  const handleRenewPackageSubmit = async (e) => {
+    e.preventDefault();
+    const count = parseInt(addedSessions, 10);
+    if (!count || count <= 0) {
+      toast.warning('Lütfen en az 1 seans giriniz.', 'Geçersiz Seans');
+      return;
+    }
+
+    setRenewing(true);
+    try {
+      const currentTotal = parseInt(patient.total_sessions, 10) || 10;
+      const newTotal = currentTotal + count;
+      const currentCompleted = (patient.sessions || []).filter(s => s.status === 'tamamlandi').length;
+      const newRemaining = Math.max(0, newTotal - currentCompleted);
+
+      const dateStr = new Date().toLocaleDateString('tr-TR');
+      const logLine = `[${dateStr}] +${count} seans paketi tanımlandı${packageNote ? ` (${packageNote})` : ''}.`;
+      const updatedNotes = patient.notes ? `${patient.notes}\n${logLine}` : logLine;
+
+      const { error: pErr } = await supabase
+        .from('patients')
+        .update({
+          total_sessions: newTotal,
+          notes: updatedNotes
+        })
+        .eq('id', patient.id);
+
+      if (pErr) throw pErr;
+
+      toast.success(
+        `+${count} seans başarıyla eklendi. Yeni toplam: ${newTotal} seans (Kullanılabilir: ${newRemaining})`,
+        'Paket Yenilendi'
+      );
+      setRenewModalOpen(false);
+      await fetchPatientDetail();
+      if (refresh) refresh();
+    } catch (err) {
+      console.error('Paket yenileme hatası:', err);
+      toast.error(err.message || 'Seans paketi eklenirken bir hata oluştu.', 'Hata');
+    } finally {
+      setRenewing(false);
+    }
+  };
+
   const fetchPatientDetail = async () => {
     try {
       const res = await axios.get(`${API_URL}/patients/${id}`);
@@ -487,6 +551,13 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
 
         <div className="flex flex-wrap items-center gap-2">
           <button 
+            onClick={openRenewPackageModal}
+            className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer"
+          >
+            <Plus size={13} />
+            <span>+ Seans / Paket Ekle</span>
+          </button>
+          <button 
             onClick={() => {
               setEditData(patient);
               setShowEditModal(true);
@@ -512,13 +583,45 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
           </button>
           <button 
             onClick={() => generatePatientSummary(patient, sessions, payments)}
-            className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
           >
-            <Printer size={13} />
+            <Printer size={13} className="text-slate-500" />
             <span>Hasta Özeti PDF</span>
           </button>
         </div>
       </div>
+
+      {/* ─── Paket Seansları Tamamlandı Uyarı Bannerı ─── */}
+      {remaining <= 0 && (
+        <div className="p-4 sm:p-5 rounded-xl bg-slate-900 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-800 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-slate-800 text-emerald-400 border border-slate-700 flex items-center justify-center shrink-0">
+              <CheckCircle2 size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-[14px] font-bold tracking-tight">
+                  Paket Seansları Tamamlandı ({completedCount}/{totalPlanned})
+                </h4>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Dönem Sonu
+                </span>
+              </div>
+              <p className="text-[12px] text-slate-400 mt-0.5">
+                Hastanın bu dönemki seans hakkı bitti. Yeni ay/dönem seanslarını planlamak için tek tıkla seans paketi ekleyin.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={openRenewPackageModal}
+            className="flex items-center gap-1.5 h-8.5 px-4 rounded-lg bg-white text-slate-900 hover:bg-slate-100 font-semibold text-[12px] transition-colors shrink-0 cursor-pointer shadow-2xs self-end sm:self-auto"
+          >
+            <Plus size={14} />
+            <span>+ Yeni Paket / Seans Ekle</span>
+          </button>
+        </div>
+      )}
 
       {/* Patient Info Card */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
@@ -543,9 +646,26 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
 
         {/* Quick stats with Debt Status */}
         <div className="border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
-          <Stat label="Planlanan Seans" value={totalPlanned} />
-          <Stat label="Tamamlanan" value={completedCount} />
-          <Stat label="Kalan Seans" value={remaining} highlight />
+          <div className="px-5 py-4 text-center relative group">
+            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1">Planlanan Seans</p>
+            <p className="text-lg font-bold text-gray-900">{totalPlanned} Seans</p>
+            <button
+              type="button"
+              onClick={openRenewPackageModal}
+              className="text-[11px] text-slate-600 hover:text-slate-900 font-semibold underline cursor-pointer mt-0.5 inline-block"
+              title="Yeni seans paketi ekle"
+            >
+              + Seans Ekle
+            </button>
+          </div>
+          <Stat label="Tamamlanan" value={`${completedCount} Seans`} />
+          <Stat 
+            label="Kalan Seans" 
+            value={`${remaining} Seans`} 
+            highlight={remaining > 0} 
+            danger={remaining === 0} 
+            subtitle={remaining === 0 ? 'Paket Doldu' : `Tamamlanma: %${pct}`} 
+          />
           <Stat 
             label="Kalan Borç / Bakiye" 
             value={`${balanceDebt.toLocaleString('tr-TR')} ₺`} 
@@ -981,6 +1101,136 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                   className="h-9 px-5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition-colors cursor-pointer shadow-2xs"
                 >
                   {copying ? 'Kopyalanıyor...' : 'Randevuyu Kopyala & Kaydet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Yeni Seans Paketi Tanımlama / Yenileme Modalı ═══ */}
+      {renewModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setRenewModalOpen(false)} />
+          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 sm:p-7 z-10 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-gray-100 mb-5">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Yeni Seans Paketi Tanımla</h3>
+                <p className="text-[12px] text-gray-500 mt-0.5">{patient.full_name} için seans hakkı tanımlayın</p>
+              </div>
+              <button 
+                onClick={() => setRenewModalOpen(false)} 
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center cursor-pointer text-xs font-semibold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Current Status Mini Grid */}
+            <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 border border-slate-200/80 rounded-xl mb-5 text-center">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Mevcut Paket</span>
+                <span className="text-base font-black text-slate-800 font-mono block mt-0.5">{totalPlanned} Seans</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Tamamlanan</span>
+                <span className="text-base font-black text-slate-800 font-mono block mt-0.5">{completedCount} Seans</span>
+              </div>
+              <div className="rounded-lg bg-white border border-slate-200/90 py-1">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Şu Anki Kalan</span>
+                <span className={`text-base font-black font-mono block mt-0.5 ${remaining === 0 ? 'text-rose-600 font-bold' : 'text-slate-900'}`}>
+                  {remaining} Seans
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleRenewPackageSubmit} className="space-y-4">
+              {/* Seans Sayısı Seçimi */}
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">
+                  Eklenecek Seans Sayısı <span className="text-rose-500">*</span>
+                </label>
+                
+                {/* Hızlı Çipler */}
+                <div className="flex flex-wrap gap-2 mb-2.5">
+                  {[4, 8, 10, 12, 16].map(num => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setAddedSessions(num)}
+                      className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all cursor-pointer ${
+                        Number(addedSessions) === num
+                          ? 'bg-slate-900 text-white shadow-2xs'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      +{num} Seans {num === 8 ? '(Aylık Paket)' : ''}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={addedSessions}
+                    onChange={e => setAddedSessions(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    className="w-full h-11 px-3.5 rounded-xl border border-gray-200 text-[15px] font-bold font-mono outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                  />
+                  <span className="text-[13px] font-medium text-gray-500 whitespace-nowrap">Seans</span>
+                </div>
+              </div>
+
+              {/* Paket Açıklaması / Dönem Notu */}
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">
+                  Dönem / Paket Notu (İsteğe Bağlı)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Örn: 2. Ay Manuel Terapi Devam Paketi"
+                  value={packageNote}
+                  onChange={e => setPackageNote(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl border border-gray-200 text-[13px] outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                />
+              </div>
+
+              {/* Canlı Önizleme & Sonuç Kartı */}
+              <div className="p-3.5 rounded-xl bg-slate-900 text-white border border-slate-800 shadow-2xs space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Güncelleme Sonrası Durum</span>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-slate-300">Yeni Toplam Seans:</span>
+                  <span className="font-bold font-mono text-white text-base">
+                    {totalPlanned + (parseInt(addedSessions, 10) || 0)} Seans
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[13px] pt-1.5 border-t border-slate-800">
+                  <span className="text-emerald-400 font-semibold">Yeni Kullanılabilir Kalan:</span>
+                  <span className="font-black font-mono text-emerald-400 text-lg">
+                    {remaining + (parseInt(addedSessions, 10) || 0)} Seans
+                  </span>
+                </div>
+              </div>
+
+              {/* Modal Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRenewModalOpen(false)}
+                  className="h-10 px-4 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-[13px] font-semibold transition-colors cursor-pointer"
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  disabled={renewing}
+                  className="flex items-center gap-2 h-10 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[13px] font-bold transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {renewing ? 'Tanımlanıyor...' : `+ ${parseInt(addedSessions, 10) || 0} Seansı Onayla ve Tanımla`}
                 </button>
               </div>
             </form>
