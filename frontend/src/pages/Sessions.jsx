@@ -175,6 +175,42 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       toast.warning('Lütfen randevuyu yönetecek fizyoterapisti seçiniz.', 'Terapist Seçimi');
       return;
     }
+
+    const timeFormatted = formData.session_time?.substring(0, 5);
+
+    // Çakışma Kontrolü 1: Aynı hastanın aynı gün ve saatte başka seansı var mı?
+    const patientConflict = sessions.find(s => 
+      s.session_date === formData.session_date && 
+      s.session_time?.substring(0, 5) === timeFormatted && 
+      s.patient_id === formData.patient_id &&
+      s.status !== 'iptal'
+    );
+    if (patientConflict) {
+      toast.warning(
+        `Bu hastanın ${formData.session_date} günü saat ${timeFormatted}'da zaten randevusu bulunmaktadır.`,
+        'Randevu Çakışması'
+      );
+      return;
+    }
+
+    // Çakışma Kontrolü 2: Seçilen fizyoterapistin aynı gün ve saatte başka seansı var mı?
+    if (formData.therapist_id) {
+      const therapistConflict = sessions.find(s => 
+        s.session_date === formData.session_date && 
+        s.session_time?.substring(0, 5) === timeFormatted && 
+        s.therapist_id === formData.therapist_id &&
+        s.status !== 'iptal'
+      );
+      if (therapistConflict) {
+        const therapistName = staff.find(st => st.id === formData.therapist_id)?.full_name || 'Seçilen fizyoterapist';
+        toast.warning(
+          `${therapistName} ${formData.session_date} günü saat ${timeFormatted}'da başka bir seanstadır. Lütfen farklı bir saat veya terapist seçiniz.`,
+          'Terapist Meşgul'
+        );
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -222,6 +258,43 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       toast.warning('Lütfen bir fizyoterapist seçiniz.', 'Terapist Seçimi');
       return;
     }
+
+    const timeFormatted = formData.session_time?.substring(0, 5);
+
+    // Düzenlemede çakışma kontrolü (kendi seansı hariç)
+    const patientConflict = sessions.find(s => 
+      s.id !== formData.id &&
+      s.session_date === formData.session_date && 
+      s.session_time?.substring(0, 5) === timeFormatted && 
+      s.patient_id === formData.patient_id &&
+      s.status !== 'iptal'
+    );
+    if (patientConflict) {
+      toast.warning(
+        `Bu hastanın ${formData.session_date} günü saat ${timeFormatted}'da başka bir randevusu bulunmaktadır.`,
+        'Randevu Çakışması'
+      );
+      return;
+    }
+
+    if (formData.therapist_id) {
+      const therapistConflict = sessions.find(s => 
+        s.id !== formData.id &&
+        s.session_date === formData.session_date && 
+        s.session_time?.substring(0, 5) === timeFormatted && 
+        s.therapist_id === formData.therapist_id &&
+        s.status !== 'iptal'
+      );
+      if (therapistConflict) {
+        const therapistName = staff.find(st => st.id === formData.therapist_id)?.full_name || 'Seçilen fizyoterapist';
+        toast.warning(
+          `${therapistName} ${formData.session_date} saat ${timeFormatted}'da başka bir seanstadır.`,
+          'Terapist Meşgul'
+        );
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const payload = {

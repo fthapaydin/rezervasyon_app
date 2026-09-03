@@ -11,7 +11,7 @@ import { API_URL } from '../lib/api';
 
 export default function Patients({ clinic, patients, sessions, selectedPatientId, setSelectedPatientId, refresh }) {
   if (selectedPatientId) {
-    return <PatientDetail id={selectedPatientId} onBack={() => setSelectedPatientId(null)} refresh={refresh} />;
+    return <PatientDetail id={selectedPatientId} onBack={() => setSelectedPatientId(null)} refresh={refresh} allPatients={patients} />;
   }
 
   return <PatientList clinic={clinic} patients={patients} sessions={sessions} onSelect={setSelectedPatientId} refresh={refresh} />;
@@ -36,10 +36,20 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Strict phone validation
+    // Strict phone validation & Duplicate check
     const cleanedPhone = formData.phone.replace(/\D/g, '');
     if (cleanedPhone.length < 10 || cleanedPhone.length > 11) {
       toast.warning('Lütfen geçerli bir telefon numarası giriniz (10 veya 11 haneli sayı, Örn: 05551234567).', 'Geçersiz Telefon');
+      return;
+    }
+
+    const last10 = cleanedPhone.slice(-10);
+    const existingWithPhone = patients.find(p => p.phone && p.phone.replace(/\D/g, '').slice(-10) === last10);
+    if (existingWithPhone) {
+      toast.error(
+        `Bu telefon numarası (${cleanedPhone}) zaten "${existingWithPhone.full_name}" adlı hastaya aittir. Aynı numarayla mükerrer kayıt oluşturulamaz.`,
+        'Mükerrer Telefon Uyarısı'
+      );
       return;
     }
 
@@ -244,7 +254,7 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
 }
 
 // ─── Patient Detail ────────────────────────────────────
-function PatientDetail({ id, onBack, refresh }) {
+function PatientDetail({ id, onBack, refresh, allPatients = [] }) {
   const { toast } = useToast();
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -275,6 +285,17 @@ function PatientDetail({ id, onBack, refresh }) {
     const cleanedPhone = editData.phone.replace(/\D/g, '');
     if (cleanedPhone.length < 10 || cleanedPhone.length > 11) {
       toast.warning('Lütfen geçerli bir telefon numarası giriniz (Örn: 05XXXXXXXXX).', 'Geçersiz Telefon');
+      return;
+    }
+
+    // Başka bir hastada bu numara kayıtlı mı kontrolü
+    const last10 = cleanedPhone.slice(-10);
+    const conflictPatient = allPatients.find(p => p.id !== id && p.phone && p.phone.replace(/\D/g, '').slice(-10) === last10);
+    if (conflictPatient) {
+      toast.error(
+        `Bu telefon numarası (${cleanedPhone}) zaten "${conflictPatient.full_name}" adlı başka bir hastaya aittir.`,
+        'Mükerrer Telefon Uyarısı'
+      );
       return;
     }
 
