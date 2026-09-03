@@ -67,16 +67,16 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
               {clinic?.logo_url ? (
                 <img src={clinic.logo_url} alt="Logo" className="w-8 h-8 rounded-xl object-contain shadow-2xs border border-gray-100 shrink-0" />
               ) : (
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-600/20 text-white shrink-0">
-                  <Activity size={17} strokeWidth={2.5} />
+                <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center shadow-xs text-white shrink-0 font-black text-[13px] tracking-tight">
+                  FT
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <span className="text-[14px] font-black text-gray-900 tracking-tight block truncate">
+                <span className="text-[14px] font-black text-slate-900 tracking-tight block truncate">
                   {clinic?.name || 'Fizyotim'}
                 </span>
-                <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider block">
-                  Fizyotim Pro
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">
+                  KLİNİK YÖNETİM SİSTEMİ
                 </span>
               </div>
             </div>
@@ -107,8 +107,8 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
             {clinic?.logo_url ? (
               <img src={clinic.logo_url} alt="Logo" className="w-7 h-7 rounded-lg object-contain shrink-0" />
             ) : (
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-sm text-white shrink-0">
-                <Activity size={15} strokeWidth={2.5} />
+              <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center shadow-xs text-white shrink-0 font-black text-[13px] tracking-tight">
+                FT
               </div>
             )}
             <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xs group-hover/toggle:scale-110 transition-transform">
