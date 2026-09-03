@@ -104,7 +104,21 @@ function DragOverlayCard({ session }) {
 
 export default function Sessions({ clinic, staff = [], sessions, requests = [], patients, treatments, refresh, onPatientClick }) {
   const { toast } = useToast();
-  const [viewMode, setViewMode] = useState('calendar');
+  const [viewMode, setViewModeState] = useState(() => {
+    try {
+      return localStorage.getItem('fizyo_sessions_view_mode') || 'calendar';
+    } catch {
+      return 'calendar';
+    }
+  });
+
+  const setViewMode = (mode) => {
+    setViewModeState(mode);
+    try {
+      localStorage.setItem('fizyo_sessions_view_mode', mode);
+    } catch {}
+  };
+
   const [selectedTherapistId, setSelectedTherapistId] = useState('all');
   const [modalMode, setModalMode] = useState(null);
   const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', therapist_id: '', session_date: '', session_time: '', notes: '' });
