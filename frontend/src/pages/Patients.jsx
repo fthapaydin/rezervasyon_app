@@ -6,12 +6,13 @@ import { sendWhatsAppReminder } from '../lib/reminder';
 import { useToast } from '../components/ui/Toast';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import EmptyState from '../components/ui/EmptyState';
+import { supabase } from '../lib/supabase';
 
 import { API_URL } from '../lib/api';
 
-export default function Patients({ clinic, patients, sessions, selectedPatientId, setSelectedPatientId, refresh }) {
+export default function Patients({ clinic, patients, sessions, staff = [], treatments = [], selectedPatientId, setSelectedPatientId, refresh }) {
   if (selectedPatientId) {
-    return <PatientDetail id={selectedPatientId} onBack={() => setSelectedPatientId(null)} refresh={refresh} allPatients={patients} />;
+    return <PatientDetail id={selectedPatientId} onBack={() => setSelectedPatientId(null)} refresh={refresh} allPatients={patients} staff={staff} treatments={treatments} />;
   }
 
   return <PatientList clinic={clinic} patients={patients} sessions={sessions} onSelect={setSelectedPatientId} refresh={refresh} />;
@@ -254,7 +255,7 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
 }
 
 // ─── Patient Detail ────────────────────────────────────
-function PatientDetail({ id, onBack, refresh, allPatients = [] }) {
+function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], treatments = [] }) {
   const { toast } = useToast();
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -263,6 +264,129 @@ function PatientDetail({ id, onBack, refresh, allPatients = [] }) {
   const [editData, setEditData] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Randevu Kopyalama Durumları
+  const [copyModalSession, setCopyModalSession] = useState(null);
+  const [copyDate, setCopyDate] = useState('');
+  const [copyTime, setCopyTime] = useState('');
+  const [copyTherapistId, setCopyTherapistId] = useState('');
+  const [copyTreatmentId, setCopyTreatmentId] = useState('');
+  const [copyNotes, setCopyNotes] = useState('');
+  const [copying, setCopying] = useState(false);
+
+  const [staffList, setStaffList] = useState(staff);
+  const [treatmentList, setTreatmentList] = useState(treatments);
+
+  useEffect(() => {
+    if (staffList.length === 0) {
+      supabase.from('staff').select('*').order('created_at', { ascending: true }).then(({ data }) => {
+        if (data && data.length > 0) setStaffList(data);
+      });
+    }
+    if (treatmentList.length === 0) {
+      supabase.from('treatments').select('*').order('created_at', { ascending: true }).then(({ data }) => {
+        if (data && data.length > 0) setTreatmentList(data);
+      });
+    }
+  }, []);
+
+  function addDays(dateStr, days) {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    date.setDate(date.getDate() + days);
+    const nextY = date.getFullYear();
+    const nextM = String(date.getMonth() + 1).padStart(2, '0');
+    const nextD = String(date.getDate()).padStart(2, '0');
+    return `${nextY}-${nextM}-${nextD}`;
+  }
+
+  function formatTurkishDate(dateStr) {
+    if (!dateStr) return '';
+    try {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+    } catch {
+      return dateStr;
+    }
+  }
+
+  const openCopyModal = (session) => {
+    // Default: Tam 1 hafta sonraya (aynı gün) ve aynı saate
+    const targetDate = addDays(session.session_date, 7);
+    const targetTime = session.session_time ? session.session_time.substring(0, 5) : '18:00';
+    setCopyModalSession(session);
+    setCopyDate(targetDate);
+    setCopyTime(targetTime);
+    setCopyTherapistId(session.therapist_id || session.therapist?.id || (staffList[0]?.id || ''));
+    setCopyTreatmentId(session.treatment_id || session.treatment?.id || (treatmentList[0]?.id || ''));
+    setCopyNotes(session.notes || '');
+  };
+
+  const setQuickWeeks = (weeks) => {
+    if (!copyModalSession) return;
+    setCopyDate(addDays(copyModalSession.session_date, weeks * 7));
+  };
+
+  const handleCopySubmit = async (e) => {
+    e.preventDefault();
+    if (!copyDate || !copyTime) {
+      toast.warning('Lütfen randevu tarihi ve saati seçiniz.');
+      return;
+    }
+    setCopying(true);
+    try {
+      // Çakışma kontrolü
+      if (copyTherapistId) {
+        const { data: conflicts } = await supabase
+          .from('sessions')
+          .select('id, patient:patients(full_name)')
+          .eq('session_date', copyDate)
+          .eq('session_time', copyTime)
+          .eq('therapist_id', copyTherapistId)
+          .neq('status', 'iptal');
+
+        if (conflicts && conflicts.length > 0) {
+          const conflictingName = conflicts[0]?.patient?.full_name || 'Başka bir hasta';
+          toast.warning(
+            `Seçilen saatte bu fizyoterapistin zaten bir randevusu var (${conflictingName}). Lütfen farklı bir saat seçiniz.`,
+            'Saat Çakışması'
+          );
+          setCopying(false);
+          return;
+        }
+      }
+
+      // Supabase sessions tablosuna ekle (clinic_id yok)
+      const { error: insertErr } = await supabase
+        .from('sessions')
+        .insert([{
+          patient_id: patient.id,
+          treatment_id: copyTreatmentId || null,
+          therapist_id: copyTherapistId || null,
+          session_date: copyDate,
+          session_time: copyTime,
+          status: 'bekliyor',
+          notes: copyNotes || null
+        }]);
+
+      if (insertErr) throw insertErr;
+
+      toast.success(
+        `"${patient.full_name}" için ${formatTurkishDate(copyDate)} saat ${copyTime} randevusu başarıyla oluşturuldu.`,
+        'Randevu Kopyalandı'
+      );
+      setCopyModalSession(null);
+      await fetchPatientDetail();
+      if (refresh) refresh();
+    } catch (err) {
+      console.error('Randevu kopyalama hatası:', err);
+      toast.error(err.message || 'Randevu kopyalanırken hata oluştu.', 'Hata');
+    } finally {
+      setCopying(false);
+    }
+  };
 
   const fetchPatientDetail = async () => {
     try {
@@ -588,58 +712,276 @@ function PatientDetail({ id, onBack, refresh, allPatients = [] }) {
       </div>
 
       {/* Sessions Table */}
-      <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-[13px] font-semibold text-gray-800">Seans Geçmişi</h3>
-          <span className="text-[11px] text-gray-400">{sessions.length} kayıt</span>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-[14px] font-bold text-slate-900">Seans Geçmişi &amp; Randevular</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">Hastanın tüm seansları. Randevuyu haftaya veya istediğiniz bir güne kopyalayabilirsiniz.</p>
+          </div>
+          <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded">{sessions.length} seans</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[500px]">
+          <table className="w-full min-w-[650px]">
             <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">#</th>
-                <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tarih</th>
-                <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Saat</th>
-                <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tedavi</th>
-                <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Durum</th>
-                <th className="text-right px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Hatırlat</th>
+              <tr className="border-b border-slate-100 bg-slate-50/60 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                <th className="text-left px-5 py-3">#</th>
+                <th className="text-left px-5 py-3">Tarih &amp; Gün</th>
+                <th className="text-left px-5 py-3">Saat</th>
+                <th className="text-left px-5 py-3">Tedavi</th>
+                <th className="text-left px-5 py-3">Terapist</th>
+                <th className="text-left px-5 py-3">Durum</th>
+                <th className="text-right px-5 py-3">İşlemler</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {sessions.length === 0 && (
-                <tr><td colSpan={6} className="px-5 py-8 text-center text-[13px] text-gray-400">Seans kaydı yok.</td></tr>
-              )}
-              {sessions.map((s, i) => (
-                <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-5 py-3 text-[13px] font-bold text-gray-400">{i + 1}</td>
-                  <td className="px-5 py-3 text-[13px] font-medium text-gray-800">{new Date(s.session_date).toLocaleDateString('tr-TR')}</td>
-                  <td className="px-5 py-3 text-[13px] text-gray-500">{s.session_time?.substring(0,5)}</td>
-                  <td className="px-5 py-3 text-[13px] text-gray-600">{s.treatment?.name}</td>
-                  <td className="px-5 py-3">
-                    {s.status === 'tamamlandi'
-                      ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[11px] font-semibold"><CheckCircle2 size={11}/> Tamamlandı</span>
-                      : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-[11px] font-semibold"><Clock size={11}/> Bekliyor</span>}
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    {s.status === 'bekliyor' && (
-                      <button
-                        onClick={() => {
-                          const patientSession = { ...s, patient };
-                          sendWhatsAppReminder(patientSession);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-semibold border border-emerald-200 transition-colors"
-                        title="WhatsApp Randevu Hatırlatması Gönder"
-                      >
-                        <MessageCircle size={12} /> WhatsApp
-                      </button>
-                    )}
+            <tbody className="divide-y divide-slate-100 text-[13px]">
+              {sessions.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-8 text-center text-slate-400">
+                    Bu hastaya ait seans kaydı bulunmuyor.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                sessions.map((s, i) => (
+                  <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-5 py-3.5 font-mono text-slate-400 font-bold text-[12px]">{i + 1}</td>
+                    <td className="px-5 py-3.5">
+                      <p className="font-semibold text-slate-900">{formatTurkishDate(s.session_date)}</p>
+                    </td>
+                    <td className="px-5 py-3.5 font-mono font-medium text-slate-700">
+                      {s.session_time?.substring(0, 5)}
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-700 font-medium">
+                      {s.treatment?.name || 'Genel Seans'}
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-600 text-[12px]">
+                      {s.therapist ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.therapist.color || '#059669' }} />
+                          <span className="font-medium text-slate-800">{s.therapist.full_name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      {s.status === 'tamamlandi' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Tamamlandı
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                          Bekliyor
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => openCopyModal(s)}
+                          className="h-7 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-medium transition-colors cursor-pointer shadow-2xs"
+                          title="Bu seansı haftaya aynı güne veya istediğiniz tarihe kopyalar"
+                        >
+                          Randevuyu Kopyala
+                        </button>
+                        {s.status === 'bekliyor' && (
+                          <button
+                            onClick={() => {
+                              const patientSession = { ...s, patient };
+                              sendWhatsAppReminder(patientSession);
+                            }}
+                            className="h-7 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
+                            title="WhatsApp Randevu Hatırlatması Gönder"
+                          >
+                            WhatsApp
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* ═══ Randevuyu Kopyala Modal ═══ */}
+      {copyModalSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setCopyModalSession(null)} />
+          <div className="relative bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-lg p-6 overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div>
+                <h3 className="text-[15px] font-bold text-slate-900">Randevuyu Kopyala</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">{patient.full_name} için seans kopyalanıyor</p>
+              </div>
+              <button
+                onClick={() => setCopyModalSession(null)}
+                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCopySubmit} className="space-y-4 text-[13px]">
+              {/* Mevcut Seans Özeti */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-[12px] space-y-1">
+                <div className="flex items-center justify-between font-semibold text-slate-800">
+                  <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Kopyalanacak Kaynak Seans</span>
+                  <span className="text-slate-600 font-medium">{copyModalSession.treatment?.name}</span>
+                </div>
+                <p className="text-slate-700">
+                  {formatTurkishDate(copyModalSession.session_date)} — Saat: <strong className="text-slate-900 font-mono">{copyModalSession.session_time?.substring(0, 5)}</strong>
+                </p>
+                {copyModalSession.therapist && (
+                  <p className="text-slate-500 text-[11px]">Terapist: {copyModalSession.therapist.full_name}</p>
+                )}
+              </div>
+
+              {/* Hedef Tarih */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[12px] font-semibold text-slate-700">Hedef Randevu Tarihi *</label>
+                  <span className="text-[11px] text-emerald-700 font-medium">Varsayılan: Haftaya Aynı Gün</span>
+                </div>
+
+                {/* Hızlı Hafta Atlama Butonları */}
+                <div className="grid grid-cols-4 gap-1.5 mb-2">
+                  {[
+                    { weeks: 1, label: '+1 Hafta (Önerilen)' },
+                    { weeks: 2, label: '+2 Hafta' },
+                    { weeks: 3, label: '+3 Hafta' },
+                    { weeks: 4, label: '+4 Hafta' },
+                  ].map(btn => {
+                    const btnTargetDate = addDays(copyModalSession.session_date, btn.weeks * 7);
+                    const isSelected = copyDate === btnTargetDate;
+                    return (
+                      <button
+                        key={btn.weeks}
+                        type="button"
+                        onClick={() => setQuickWeeks(btn.weeks)}
+                        className={`px-2 py-1.5 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-slate-900 text-white border-slate-900 font-semibold'
+                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {btn.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <input
+                  required
+                  type="date"
+                  value={copyDate}
+                  onChange={e => setCopyDate(e.target.value)}
+                  className="input-field font-medium text-slate-900"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Seçilen gün: <strong className="text-slate-800">{formatTurkishDate(copyDate)}</strong>
+                </p>
+              </div>
+
+              {/* Hedef Saat */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[12px] font-semibold text-slate-700">Hedef Randevu Saati *</label>
+                  <span className="text-[11px] text-slate-400">Varsayılan: Aynı Saat</span>
+                </div>
+
+                {/* Hızlı Saat Çipleri */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'].map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setCopyTime(t)}
+                      className={`px-2 py-1 rounded text-[11px] font-mono font-medium border transition-colors cursor-pointer ${
+                        copyTime === t
+                          ? 'bg-slate-900 text-white border-slate-900 font-bold'
+                          : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+
+                <input
+                  required
+                  type="time"
+                  value={copyTime}
+                  onChange={e => setCopyTime(e.target.value)}
+                  className="input-field font-mono font-semibold text-slate-900"
+                />
+              </div>
+
+              {/* Terapist & Tedavi */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-slate-700 mb-1">Fizyoterapist</label>
+                  <select
+                    value={copyTherapistId}
+                    onChange={e => setCopyTherapistId(e.target.value)}
+                    className="input-field text-[12px]"
+                  >
+                    <option value="">Terapist seçiniz...</option>
+                    {staffList.map(st => (
+                      <option key={st.id} value={st.id}>{st.full_name} ({st.title || 'Terapist'})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-slate-700 mb-1">Tedavi Türü</label>
+                  <select
+                    value={copyTreatmentId}
+                    onChange={e => setCopyTreatmentId(e.target.value)}
+                    className="input-field text-[12px]"
+                  >
+                    <option value="">Tedavi seçiniz...</option>
+                    {treatmentList.map(tr => (
+                      <option key={tr.id} value={tr.id}>{tr.name} {tr.price ? `(₺${tr.price})` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Notlar */}
+              <div>
+                <label className="block text-[12px] font-semibold text-slate-700 mb-1">Randevu Notu (Opsiyonel)</label>
+                <input
+                  type="text"
+                  placeholder="Örn: Manuel terapi devam seansı"
+                  value={copyNotes}
+                  onChange={e => setCopyNotes(e.target.value)}
+                  className="input-field text-[12px]"
+                />
+              </div>
+
+              {/* Footer Butonları */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setCopyModalSession(null)}
+                  className="h-9 px-4 rounded-lg text-[12px] font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="submit"
+                  disabled={copying}
+                  className="h-9 px-5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition-colors cursor-pointer shadow-2xs"
+                >
+                  {copying ? 'Kopyalanıyor...' : 'Randevuyu Kopyala & Kaydet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
