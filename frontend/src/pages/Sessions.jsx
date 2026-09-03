@@ -8,7 +8,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { 
   Plus, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Repeat, 
   MessageCircle, Calendar, ListFilter, FileSpreadsheet,
-  Edit2, Trash2, XCircle, Stethoscope, GripVertical, Move
+  Edit2, Trash2, XCircle, Stethoscope, GripVertical, Move,
+  Copy, ClipboardCheck, Layers, Check
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { sendWhatsAppReminder } from '../lib/reminder';
@@ -115,6 +116,16 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sessionToDeleteId, setSessionToDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Haftalık Randevuları Kopyalama & Geleceğe Çoğaltma
+  const [copiedWeek, setCopiedWeek] = useState(null);
+  const [showCopyWeekModal, setShowCopyWeekModal] = useState(false);
+  const [copyingWeek, setCopyingWeek] = useState(false);
+
+  // Tekil Randevu Kopyalama
+  const [sessionToCopy, setSessionToCopy] = useState(null);
+  const [showCopySessionModal, setShowCopySessionModal] = useState(false);
+  const [copyingSingle, setCopyingSingle] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -350,15 +361,265 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
     }
     setSubmitting(true);
     try { 
-      await axios.post(`${API_URL}/sessions/recurring`, { ...recurData, clinic_id: clinic?.id, therapist_id: recurData.therapist_id || null }); 
-      toast.success(`${recurData.repeat_count} adet tekrarlı seans takvime eklendi.`, 'Seans Paketi Oluşturuldu');
+      const rows = [];
+      let cur = new Date(recurData.start_date + 'T00:00:00');
+      const count = parseInt(recurData.repeat_count, 10) || 8;
+      const stepDays = recurData.repeat_type === 'biweekly' ? 14 : 7;
+
+      for (let i = 0; i < count; i++) {
+        rows.push({
+          patient_id: recurData.patient_id,
+          treatment_id: recurData.treatment_id,
+          therapist_id: recurData.therapist_id || null,
+          session_date: formatDate(cur),
+          session_time: recurData.session_time,
+          status: 'bekliyor',
+          notes: `Tekrarlayan Seans (${i + 1}/${count})`
+        });
+        cur = addDays(cur, stepDays);
+      }
+
+      const { error: insertErr } = await supabase.from('sessions').insert(rows);
+      if (insertErr) throw insertErr;
+
+      axios.post(`${API_URL}/sessions/recurring`, { ...recurData, clinic_id: clinic?.id, therapist_id: recurData.therapist_id || null }).catch(() => {});
+      toast.success(`${count} adet tekrarlı seans takvime eklendi.`, 'Seans Paketi Oluşturuldu');
       setModalMode(null); 
       refresh(); 
     }
-    catch { 
-      toast.error('Tekrarlayan seanslar oluşturulurken bir hata oluştu', 'Hata'); 
+    catch (err) { 
+      console.error(err);
+      toast.error('Tekrarlayan seanslar oluşturulurken bir hata oluştu: ' + (err.message || ''), 'Hata'); 
     } 
     finally { setSubmitting(false); }
+  };
+
+  // 1. Mevcut Haftanın Randevularını Kopyala
+  const handleCopyCurrentWeek = () => {
+    const weekDateStrings = weekDays.map(d => formatDate(d));
+    const currentWeekSessions = sessions.filter(s => 
+      weekDateStrings.includes(s.session_date) && 
+      s.status !== 'iptal'
+    );
+
+    if (currentWeekSessions.length === 0) {
+      toast.warning('Görüntülenen bu haftada kopyalanacak aktif randevu bulunamadı.', 'Boş Hafta');
+      return;
+    }
+
+    setCopiedWeek({
+      sourceMonday: weekStart,
+      sourceLabel: weekLabel,
+      sessions: currentWeekSessions
+    });
+
+    toast.success(
+      `${currentWeekSessions.length} adet randevu kopyalandı. İstediğiniz haftaya geçip "Haftayı Buraya Yapıştır" butonuna tıklayınız.`,
+      'Hafta Kopyalandı'
+    );
+  };
+
+  // 2. Kopyalanan Haftayı Hedef Haftaya Yapıştır
+  const handlePasteToCurrentWeek = async () => {
+    if (!copiedWeek || copiedWeek.sessions.length === 0) {
+      toast.warning('Panoda kopyalanmış randevu bulunamadı. Önce bir haftayı kopyalayınız.', 'Pano Boş');
+      return;
+    }
+
+    setCopyingWeek(true);
+    try {
+      const targetMonday = weekStart;
+      const payloads = [];
+      let skippedCount = 0;
+
+      copiedWeek.sessions.forEach(s => {
+        const sourceDate = new Date(s.session_date + 'T00:00:00');
+        const dayIdx = (sourceDate.getDay() + 6) % 7; // 0 = Pzt, 6 = Paz
+        const targetDateStr = formatDate(addDays(targetMonday, dayIdx));
+        const timeStr = s.session_time?.substring(0, 5);
+
+        // Çakışma kontrolü
+        const conflict = sessions.some(ex => 
+          ex.session_date === targetDateStr && 
+          ex.session_time?.substring(0, 5) === timeStr && 
+          ex.status !== 'iptal' &&
+          (
+            ex.patient_id === s.patient_id || 
+            (s.therapist_id && ex.therapist_id === s.therapist_id)
+          )
+        );
+
+        if (conflict) {
+          skippedCount++;
+        } else {
+          payloads.push({
+            patient_id: s.patient_id,
+            treatment_id: s.treatment_id,
+            therapist_id: s.therapist_id || null,
+            session_date: targetDateStr,
+            session_time: s.session_time,
+            notes: s.notes || null,
+            status: 'bekliyor'
+          });
+        }
+      });
+
+      if (payloads.length === 0) {
+        toast.warning(
+          `Hedef haftadaki saatler çakışıyor (${skippedCount} çakışma atlandı).`,
+          'Randevu Eklenemedi'
+        );
+        return;
+      }
+
+      const { error: insertErr } = await supabase.from('sessions').insert(payloads);
+      if (insertErr) throw insertErr;
+
+      toast.success(
+        `${payloads.length} randevu bu haftaya başarıyla yapıştırıldı.${skippedCount > 0 ? ` (${skippedCount} çakışan atlandı)` : ''}`,
+        'Hafta Yapıştırıldı'
+      );
+      refresh();
+    } catch (err) {
+      console.error(err);
+      toast.error('Hafta yapıştırılırken hata oluştu: ' + (err.message || ''), 'Hata');
+    } finally {
+      setCopyingWeek(false);
+    }
+  };
+
+  // 3. Haftayı Önümüzdeki Haftalara Otomatik Kopyala (1, 2, 4, 8 Hafta)
+  const handleBatchCopyNextWeeks = async (numWeeks) => {
+    const weekDateStrings = weekDays.map(d => formatDate(d));
+    const currentWeekSessions = sessions.filter(s => 
+      weekDateStrings.includes(s.session_date) && 
+      s.status !== 'iptal'
+    );
+
+    if (currentWeekSessions.length === 0) {
+      toast.warning('Bu haftada çoğaltılacak aktif randevu bulunmuyor.', 'Boş Hafta');
+      return;
+    }
+
+    setCopyingWeek(true);
+    try {
+      const payloads = [];
+      let skippedCount = 0;
+
+      for (let w = 1; w <= numWeeks; w++) {
+        const offsetDays = w * 7;
+        currentWeekSessions.forEach(s => {
+          const sourceDate = new Date(s.session_date + 'T00:00:00');
+          const targetDateStr = formatDate(addDays(sourceDate, offsetDays));
+          const timeStr = s.session_time?.substring(0, 5);
+
+          const conflict = sessions.some(ex => 
+            ex.session_date === targetDateStr && 
+            ex.session_time?.substring(0, 5) === timeStr && 
+            ex.status !== 'iptal' &&
+            (
+              ex.patient_id === s.patient_id || 
+              (s.therapist_id && ex.therapist_id === s.therapist_id)
+            )
+          );
+
+          if (conflict) {
+            skippedCount++;
+          } else {
+            payloads.push({
+              patient_id: s.patient_id,
+              treatment_id: s.treatment_id,
+              therapist_id: s.therapist_id || null,
+              session_date: targetDateStr,
+              session_time: s.session_time,
+              notes: s.notes || null,
+              status: 'bekliyor'
+            });
+          }
+        });
+      }
+
+      if (payloads.length === 0) {
+        toast.warning('Gelecek haftalardaki saatler dolu olduğu için yeni randevu eklenemedi.', 'Çakışma');
+        return;
+      }
+
+      const { error: insertErr } = await supabase.from('sessions').insert(payloads);
+      if (insertErr) throw insertErr;
+
+      toast.success(
+        `Önümüzdeki ${numWeeks} haftaya toplam ${payloads.length} randevu başarıyla kopyalandı.${skippedCount > 0 ? ` (${skippedCount} çakışma atlandı)` : ''}`,
+        'Geleceğe Kopyalandı'
+      );
+      setShowCopyWeekModal(false);
+      refresh();
+    } catch (err) {
+      console.error(err);
+      toast.error('Gelecek haftalara kopyalanırken hata oluştu: ' + (err.message || ''), 'Hata');
+    } finally {
+      setCopyingWeek(false);
+    }
+  };
+
+  // 4. Tekil Bir Seansı Gelecek Haftalara Kopyalama
+  const handleCopySingleSession = async (targetSession, numWeeks = 1) => {
+    if (!targetSession) return;
+    setCopyingSingle(true);
+    try {
+      const payloads = [];
+      let skippedCount = 0;
+
+      for (let w = 1; w <= numWeeks; w++) {
+        const sourceDate = new Date(targetSession.session_date + 'T00:00:00');
+        const targetDateStr = formatDate(addDays(sourceDate, w * 7));
+        const timeStr = targetSession.session_time?.substring(0, 5);
+
+        const conflict = sessions.some(ex => 
+          ex.session_date === targetDateStr && 
+          ex.session_time?.substring(0, 5) === timeStr && 
+          ex.status !== 'iptal' &&
+          (
+            ex.patient_id === targetSession.patient_id || 
+            (targetSession.therapist_id && ex.therapist_id === targetSession.therapist_id)
+          )
+        );
+
+        if (conflict) {
+          skippedCount++;
+        } else {
+          payloads.push({
+            patient_id: targetSession.patient_id,
+            treatment_id: targetSession.treatment_id,
+            therapist_id: targetSession.therapist_id || null,
+            session_date: targetDateStr,
+            session_time: targetSession.session_time,
+            notes: targetSession.notes || null,
+            status: 'bekliyor'
+          });
+        }
+      }
+
+      if (payloads.length === 0) {
+        toast.warning('Seçilen haftada bu saatte zaten bir randevu bulunmaktadır.', 'Çakışma');
+        return;
+      }
+
+      const { error: insertErr } = await supabase.from('sessions').insert(payloads);
+      if (insertErr) throw insertErr;
+
+      toast.success(
+        `"${targetSession.patient?.full_name}" için gelecek ${numWeeks} haftaya ${payloads.length} randevu kopyalandı.`,
+        'Randevu Kopyalandı'
+      );
+      setShowCopySessionModal(false);
+      setSessionToCopy(null);
+      refresh();
+    } catch (err) {
+      console.error(err);
+      toast.error('Randevu kopyalanırken hata oluştu', 'Hata');
+    } finally {
+      setCopyingSingle(false);
+    }
   };
 
   const updateSessionStatus = async (id, status, sessionData) => {
@@ -520,9 +781,42 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
-          <button onClick={() => exportSessionsToExcel(sessions)} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center gap-1.5 transition-all"><FileSpreadsheet size={14} /> <span className="hidden sm:inline">Excel</span></button>
-          <button onClick={() => { setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_date: today, session_time: '09:00', notes: '' }); setModalMode('single'); }} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"><Plus size={14}/> Tekli Seans</button>
-          <button onClick={() => { setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 }); setModalMode('recurring'); }} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white bg-blue-600 hover:bg-blue-700 flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"><Repeat size={13}/> Tekrarlayan</button>
+          {/* Haftayı Kopyala */}
+          <button 
+            onClick={handleCopyCurrentWeek} 
+            className="h-8 px-2.5 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+            title="Görüntülenen bu haftadaki tüm randevuları panoya kopyalar"
+          >
+            <Copy size={13} className="text-slate-500" />
+            <span>Haftayı Kopyala</span>
+          </button>
+
+          {/* Haftayı Yapıştır (Panoda kopyalanan hafta varsa) */}
+          {copiedWeek && (
+            <button 
+              onClick={handlePasteToCurrentWeek}
+              disabled={copyingWeek}
+              className="h-8 px-2.5 rounded-lg text-[12px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+              title={`Panodaki ${copiedWeek.sessions.length} randevuyu görüntülenen bu haftaya yapıştırır`}
+            >
+              <ClipboardCheck size={13} className="text-emerald-600" />
+              <span>{copyingWeek ? 'Yapıştırılıyor...' : `Haftayı Yapıştır (${copiedWeek.sessions.length})`}</span>
+            </button>
+          )}
+
+          {/* Geleceğe Çoğalt (Haftalık Şablon) */}
+          <button 
+            onClick={() => setShowCopyWeekModal(true)} 
+            className="h-8 px-2.5 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+            title="Bu haftayı önümüzdeki haftalara otomatik çoğaltın"
+          >
+            <Layers size={13} className="text-slate-500" />
+            <span>Geleceğe Çoğalt</span>
+          </button>
+
+          <button onClick={() => exportSessionsToExcel(sessions)} className="h-8 px-2.5 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"><FileSpreadsheet size={13} /> <span className="hidden sm:inline">Excel</span></button>
+          <button onClick={() => { setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_date: today, session_time: '09:00', notes: '' }); setModalMode('single'); }} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"><Plus size={13}/> Tekli Seans</button>
+          <button onClick={() => { setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 }); setModalMode('recurring'); }} className="h-8 px-2.5 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"><Repeat size={13}/> Tekrarlayan</button>
         </div>
       </div>
 
@@ -688,6 +982,13 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                                         <div className="flex items-center justify-between gap-1 mt-1 pt-1 border-t border-black/5">
                                           <button onClick={() => updateSessionStatus(s.id, isDone ? 'bekliyor' : 'tamamlandi', s)} className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${isDone ? 'bg-emerald-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}>{isDone ? '✓ Tamam' : 'Tamamla'}</button>
                                           <div className="flex items-center gap-0.5">
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); setSessionToCopy(s); setShowCopySessionModal(true); }} 
+                                              className="p-0.5 text-gray-400 hover:text-emerald-600 rounded hover:bg-emerald-50 cursor-pointer" 
+                                              title="Randevuyu Geleceğe Kopyala"
+                                            >
+                                              <Copy size={10} />
+                                            </button>
                                             <button onClick={() => handleEditClick(s)} className="p-0.5 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50 cursor-pointer"><Edit2 size={10} /></button>
                                             <button onClick={() => { setSessionToDeleteId(s.id); setShowDeleteModal(true); }} className="p-0.5 text-gray-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"><Trash2 size={10} /></button>
                                           </div>
@@ -732,7 +1033,19 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                       <td className="px-4 py-3">{s.therapist ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-100 text-[11px] font-semibold text-gray-800"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.therapist.color || '#059669' }} />{s.therapist.full_name}</span> : <span className="text-gray-400 text-[12px]">-</span>}</td>
                       <td className="px-4 py-3 text-gray-700 font-mono text-[12px]">{s.session_date} {s.session_time?.substring(0, 5)}</td>
                       <td className="px-4 py-3"><button onClick={() => updateSessionStatus(s.id, isDone ? 'bekliyor' : 'tamamlandi', s)} className={`px-2 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${isDone ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{isDone ? '✓ Tamamlandı' : '● Bekliyor'}</button></td>
-                      <td className="px-4 py-3 text-right"><div className="flex items-center justify-end gap-1"><button onClick={() => handleEditClick(s)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 cursor-pointer"><Edit2 size={13} /></button><button onClick={() => { setSessionToDeleteId(s.id); setShowDeleteModal(true); }} className="p-1.5 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 cursor-pointer"><Trash2 size={13} /></button></div></td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button 
+                            onClick={() => { setSessionToCopy(s); setShowCopySessionModal(true); }} 
+                            className="p-1.5 rounded-lg hover:bg-emerald-50 text-gray-400 hover:text-emerald-600 cursor-pointer" 
+                            title="Randevuyu Geleceğe Kopyala"
+                          >
+                            <Copy size={13} />
+                          </button>
+                          <button onClick={() => handleEditClick(s)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 cursor-pointer"><Edit2 size={13} /></button>
+                          <button onClick={() => { setSessionToDeleteId(s.id); setShowDeleteModal(true); }} className="p-1.5 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 cursor-pointer"><Trash2 size={13} /></button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -740,6 +1053,118 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
             </table>
           </div>
         </div>
+      )}
+
+      {/* ═══ Copy Week Modal (Geleceğe Çoğalt) ═══ */}
+      {showCopyWeekModal && (
+        <ModalShell title="Haftalık Randevuları Geleceğe Çoğalt" onClose={() => setShowCopyWeekModal(false)}>
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase">Kaynak Hafta</span>
+                <span className="text-[12px] font-bold text-slate-800">{weekLabel}</span>
+              </div>
+              <p className="text-[12px] text-slate-600 mt-1">
+                Bu haftada toplam <b className="text-slate-900 font-bold">{sessions.filter(s => weekDays.map(d => formatDate(d)).includes(s.session_date) && s.status !== 'iptal').length} adet</b> aktif randevu bulunmaktadır.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-[12px] font-semibold text-slate-700 mb-2">
+                Bu randevular önümüzdeki kaç haftaya kopyalansın?
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { count: 1, label: '1 Hafta (Gelecek Hafta)' },
+                  { count: 2, label: '2 Hafta Boyunca' },
+                  { count: 4, label: '4 Hafta (1 Ay Boyunca)' },
+                  { count: 8, label: '8 Hafta (2 Ay Boyunca)' },
+                ].map(opt => (
+                  <button
+                    key={opt.count}
+                    type="button"
+                    onClick={() => handleBatchCopyNextWeeks(opt.count)}
+                    disabled={copyingWeek}
+                    className="p-3 rounded-xl border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-left transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <p className="font-bold text-slate-900 text-[13px]">{opt.label}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Her seans aynı gün ve saatinde oluşturulur</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-[11px] text-slate-500 space-y-1">
+              <p className="font-semibold text-slate-700">Otomatik Çakışma Koruması:</p>
+              <p>Gelecek haftalarda hastanın veya terapistin dolu olduğu saatler tespit edilerek çakışmalar otomatik olarak atlanır, çift randevu oluşmaz.</p>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowCopyWeekModal(false)}
+                className="h-9 px-4 rounded-xl text-[12px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 cursor-pointer"
+              >
+                Kapat
+              </button>
+            </div>
+          </div>
+        </ModalShell>
+      )}
+
+      {/* ═══ Copy Single Session Modal ═══ */}
+      {showCopySessionModal && sessionToCopy && (
+        <ModalShell title="Randevuyu Geleceğe Kopyala" onClose={() => { setShowCopySessionModal(false); setSessionToCopy(null); }}>
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-bold text-slate-900">{sessionToCopy.patient?.full_name}</span>
+                <span className="text-[11px] font-medium text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded">{sessionToCopy.treatment?.name}</span>
+              </div>
+              <p className="text-[12px] text-slate-600">
+                Mevcut: <span className="font-semibold text-slate-800">{new Date(sessionToCopy.session_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })}</span> saat <span className="font-semibold text-slate-800">{sessionToCopy.session_time?.substring(0, 5)}</span>
+              </p>
+              {sessionToCopy.therapist && (
+                <p className="text-[11px] text-slate-500">Terapist: {sessionToCopy.therapist.full_name}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-[12px] font-semibold text-slate-700 mb-2">
+                Bu randevu önümüzdeki kaç haftaya kopyalansın?
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { count: 1, label: '1 Hafta Sonraya' },
+                  { count: 2, label: '2 Hafta Boyunca' },
+                  { count: 4, label: '4 Hafta (1 Ay)' },
+                  { count: 8, label: '8 Hafta (2 Ay)' },
+                ].map(opt => (
+                  <button
+                    key={opt.count}
+                    type="button"
+                    onClick={() => handleCopySingleSession(sessionToCopy, opt.count)}
+                    disabled={copyingSingle}
+                    className="p-3 rounded-xl border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-left transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <p className="font-bold text-slate-900 text-[13px]">{opt.label}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Aynı gün ve saat ({sessionToCopy.session_time?.substring(0, 5)})</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => { setShowCopySessionModal(false); setSessionToCopy(null); }}
+                className="h-9 px-4 rounded-xl text-[12px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 cursor-pointer"
+              >
+                Vazgeç
+              </button>
+            </div>
+          </div>
+        </ModalShell>
       )}
 
       {/* Delete Confirmation Modal */}

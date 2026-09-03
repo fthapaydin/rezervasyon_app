@@ -55,15 +55,15 @@ export default function Header({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {/* 🚨 Pending Requests Urgent Badge */}
+        <div className="flex items-center gap-2">
+          {/* Pending Requests Badge */}
           {pendingCount > 0 && (
             <button
               onClick={onNavigateToRequests}
-              className="h-9 px-3.5 rounded-xl border border-rose-400 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-[12px] font-black flex items-center gap-1.5 shadow-md shadow-rose-200 animate-pulse cursor-pointer"
-              title={`${pendingCount} adet onay bekleyen randevu talebi var! İncelemek için tıklayın.`}
+              className="h-9 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[12px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title={`${pendingCount} adet onay bekleyen randevu talebi var.`}
             >
-              <span className="text-sm animate-bounce">🔔</span>
+              <Bell size={13} />
               <span>{pendingCount} Yeni Randevu</span>
             </button>
           )}
@@ -71,21 +71,21 @@ export default function Header({
           {/* Sound Test Button */}
           <button
             onClick={handleTestSound}
-            className="h-9 px-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-800 text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+            className="h-9 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-[12px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             title="Randevu bildirim sesini test et"
           >
-            <Volume2 size={13} className="text-emerald-600" />
+            <Volume2 size={13} />
             <span className="hidden xl:inline">Zil Testi</span>
           </button>
 
-          {/* Announcements & Changelog Button */}
+          {/* Announcements Button */}
           {onOpenAnnouncements && (
             <button
               onClick={onOpenAnnouncements}
-              className="h-9 px-3 rounded-xl border border-indigo-200/90 bg-indigo-50/60 hover:bg-indigo-100/70 text-indigo-800 text-[12px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              className="h-9 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-[12px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
               title="Sistem Duyuruları & Güncelleme Geçmişi"
             >
-              <Megaphone size={14} className="text-indigo-600" />
+              <Megaphone size={13} />
               <span className="hidden sm:inline">Duyurular</span>
             </button>
           )}
@@ -95,31 +95,21 @@ export default function Header({
               {/* QR Stand Button */}
               <button
                 onClick={() => setShowQRModal(true)}
-                className="h-9 px-3 rounded-xl border border-purple-200/90 bg-purple-50/70 hover:bg-purple-100/70 text-purple-800 text-[12px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                title="Masaüstü / Danışma QR Standı İndir ve Yazdır"
+                className="h-9 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-[12px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Danışma QR Standı"
               >
-                <QrCode size={14} className="text-purple-600" />
+                <QrCode size={13} />
                 <span className="hidden sm:inline">QR Standı</span>
               </button>
 
               {/* Booking Link Copy Button */}
               <button
                 onClick={handleCopyLink}
-                className="h-9 px-3.5 rounded-xl border border-emerald-200/90 bg-emerald-50/70 hover:bg-emerald-100/70 text-emerald-800 text-[12px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                title="Hastalarınıza göndereceğiniz online randevu linkini kopyalar"
+                className="h-9 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-[12px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Online randevu linkini kopyalar"
               >
-                {copied ? (
-                  <>
-                    <Check size={14} className="text-emerald-600 font-bold" />
-                    <span className="font-bold text-emerald-700">Kopyalandı!</span>
-                  </>
-                ) : (
-                  <>
-                    <Link2 size={14} className="text-emerald-600" />
-                    <span className="hidden sm:inline">Randevu Linki</span>
-                    <span className="sm:hidden">Link</span>
-                  </>
-                )}
+                {copied ? <Check size={13} className="text-emerald-600" /> : <Link2 size={13} />}
+                <span className="hidden sm:inline">{copied ? 'Kopyalandı' : 'Randevu Linki'}</span>
               </button>
             </>
           )}
@@ -128,11 +118,10 @@ export default function Header({
           <button
             onClick={handleRefreshClick}
             disabled={isRefreshing}
-            className="h-9 px-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 text-[12px] font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
-            title="Tüm verileri yeniden yükle"
+            className="h-9 w-9 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50"
+            title="Verileri Yenile"
           >
-            <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-emerald-600' : ''} /> 
-            <span className="hidden sm:inline">Yenile</span>
+            <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
           </button>
         </div>
       </header>

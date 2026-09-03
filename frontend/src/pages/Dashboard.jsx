@@ -22,55 +22,55 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
       label: 'Toplam Kayıtlı Hasta',    
       value: patients.length,        
       icon: Users,          
-      color: 'text-blue-600 bg-blue-50 border-blue-100',
+      color: 'text-slate-700 bg-slate-100 border-slate-200',
       badge: `${patients.length} Aktif Kayıt`,
-      badgeColor: 'text-blue-700 bg-blue-50'
+      badgeColor: 'text-slate-700 bg-slate-100'
     },
     { 
       label: 'Bekleyen Seanslar',  
       value: pending.length,         
       icon: CalendarDays,   
-      color: 'text-amber-600 bg-amber-50 border-amber-100',
+      color: 'text-slate-700 bg-slate-100 border-slate-200',
       badge: 'Günün & Haftanın Takvimi',
-      badgeColor: 'text-amber-700 bg-amber-50'
+      badgeColor: 'text-slate-700 bg-slate-100'
     },
     { 
       label: 'Toplam Tahsilat',    
       value: `${totalRevenue.toLocaleString('tr-TR')} ₺`, 
       icon: Wallet, 
-      color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-      badge: 'Kasa & Ödeme Geliri',
-      badgeColor: 'text-emerald-700 bg-emerald-50'
+      color: 'text-slate-700 bg-slate-100 border-slate-200',
+      badge: 'Kasa Geliri',
+      badgeColor: 'text-slate-700 bg-slate-100'
     },
     { 
       label: 'Kalan Toplam Alacak',   
       value: `${totalDebt.toLocaleString('tr-TR')} ₺`, 
       icon: AlertTriangle, 
-      color: 'text-rose-500 bg-rose-50 border-rose-100',
+      color: 'text-slate-700 bg-slate-100 border-slate-200',
       badge: 'Takip Edilen Borç',
-      badgeColor: 'text-rose-700 bg-rose-50'
+      badgeColor: 'text-slate-700 bg-slate-100'
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* 🚨 Onay Bekleyen Randevu Talepleri Vurgu Bannerı */}
+      {/* Onay Bekleyen Randevu Talepleri Vurgu Bannerı */}
       {pendingRequests.length > 0 && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-600 via-red-600 to-amber-600 text-white shadow-lg shadow-rose-600/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-3 duration-200">
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-800">
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center text-2xl shrink-0 animate-bounce">
-              🔔
+            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 shrink-0">
+              <CalendarDays size={18} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="text-[15px] font-black tracking-tight">
-                  Onay Bekleyen {pendingRequests.length} Yeni Randevu Talebi Var!
+                <h4 className="text-[14px] font-bold tracking-tight">
+                  Onay Bekleyen {pendingRequests.length} Yeni Randevu Talebi Var
                 </h4>
-                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-white text-rose-700 uppercase tracking-wider shadow-2xs">
-                  Acil İnceleme
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                  Yeni Talep
                 </span>
               </div>
-              <p className="text-[12px] text-white/90 mt-0.5 truncate">
+              <p className="text-[12px] text-slate-400 mt-0.5 truncate">
                 {pendingRequests[0]?.patient?.full_name ? `Son talep: ${pendingRequests[0].patient.full_name} (${pendingRequests[0].requested_date} - ${pendingRequests[0].requested_time?.substring(0, 5)})` : 'Hastalar online randevu takviminden talep oluşturdu.'}
               </p>
             </div>
@@ -79,10 +79,10 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
           <button
             type="button"
             onClick={() => onNavigateToRequests ? onNavigateToRequests() : (setActiveTab && setActiveTab('requests'))}
-            className="h-10 px-5 rounded-xl bg-white text-rose-700 hover:bg-rose-50 font-black text-[13px] shadow-sm transition-all flex items-center gap-1.5 shrink-0 cursor-pointer self-end sm:self-auto"
+            className="h-9 px-4 rounded-lg bg-white text-slate-900 hover:bg-slate-100 font-semibold text-[12px] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer self-end sm:self-auto"
           >
             <span>Talepleri İncele &amp; Onayla</span>
-            <ArrowUpRight size={16} />
+            <ArrowUpRight size={14} />
           </button>
         </div>
       )}
