@@ -626,7 +626,32 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
     }
   };
 
+  const isSessionInFuture = (dateStr, timeStr) => {
+    if (!dateStr) return false;
+    try {
+      const time = timeStr ? timeStr.substring(0, 5) : '00:00';
+      const [hours, minutes] = time.split(':').map(Number);
+      const [year, month, day] = dateStr.split('-').map(Number);
+      
+      const sessionDateTime = new Date(year, month - 1, day, hours || 0, minutes || 0);
+      const now = new Date();
+      return sessionDateTime > now;
+    } catch {
+      return false;
+    }
+  };
+
   const updateSessionStatus = async (id, status, sessionData) => {
+    // Zamanı henüz gelmemiş ileri tarihli seansların tamamlanmasını engelle
+    if (status === 'tamamlandi' && isSessionInFuture(sessionData?.session_date, sessionData?.session_time)) {
+      const time = sessionData?.session_time ? sessionData.session_time.substring(0, 5) : '';
+      toast.warning(
+        `Zamanı henüz gelmemiş ileri tarihli bir randevu tamamlandı olarak işaretlenemez! (${sessionData?.session_date} ${time})`,
+        'Randevu Zamanı Gelmedi'
+      );
+      return;
+    }
+
     try {
       await supabase.from('sessions').update({ status }).eq('id', id);
       axios.put(`${API_URL}/sessions/${id}`, { status }).catch(() => {});
@@ -940,6 +965,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                                 const isReq = s._type === 'request';
                                 const sn = isReq ? null : getSessionNumber(s);
                                 const isDone = !isReq && s.status === 'tamamlandi';
+                                const isFuture = !isReq && isSessionInFuture(s.session_date, s.session_time);
                                 const cardBorder = isReq ? 'border-l-amber-500' : isDone ? 'border-l-emerald-500' : 'border-l-blue-500';
                                 const cardBg = isReq ? 'bg-amber-50/80 hover:bg-amber-50' : isDone ? 'bg-emerald-50/60 hover:bg-emerald-50' : 'bg-white hover:bg-blue-50/40';
 
@@ -965,7 +991,31 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                                         </div>
                                       ) : (
                                         <div className="flex items-center justify-between gap-1 mt-1 pt-1 border-t border-black/5">
-                                          <button onClick={() => updateSessionStatus(s.id, isDone ? 'bekliyor' : 'tamamlandi', s)} className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${isDone ? 'bg-emerald-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}>{isDone ? '✓ Tamam' : 'Tamamla'}</button>
+                                          {isDone ? (
+                                            <button 
+                                              onClick={() => updateSessionStatus(s.id, 'bekliyor', s)} 
+                                              className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-600 text-white cursor-pointer"
+                                              title="Geri al (Bekliyor yap)"
+                                            >
+                                              ✓ Tamam
+                                            </button>
+                                          ) : isFuture ? (
+                                            <button 
+                                              onClick={() => updateSessionStatus(s.id, 'tamamlandi', s)} 
+                                              className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-400 border border-slate-200 cursor-not-allowed"
+                                              title="Zamanı henüz gelmedi (İleri tarihli randevu)"
+                                            >
+                                              Bekliyor
+                                            </button>
+                                          ) : (
+                                            <button 
+                                              onClick={() => updateSessionStatus(s.id, 'tamamlandi', s)} 
+                                              className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-900 hover:bg-slate-800 text-white cursor-pointer shadow-2xs"
+                                              title="Seansı tamamlandı olarak işaretle"
+                                            >
+                                              Tamamla
+                                            </button>
+                                          )}
                                           <div className="flex items-center gap-0.5">
                                             <button 
                                               onClick={(e) => { e.stopPropagation(); openSingleCopy(s); }} 
@@ -1011,13 +1061,40 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                   <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Seans kaydı bulunamadı.</td></tr>
                 ) : filteredSessions.map((s) => {
                   const isDone = s.status === 'tamamlandi';
+                  const isFuture = isSessionInFuture(s.session_date, s.session_time);
                   return (
                     <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-4 py-3 font-semibold text-gray-900">{s.patient?.full_name}</td>
                       <td className="px-4 py-3 text-gray-600">{s.treatment?.name}</td>
                       <td className="px-4 py-3">{s.therapist ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-100 text-[11px] font-semibold text-gray-800"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.therapist.color || '#059669' }} />{s.therapist.full_name}</span> : <span className="text-gray-400 text-[12px]">-</span>}</td>
                       <td className="px-4 py-3 text-gray-700 font-mono text-[12px]">{s.session_date} {s.session_time?.substring(0, 5)}</td>
-                      <td className="px-4 py-3"><button onClick={() => updateSessionStatus(s.id, isDone ? 'bekliyor' : 'tamamlandi', s)} className={`px-2 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${isDone ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{isDone ? '✓ Tamamlandı' : '● Bekliyor'}</button></td>
+                      <td className="px-4 py-3">
+                        {isDone ? (
+                          <button 
+                            onClick={() => updateSessionStatus(s.id, 'bekliyor', s)} 
+                            className="px-2 py-1 rounded-lg text-[11px] font-semibold cursor-pointer bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            title="Geri al (Bekliyor durumuna çevir)"
+                          >
+                            ✓ Tamamlandı
+                          </button>
+                        ) : isFuture ? (
+                          <button 
+                            onClick={() => updateSessionStatus(s.id, 'tamamlandi', s)} 
+                            className="px-2 py-1 rounded-lg text-[11px] font-medium cursor-not-allowed bg-slate-50 text-slate-400 border border-slate-200"
+                            title="Randevu tarihi/saati henüz gelmedi (İleri tarihli)"
+                          >
+                            ● Bekliyor (Gelecek)
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => updateSessionStatus(s.id, 'tamamlandi', s)} 
+                            className="px-2 py-1 rounded-lg text-[11px] font-semibold cursor-pointer bg-slate-900 text-white hover:bg-slate-800 shadow-2xs"
+                            title="Seansı tamamlandı olarak işaretle"
+                          >
+                            Tamamla
+                          </button>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button 
