@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <rect width="64" height="64" rx="16" fill="#0f172a"/>
-  <text x="32" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="-1.5">FT</text>
+  <!-- Pure vector paths for FT logo mark (Zero font dependencies, 100% sharp everywhere) -->
+  <path d="M 15 17 H 31 V 23 H 21 V 30 H 29 V 36 H 21 V 47 H 15 Z M 33 17 H 49 V 23 H 44 V 47 H 38 V 23 H 33 Z" fill="#ffffff"/>
 </svg>
