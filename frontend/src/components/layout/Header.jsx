@@ -71,22 +71,20 @@ export default function Header({
           {/* Sound Test Button */}
           <button
             onClick={handleTestSound}
-            className="h-9 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-[12px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-[12px] font-medium transition-colors cursor-pointer hidden xl:inline-flex items-center"
             title="Randevu bildirim sesini test et"
           >
-            <Volume2 size={13} />
-            <span className="hidden xl:inline">Zil Testi</span>
+            Zil Testi
           </button>
 
           {/* Announcements Button */}
           {onOpenAnnouncements && (
             <button
               onClick={onOpenAnnouncements}
-              className="h-9 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-[12px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-[12px] font-medium transition-colors cursor-pointer hidden sm:inline-flex items-center"
               title="Sistem Duyuruları & Güncelleme Geçmişi"
             >
-              <Megaphone size={13} />
-              <span className="hidden sm:inline">Duyurular</span>
+              Duyurular
             </button>
           )}
 
@@ -95,21 +93,19 @@ export default function Header({
               {/* QR Stand Button */}
               <button
                 onClick={() => setShowQRModal(true)}
-                className="h-9 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-[12px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-[12px] font-medium transition-colors cursor-pointer hidden sm:inline-flex items-center"
                 title="Danışma QR Standı"
               >
-                <QrCode size={13} />
-                <span className="hidden sm:inline">QR Standı</span>
+                QR Standı
               </button>
 
               {/* Booking Link Copy Button */}
               <button
                 onClick={handleCopyLink}
-                className="h-9 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-[12px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-[12px] font-medium transition-colors cursor-pointer hidden sm:inline-flex items-center"
                 title="Online randevu linkini kopyalar"
               >
-                {copied ? <Check size={13} className="text-emerald-600" /> : <Link2 size={13} />}
-                <span className="hidden sm:inline">{copied ? 'Kopyalandı' : 'Randevu Linki'}</span>
+                {copied ? 'Kopyalandı' : 'Randevu Linki'}
               </button>
             </>
           )}

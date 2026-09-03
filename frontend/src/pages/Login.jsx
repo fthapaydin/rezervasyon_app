@@ -329,7 +329,7 @@ export default function Login({ onLogin }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
             {/* 01 */}
-            <div className="p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-colors">
+            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
               <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">01</span>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Akıllı Seans &amp; Terapist Takvimi</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
@@ -338,47 +338,65 @@ export default function Login({ onLogin }) {
             </div>
 
             {/* 02 */}
-            <div className="p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-colors">
+            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
               <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">02</span>
+              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Haftalık &amp; Tekil Seans Kopyalama</h3>
+              <p className="text-[13px] text-slate-600 leading-relaxed">
+                Her hafta randevuları tek tek girmekle vakit kaybetmeyin. Tüm haftanın programını kopyalayıp dilediğiniz haftaya yapıştırın veya 1-2 ay ileriye otomatik çoğaltın.
+              </p>
+            </div>
+
+            {/* 03 */}
+            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
+              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">03</span>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">WhatsApp Bildirimleri</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 Randevu onaylandığında veya seans saati yaklaştığında tek tıkla hastanıza şablon mesaj ve klinik konumunuzu iletin.
               </p>
             </div>
 
-            {/* 03 */}
-            <div className="p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-colors">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">03</span>
+            {/* 04 */}
+            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
+              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">04</span>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Hasta Dosyası &amp; Raporlama</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 Hastanın tüm seans geçmişi, kalan borcu ve klinik notları tek yerde. Tek tıkla hastaya teslim edilecek PDF seans özeti oluşturun.
               </p>
             </div>
 
-            {/* 04 */}
-            <div className="p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-colors">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">04</span>
+            {/* 05 */}
+            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
+              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">05</span>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Danışma QR Masa Standı</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 Bekleme salonu ve danışma masası için kliniğinizin logosuyla baskıya hazır QR standı oluşturun. Hastalar okutup anında talep açsın.
               </p>
             </div>
 
-            {/* 05 */}
-            <div className="p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-colors">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">05</span>
+            {/* 06 */}
+            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
+              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">06</span>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Kasa, Tahsilat &amp; Finans Takibi</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 Nakit, kredi kartı ve havale ödemelerini kaydedin. Kalan seans borçlarını ve kliniğinizin net cirosunu anlık takip edin.
               </p>
             </div>
 
-            {/* 06 */}
-            <div className="p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-colors">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">06</span>
+            {/* 07 */}
+            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
+              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">07</span>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Doğrulama &amp; KVKK Güvenliği</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 Mükerrer telefon engelleme, haftalık 2 seans kotası ve hasta adı/tedavi maskelemesi ile hasta verilerinizi güvence altına alın.
+              </p>
+            </div>
+
+            {/* 08 */}
+            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
+              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">08</span>
+              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Canlı Online Randevu Portalı</h3>
+              <p className="text-[13px] text-slate-600 leading-relaxed">
+                randevu.fizyotim.com üzerinde kliniğinize ait canlı takvim sayfasıyla hastalarınızdan 7/24 randevu talebi toplayın.
               </p>
             </div>
 
@@ -500,6 +518,7 @@ export default function Login({ onLogin }) {
 
                 <ul className="space-y-3 text-[13px] text-slate-600 mb-8">
                   <li>Canlı Online Randevu Takvimi</li>
+                  <li>Haftalık &amp; Tekil Seans Kopyalama (Şablon Çoğaltma)</li>
                   <li>Çoklu Terapist &amp; Yetki Yönetimi</li>
                   <li>WhatsApp Randevu Onayları</li>
                   <li>Danışma QR Masa Standı Üretici</li>
