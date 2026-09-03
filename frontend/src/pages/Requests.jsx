@@ -134,33 +134,33 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
     <div className="space-y-5">
       {/* Header stats */}
       {pendingCount > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-center gap-3">
-          <div className="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center">
-            <Clock size={18} className="text-amber-600" />
-          </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 flex items-center justify-between">
           <div>
-            <p className="text-[13px] font-semibold text-amber-800">
-              {pendingCount} bekleyen randevu talebi var
+            <p className="text-[13px] font-semibold text-slate-900">
+              {pendingCount} onay bekleyen randevu talebi
             </p>
-            <p className="text-[11px] text-amber-600">Onaylamak veya terapist atamak için talebi inceleyin.</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Talebi onaylamak veya terapist atamak için inceleyin.</p>
           </div>
+          <span className="text-[11px] font-semibold text-slate-700 bg-slate-200/60 px-2 py-0.5 rounded">
+            Yeni Talep
+          </span>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5 w-fit">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => setFilter(t.key)}
-            className={`h-8 px-3 rounded-lg text-[12px] font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-              filter === t.key ? 'bg-white text-gray-800 shadow-2xs font-bold' : 'text-gray-500 hover:text-gray-700'
+            className={`h-7 px-3 rounded-md text-[12px] font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+              filter === t.key ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             {t.label}
             {t.count > 0 && (
-              <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
-                t.key === 'bekliyor' && t.count > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-600'
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
+                t.key === 'bekliyor' && t.count > 0 ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600'
               }`}>
                 {t.count}
               </span>
@@ -172,7 +172,7 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
       {/* Request Cards */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center text-gray-400">
+          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400 text-[13px]">
             Bu filtrede randevu talebi bulunmuyor.
           </div>
         ) : (
@@ -183,42 +183,38 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
             const isRejected = req.status === 'reddedildi';
 
             return (
-              <div key={req.id} className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-2xs">
+              <div key={req.id} className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-3">
-                      <h4 className="font-bold text-gray-900 text-[15px]">{req.patient?.full_name}</h4>
-                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${statusInfo.cls}`}>
+                      <h4 className="font-bold text-slate-900 text-[14px]">{req.patient?.full_name}</h4>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${statusInfo.cls}`}>
                         {statusInfo.label}
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12px] text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <Phone size={13} className="text-gray-400" />
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px] text-slate-600">
+                      <div>
                         <span>{req.patient?.phone}</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Stethoscope size={13} className="text-gray-400" />
-                        <span className="font-medium text-gray-800">{req.treatment?.name}</span>
-                        {req.treatment?.price && <span className="text-emerald-600 font-bold">({req.treatment.price} ₺)</span>}
+                      <div>
+                        <span className="font-medium text-slate-800">{req.treatment?.name}</span>
+                        {req.treatment?.price && <span className="text-slate-500 font-semibold ml-1">({req.treatment.price} ₺)</span>}
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Calendar size={13} className="text-gray-400" />
+                      <div>
                         <span className="font-medium">{formatDate(req.requested_date)}</span>
-                        <span className="font-bold text-gray-900">{req.requested_time?.substring(0, 5)}</span>
+                        <span className="font-bold text-slate-900 ml-1.5">{req.requested_time?.substring(0, 5)}</span>
                       </div>
                       {req.therapist && (
-                        <div className="flex items-center gap-1.5">
-                          <UserCheck size={13} className="text-emerald-600" />
-                          <span className="font-medium text-emerald-800">Terapist: {req.therapist.full_name}</span>
+                        <div>
+                          <span className="font-medium text-slate-700">Terapist: {req.therapist.full_name}</span>
                         </div>
                       )}
                     </div>
 
                     {req.notes && (
-                      <p className="text-[12px] text-gray-500 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                        <span className="font-semibold text-gray-700">Hasta Notu:</span> {req.notes}
+                      <p className="text-[12px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                        <span className="font-semibold text-slate-800">Hasta Notu:</span> {req.notes}
                       </p>
                     )}
                   </div>
@@ -229,18 +225,16 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
                       <button
                         onClick={() => openApproveModal(req)}
                         disabled={processing === req.id}
-                        className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                        className="h-8 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-semibold transition-colors cursor-pointer disabled:opacity-50"
                       >
-                        <CheckCircle size={14} />
-                        <span>Onayla &amp; Terapist Ata</span>
+                        Onayla &amp; Terapist Ata
                       </button>
                       <button
                         onClick={() => { setRejectModal(req); setRejectionReason(''); }}
                         disabled={processing === req.id}
-                        className="h-9 px-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-[12px] font-semibold transition-all cursor-pointer disabled:opacity-50"
+                        className="h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[12px] font-medium transition-colors cursor-pointer disabled:opacity-50"
                       >
-                        <XCircle size={14} />
-                        <span>Reddet</span>
+                        Reddet
                       </button>
                     </div>
                   )}

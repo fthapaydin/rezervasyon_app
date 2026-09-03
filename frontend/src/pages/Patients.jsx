@@ -99,8 +99,8 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
             className="w-full h-10 pl-9 pr-4 rounded-lg border border-gray-200 bg-white text-[13px] placeholder:text-gray-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all" />
         </div>
         <button onClick={() => setShowForm(!showForm)}
-          className={`h-10 px-4 rounded-lg text-[13px] font-medium flex items-center gap-2 transition-all shrink-0 ${showForm ? 'bg-gray-100 text-gray-600' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'}`}>
-          {showForm ? <><X size={15}/> İptal</> : <><Plus size={15}/> Yeni Hasta</>}
+          className={`h-10 px-4 rounded-lg text-[13px] font-semibold transition-colors shrink-0 cursor-pointer ${showForm ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-slate-900 text-white hover:bg-slate-800 shadow-2xs'}`}>
+          {showForm ? 'İptal' : '+ Yeni Hasta'}
         </button>
       </div>
 
@@ -357,8 +357,8 @@ function PatientDetail({ id, onBack, refresh, allPatients = [] }) {
     <div className="space-y-5">
       {/* Header Bar with Action & PDF Buttons */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <button onClick={onBack} className="h-9 px-3 rounded-lg text-[13px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 flex items-center gap-1.5 transition-colors">
-          <ArrowLeft size={15}/> Hasta Listesine Dön
+        <button onClick={onBack} className="h-9 px-3.5 rounded-lg text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer">
+          ← Hasta Listesine Dön
         </button>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -367,37 +367,37 @@ function PatientDetail({ id, onBack, refresh, allPatients = [] }) {
               setEditData(patient);
               setShowEditModal(true);
             }}
-            className="h-9 px-3 rounded-lg text-[12px] font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 flex items-center gap-1.5 shadow-sm transition-colors"
+            className="h-9 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
           >
-            <Pencil size={13} className="text-gray-500" /> Düzenle
+            Düzenle
           </button>
           <button 
             onClick={() => setShowDeleteModal(true)}
             disabled={deleting}
-            className="h-9 px-3 rounded-lg text-[12px] font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
+            className="h-9 px-3 rounded-lg text-[12px] font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <Trash2 size={13} /> Hastayı Sil
+            Hastayı Sil
           </button>
           <button 
             onClick={() => generateSessionReport(patient, sessions)}
-            className="h-9 px-3 rounded-lg text-[12px] font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 flex items-center gap-1.5 shadow-sm transition-colors"
+            className="h-9 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
           >
-            <FileDown size={14} className="text-emerald-600" /> Seans Raporu PDF
+            Seans Raporu PDF
           </button>
           <button 
             onClick={() => generatePatientSummary(patient, sessions, payments)}
-            className="h-9 px-3.5 rounded-lg text-[12px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 flex items-center gap-1.5 shadow-sm transition-colors"
+            className="h-9 px-3.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer"
           >
-            <FileDown size={14} /> Hasta Özeti PDF
+            Hasta Özeti PDF
           </button>
         </div>
       </div>
 
       {/* Patient Info Card */}
-      <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
         <div className="p-6 flex items-start justify-between">
           <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-xl font-bold shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-800 border border-slate-200 flex items-center justify-center text-lg font-bold shrink-0">
               {patient.full_name.charAt(0)}
             </div>
             <div>

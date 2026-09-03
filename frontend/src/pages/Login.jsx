@@ -53,12 +53,16 @@ export default function Login({ onLogin }) {
 
     try {
       // 1. Supabase clinics tablosundan kliniği sorgula
-      const { data: clinic, error: clinicErr } = await supabase
-        .from('clinics')
-        .select('*')
-        .eq('email', loginEmail.trim().toLowerCase())
-        .eq('password', loginPass)
-        .maybeSingle();
+      const cleanEmail = loginEmail.trim().toLowerCase();
+      let query = supabase.from('clinics').select('*').eq('password', loginPass);
+
+      if (cleanEmail === 'demo@fizyotim.com' || cleanEmail === 'demo@fizyopanel.com' || cleanEmail === 'demo') {
+        query = query.or('email.eq.demo@fizyotim.com,email.eq.demo@fizyopanel.com,slug.eq.demo-klinik');
+      } else {
+        query = query.eq('email', cleanEmail);
+      }
+
+      const { data: clinic, error: clinicErr } = await query.maybeSingle();
 
       if (clinicErr) {
         // Fallback: Backend API'ye sor

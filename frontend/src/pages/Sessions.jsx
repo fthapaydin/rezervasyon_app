@@ -775,48 +775,45 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
               </select>
             </div>
           )}
-          <div className="flex bg-gray-100 p-0.5 rounded-xl text-[12px] font-medium text-gray-600">
-            <button onClick={() => setViewMode('calendar')} className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all ${viewMode === 'calendar' ? 'bg-white text-gray-900 shadow-xs font-bold' : 'hover:text-gray-900'}`}><Calendar size={13} /> Takvim</button>
-            <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all ${viewMode === 'list' ? 'bg-white text-gray-900 shadow-xs font-bold' : 'hover:text-gray-900'}`}><ListFilter size={13} /> Liste ({filteredSessions.length})</button>
+          <div className="flex bg-slate-100 p-0.5 rounded-lg text-[12px] font-medium text-slate-600">
+            <button onClick={() => setViewMode('calendar')} className={`px-3 py-1 rounded-md transition-all ${viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'hover:text-slate-900'}`}>Takvim</button>
+            <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'hover:text-slate-900'}`}>Liste ({filteredSessions.length})</button>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
           {/* Haftayı Kopyala */}
           <button 
             onClick={handleCopyCurrentWeek} 
-            className="h-8 px-2.5 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+            className="h-8 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors cursor-pointer shadow-2xs"
             title="Görüntülenen bu haftadaki tüm randevuları panoya kopyalar"
           >
-            <Copy size={13} className="text-slate-500" />
-            <span>Haftayı Kopyala</span>
+            Haftayı Kopyala
           </button>
 
-          {/* Haftayı Yapıştır (Panoda kopyalanan hafta varsa) */}
+          {/* Haftayı Yapıştır */}
           {copiedWeek && (
             <button 
               onClick={handlePasteToCurrentWeek}
               disabled={copyingWeek}
-              className="h-8 px-2.5 rounded-lg text-[12px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+              className="h-8 px-3 rounded-lg text-[12px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-colors cursor-pointer shadow-2xs"
               title={`Panodaki ${copiedWeek.sessions.length} randevuyu görüntülenen bu haftaya yapıştırır`}
             >
-              <ClipboardCheck size={13} className="text-emerald-600" />
-              <span>{copyingWeek ? 'Yapıştırılıyor...' : `Haftayı Yapıştır (${copiedWeek.sessions.length})`}</span>
+              {copyingWeek ? 'Yapıştırılıyor...' : `Haftayı Yapıştır (${copiedWeek.sessions.length})`}
             </button>
           )}
 
-          {/* Geleceğe Çoğalt (Haftalık Şablon) */}
+          {/* Geleceğe Çoğalt */}
           <button 
             onClick={() => setShowCopyWeekModal(true)} 
-            className="h-8 px-2.5 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+            className="h-8 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors cursor-pointer shadow-2xs"
             title="Bu haftayı önümüzdeki haftalara otomatik çoğaltın"
           >
-            <Layers size={13} className="text-slate-500" />
-            <span>Geleceğe Çoğalt</span>
+            Geleceğe Çoğalt
           </button>
 
-          <button onClick={() => exportSessionsToExcel(sessions)} className="h-8 px-2.5 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"><FileSpreadsheet size={13} /> <span className="hidden sm:inline">Excel</span></button>
-          <button onClick={() => { setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_date: today, session_time: '09:00', notes: '' }); setModalMode('single'); }} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"><Plus size={13}/> Tekli Seans</button>
-          <button onClick={() => { setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 }); setModalMode('recurring'); }} className="h-8 px-2.5 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"><Repeat size={13}/> Tekrarlayan</button>
+          <button onClick={() => exportSessionsToExcel(sessions)} className="h-8 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors cursor-pointer shadow-2xs">Excel'e Aktar</button>
+          <button onClick={() => { setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_date: today, session_time: '09:00', notes: '' }); setModalMode('single'); }} className="h-8 px-3.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer">+ Tekli Seans</button>
+          <button onClick={() => { setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 }); setModalMode('recurring'); }} className="h-8 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-colors cursor-pointer">Tekrarlayan Paket</button>
         </div>
       </div>
 
@@ -895,17 +892,16 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       {/* ═══ Calendar View (Drag & Drop) ═══ */}
       {viewMode === 'calendar' ? (
         <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-md overflow-hidden">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
             {/* Legend bar */}
-            <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-blue-50 to-emerald-50 border-b-2 border-gray-200 text-[11px]">
-              <div className="flex items-center gap-2 text-gray-500">
-                <Move size={13} className="text-blue-500" />
-                <span>Seansları <b className="text-gray-700">sürükle & bırak</b> ile taşıyın</span>
+            <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-[11px]">
+              <div className="text-slate-500 font-medium">
+                Seansları <span className="text-slate-900 font-semibold">sürükle & bırak</span> ile taşıyabilirsiniz
               </div>
-              <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-blue-500"></span> Aktif</span>
-                <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-emerald-500"></span> Tamamlandı</span>
-                <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-amber-500"></span> Talep</span>
+              <div className="flex items-center gap-4 text-slate-600 font-medium">
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-900"></span> Aktif</span>
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Tamamlandı</span>
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Talep</span>
               </div>
             </div>
 

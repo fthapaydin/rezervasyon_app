@@ -68,16 +68,16 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           {/* Tab Filter */}
-          <div className="flex bg-gray-100 p-0.5 rounded-lg text-[12px] font-medium text-gray-600">
+          <div className="flex bg-slate-100 p-0.5 rounded-lg text-[12px] font-medium text-slate-600">
             <button 
               onClick={() => setActiveFilter('all')} 
-              className={`px-3 py-1.5 rounded-md transition-all ${activeFilter === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'hover:text-gray-900'}`}
+              className={`px-3 py-1.5 rounded-md transition-all ${activeFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'hover:text-slate-900'}`}
             >
               Ödemeler ({payments.length})
             </button>
             <button 
               onClick={() => setActiveFilter('debtors')} 
-              className={`px-3 py-1.5 rounded-md transition-all ${activeFilter === 'debtors' ? 'bg-white text-red-600 shadow-sm font-semibold' : 'hover:text-gray-900'}`}
+              className={`px-3 py-1.5 rounded-md transition-all ${activeFilter === 'debtors' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'hover:text-slate-900'}`}
             >
               Borçlular ({debtors.length})
             </button>
@@ -85,11 +85,11 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
 
           <button
             onClick={() => setShowForm(!showForm)}
-            className={`h-9 px-3.5 rounded-lg text-[12px] font-medium flex items-center gap-1.5 transition-all shrink-0 ${
-              showForm ? 'bg-gray-100 text-gray-600' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
+            className={`h-9 px-3.5 rounded-lg text-[12px] font-semibold transition-colors shrink-0 cursor-pointer ${
+              showForm ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-slate-900 text-white hover:bg-slate-800 shadow-2xs'
             }`}
           >
-            {showForm ? <><X size={14}/> İptal</> : <><Plus size={14}/> Tahsilat Gir</>}
+            {showForm ? 'İptal' : '+ Tahsilat Gir'}
           </button>
         </div>
       </div>
