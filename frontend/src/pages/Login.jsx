@@ -5,7 +5,8 @@ import { API_URL } from '../lib/api';
 import { 
   Activity, Mail, Lock, Loader2, LogIn, Building2, 
   Eye, EyeOff, Check, X, ArrowRight, ExternalLink,
-  MessageSquare, Phone, ShieldCheck, Clock, CheckCircle2, Sparkles
+  MessageSquare, Phone, ShieldCheck, Clock, CheckCircle2, Sparkles,
+  Calendar, Copy, FileText, QrCode, Wallet, CreditCard, ArrowRightLeft, Users
 } from 'lucide-react';
 
 export default function Login({ onLogin }) {
@@ -331,7 +332,12 @@ export default function Login({ onLogin }) {
             
             {/* 01 */}
             <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">01</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[12px] font-mono font-bold text-slate-400">01</span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                  <Calendar size={15} strokeWidth={2} />
+                </div>
+              </div>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Akıllı Seans &amp; Terapist Takvimi</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 Tüm fizyoterapistlerin randevularını tek takvimde görüntüleyin. Çakışma kontrolü ile aynı saate mükerrer randevu oluşmasını engelleyin.
@@ -340,16 +346,26 @@ export default function Login({ onLogin }) {
 
             {/* 02 */}
             <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">02</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[12px] font-mono font-bold text-slate-400">02</span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                  <Copy size={15} strokeWidth={2} />
+                </div>
+              </div>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Haftalık &amp; Tekil Seans Kopyalama</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
-                Her hafta randevuları tek tek girmekle vakit kaybetmeyin. Tüm haftanın programını kopyalayıp dilediğiniz haftaya yapıştırın veya 1-2 ay ileriye otomatik çoğaltın.
+                Her hafta randevuları tek tek girmekle vakit kaybetmeyin. Seansları haftaya aynı gün ve saate tek tıkla kopyalayın veya dilediğiniz tarihe taşıyın.
               </p>
             </div>
 
             {/* 03 */}
             <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">03</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[12px] font-mono font-bold text-slate-400">03</span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                  <MessageSquare size={15} strokeWidth={2} />
+                </div>
+              </div>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">WhatsApp Bildirimleri</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 Randevu onaylandığında veya seans saati yaklaştığında tek tıkla hastanıza şablon mesaj ve klinik konumunuzu iletin.
@@ -358,7 +374,12 @@ export default function Login({ onLogin }) {
 
             {/* 04 */}
             <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">04</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[12px] font-mono font-bold text-slate-400">04</span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                  <FileText size={15} strokeWidth={2} />
+                </div>
+              </div>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Hasta Dosyası &amp; Raporlama</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 Hastanın tüm seans geçmişi, kalan borcu ve klinik notları tek yerde. Tek tıkla hastaya teslim edilecek PDF seans özeti oluşturun.
@@ -367,7 +388,12 @@ export default function Login({ onLogin }) {
 
             {/* 05 */}
             <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">05</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[12px] font-mono font-bold text-slate-400">05</span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                  <QrCode size={15} strokeWidth={2} />
+                </div>
+              </div>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Danışma QR Masa Standı</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 Bekleme salonu ve danışma masası için kliniğinizin logosuyla baskıya hazır QR standı oluşturun. Hastalar okutup anında talep açsın.
@@ -376,7 +402,12 @@ export default function Login({ onLogin }) {
 
             {/* 06 */}
             <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">06</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[12px] font-mono font-bold text-slate-400">06</span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                  <Wallet size={15} strokeWidth={2} />
+                </div>
+              </div>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Kasa, Tahsilat &amp; Finans Takibi</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 Nakit, kredi kartı ve havale ödemelerini kaydedin. Kalan seans borçlarını ve kliniğinizin net cirosunu anlık takip edin.
@@ -385,7 +416,12 @@ export default function Login({ onLogin }) {
 
             {/* 07 */}
             <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">07</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[12px] font-mono font-bold text-slate-400">07</span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                  <ShieldCheck size={15} strokeWidth={2} />
+                </div>
+              </div>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Doğrulama &amp; KVKK Güvenliği</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 Mükerrer telefon engelleme, haftalık 2 seans kotası ve hasta adı/tedavi maskelemesi ile hasta verilerinizi güvence altına alın.
@@ -394,7 +430,12 @@ export default function Login({ onLogin }) {
 
             {/* 08 */}
             <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <span className="text-[12px] font-mono font-semibold text-slate-400 block mb-3">08</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[12px] font-mono font-bold text-slate-400">08</span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                  <ExternalLink size={15} strokeWidth={2} />
+                </div>
+              </div>
               <h3 className="text-[15px] font-bold text-slate-900 mb-2">Canlı Online Randevu Portalı</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">
                 randevu.fizyotim.com üzerinde kliniğinize ait canlı takvim sayfasıyla hastalarınızdan 7/24 randevu talebi toplayın.
@@ -640,19 +681,31 @@ export default function Login({ onLogin }) {
           {/* ─── Güvenceler / Alt Bilgi Rozetleri ─── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto pt-6 border-t border-slate-200/80 text-[12px]">
             <div className="p-4 rounded-xl bg-white border border-slate-200">
-              <span className="font-bold text-slate-900 block mb-0.5">Kredi Kartı Gerekmez</span>
+              <div className="flex items-center gap-2 mb-1.5">
+                <CreditCard size={15} className="text-slate-600" />
+                <span className="font-bold text-slate-900 block">Kredi Kartı Gerekmez</span>
+              </div>
               <p className="text-slate-500 text-[11px] leading-relaxed">14 gün boyunca hiçbir kart bilgisi girmeden tam yetkiyle kullanın.</p>
             </div>
             <div className="p-4 rounded-xl bg-white border border-slate-200">
-              <span className="font-bold text-slate-900 block mb-0.5">5 Dakikada Canlıda</span>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Clock size={15} className="text-slate-600" />
+                <span className="font-bold text-slate-900 block">5 Dakikada Canlıda</span>
+              </div>
               <p className="text-slate-500 text-[11px] leading-relaxed">Kayıt sonrası anında klinik paneliniz ve randevu linkiniz hazır.</p>
             </div>
             <div className="p-4 rounded-xl bg-white border border-slate-200">
-              <span className="font-bold text-slate-900 block mb-0.5">Ücretsiz Veri Aktarımı</span>
+              <div className="flex items-center gap-2 mb-1.5">
+                <ArrowRightLeft size={15} className="text-slate-600" />
+                <span className="font-bold text-slate-900 block">Ücretsiz Veri Aktarımı</span>
+              </div>
               <p className="text-slate-500 text-[11px] leading-relaxed">Mevcut hasta listenizi Excel'den sisteme ekibimiz aktarsın.</p>
             </div>
             <div className="p-4 rounded-xl bg-white border border-slate-200">
-              <span className="font-bold text-slate-900 block mb-0.5">KVKK &amp; Şifreli Bulut</span>
+              <div className="flex items-center gap-2 mb-1.5">
+                <ShieldCheck size={15} className="text-slate-600" />
+                <span className="font-bold text-slate-900 block">KVKK &amp; Şifreli Bulut</span>
+              </div>
               <p className="text-slate-500 text-[11px] leading-relaxed">Verileriniz 256-bit şifreleme ve günlük güvenli yedeklemeyle korunur.</p>
             </div>
           </div>

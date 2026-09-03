@@ -1,4 +1,4 @@
-import { ArrowUpRight, MessageCircle } from 'lucide-react';
+import { ArrowUpRight, MessageCircle, Users, Calendar, Wallet, CreditCard } from 'lucide-react';
 import { sendWhatsAppReminder } from '../lib/reminder';
 import EmptyState from '../components/ui/EmptyState';
 
@@ -18,22 +18,26 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
     { 
       label: 'Toplam Hasta',    
       value: patients.length,        
-      desc: 'Kayıtlı aktif hasta portföyü'
+      desc: 'Kayıtlı aktif hasta portföyü',
+      icon: Users
     },
     { 
       label: 'Bekleyen Seans',  
       value: pending.length,         
-      desc: 'Günün ve haftanın takvimi'
+      desc: 'Günün ve haftanın takvimi',
+      icon: Calendar
     },
     { 
       label: 'Toplam Tahsilat',    
       value: `${totalRevenue.toLocaleString('tr-TR')} ₺`, 
-      desc: 'Kasa toplam nakit & kart'
+      desc: 'Kasa toplam nakit & kart',
+      icon: Wallet
     },
     { 
       label: 'Kalan Alacak',   
       value: `${totalDebt.toLocaleString('tr-TR')} ₺`, 
-      desc: 'Takip edilen açık bakiye'
+      desc: 'Takip edilen açık bakiye',
+      icon: CreditCard
     },
   ];
 
@@ -68,18 +72,26 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
 
       {/* ─── Stat Cards Grid (Tek Renk Kurumsal Kutular) ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(s => (
-          <div 
-            key={s.label} 
-            className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs hover:border-slate-300 transition-colors"
-          >
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-              {s.label}
-            </span>
-            <p className="text-2xl font-bold text-slate-900 tracking-tight">{s.value}</p>
-            <p className="text-[11px] text-slate-500 mt-1">{s.desc}</p>
-          </div>
-        ))}
+        {stats.map(s => {
+          const Icon = s.icon;
+          return (
+            <div 
+              key={s.label} 
+              className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs hover:border-slate-300 transition-colors"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                  {s.label}
+                </span>
+                <div className="w-7 h-7 rounded-lg bg-slate-100/70 text-slate-500 flex items-center justify-center">
+                  <Icon size={14} strokeWidth={2} />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-slate-900 tracking-tight">{s.value}</p>
+              <p className="text-[11px] text-slate-500 mt-1">{s.desc}</p>
+            </div>
+          );
+        })}
       </div>
 
       {/* ─── Main Columns ─── */}

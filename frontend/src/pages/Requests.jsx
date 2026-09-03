@@ -3,7 +3,7 @@ import axios from 'axios';
 import { supabase } from '../lib/supabase';
 import { API_URL } from '../lib/api';
 import { 
-  CheckCircle, XCircle, Clock, Calendar, Phone, Stethoscope, MessageSquare, X, Send, UserCheck 
+  CheckCircle, XCircle, Clock, Calendar, Phone, Stethoscope, MessageSquare, X, Send, UserCheck, Check 
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 
@@ -225,16 +225,18 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
                       <button
                         onClick={() => openApproveModal(req)}
                         disabled={processing === req.id}
-                        className="h-8 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                        className="flex items-center gap-1.5 h-8 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-semibold transition-colors cursor-pointer disabled:opacity-50"
                       >
-                        Onayla &amp; Terapist Ata
+                        <Check size={13} />
+                        <span>Onayla &amp; Terapist Ata</span>
                       </button>
                       <button
                         onClick={() => { setRejectModal(req); setRejectionReason(''); }}
                         disabled={processing === req.id}
-                        className="h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[12px] font-medium transition-colors cursor-pointer disabled:opacity-50"
+                        className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[12px] font-medium transition-colors cursor-pointer disabled:opacity-50"
                       >
-                        Reddet
+                        <X size={13} className="text-slate-500" />
+                        <span>Reddet</span>
                       </button>
                     </div>
                   )}

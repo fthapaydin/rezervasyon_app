@@ -7,7 +7,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { 
   Plus, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Repeat, 
-  MessageCircle, Calendar, ListFilter, FileSpreadsheet,
+  MessageCircle, Calendar, List, ListFilter, FileSpreadsheet,
   Edit2, Trash2, XCircle, Stethoscope, GripVertical, Move,
   Copy, ClipboardCheck, Layers, Check
 } from 'lucide-react';
@@ -780,14 +780,29 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
             </div>
           )}
           <div className="flex bg-slate-100 p-0.5 rounded-lg text-[12px] font-medium text-slate-600">
-            <button onClick={() => setViewMode('calendar')} className={`px-3 py-1 rounded-md transition-all ${viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'hover:text-slate-900'}`}>Takvim</button>
-            <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'hover:text-slate-900'}`}>Liste ({filteredSessions.length})</button>
+            <button onClick={() => setViewMode('calendar')} className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-all cursor-pointer ${viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'hover:text-slate-900'}`}>
+              <Calendar size={13} className={viewMode === 'calendar' ? 'text-slate-900' : 'text-slate-500'} />
+              <span>Takvim</span>
+            </button>
+            <button onClick={() => setViewMode('list')} className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-all cursor-pointer ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'hover:text-slate-900'}`}>
+              <List size={13} className={viewMode === 'list' ? 'text-slate-900' : 'text-slate-500'} />
+              <span>Liste ({filteredSessions.length})</span>
+            </button>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
-          <button onClick={() => exportSessionsToExcel(sessions)} className="h-8 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors cursor-pointer shadow-2xs">Excel'e Aktar</button>
-          <button onClick={() => { setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_date: today, session_time: '09:00', notes: '' }); setModalMode('single'); }} className="h-8 px-3.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer">+ Tekli Seans</button>
-          <button onClick={() => { setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 }); setModalMode('recurring'); }} className="h-8 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-colors cursor-pointer">Tekrarlayan Paket</button>
+          <button onClick={() => exportSessionsToExcel(sessions)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors cursor-pointer shadow-2xs">
+            <FileSpreadsheet size={13} className="text-slate-500" />
+            <span>Excel'e Aktar</span>
+          </button>
+          <button onClick={() => { setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_date: today, session_time: '09:00', notes: '' }); setModalMode('single'); }} className="flex items-center gap-1.5 h-8 px-3.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer">
+            <Plus size={13} />
+            <span>+ Tekli Seans</span>
+          </button>
+          <button onClick={() => { setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 }); setModalMode('recurring'); }} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-colors cursor-pointer">
+            <Repeat size={13} className="text-slate-500" />
+            <span>Tekrarlayan Paket</span>
+          </button>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, X, Phone, Search, ArrowLeft, Mail, MapPin, CheckCircle2, Clock, FileDown, AlertTriangle, MessageCircle, Pencil, Trash2 } from 'lucide-react';
+import { Plus, X, Phone, Search, ArrowLeft, Mail, MapPin, CheckCircle2, Clock, FileDown, AlertTriangle, MessageCircle, MessageSquare, Pencil, Trash2, Copy, FileText, Printer } from 'lucide-react';
 import { generateSessionReport, generatePatientSummary } from '../lib/pdfGenerator';
 import { sendWhatsAppReminder } from '../lib/reminder';
 import { useToast } from '../components/ui/Toast';
@@ -498,21 +498,24 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
           <button 
             onClick={() => setShowDeleteModal(true)}
             disabled={deleting}
-            className="h-9 px-3 rounded-lg text-[12px] font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-[12px] font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
           >
-            Hastayı Sil
+            <Trash2 size={13} className="text-rose-500" />
+            <span>Hastayı Sil</span>
           </button>
           <button 
             onClick={() => generateSessionReport(patient, sessions)}
-            className="h-9 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
           >
-            Seans Raporu PDF
+            <FileText size={13} className="text-slate-500" />
+            <span>Seans Raporu PDF</span>
           </button>
           <button 
             onClick={() => generatePatientSummary(patient, sessions, payments)}
-            className="h-9 px-3.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer"
           >
-            Hasta Özeti PDF
+            <Printer size={13} />
+            <span>Hasta Özeti PDF</span>
           </button>
         </div>
       </div>
@@ -778,10 +781,11 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => openCopyModal(s)}
-                          className="h-7 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-medium transition-colors cursor-pointer shadow-2xs"
+                          className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-medium transition-colors cursor-pointer shadow-2xs"
                           title="Bu seansı haftaya aynı güne veya istediğiniz tarihe kopyalar"
                         >
-                          Randevuyu Kopyala
+                          <Copy size={11} className="text-slate-500" />
+                          <span>Randevuyu Kopyala</span>
                         </button>
                         {s.status === 'bekliyor' && (
                           <button
@@ -789,10 +793,11 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                               const patientSession = { ...s, patient };
                               sendWhatsAppReminder(patientSession);
                             }}
-                            className="h-7 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
                             title="WhatsApp Randevu Hatırlatması Gönder"
                           >
-                            WhatsApp
+                            <MessageSquare size={11} className="text-slate-500" />
+                            <span>WhatsApp</span>
                           </button>
                         )}
                       </div>
