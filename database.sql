@@ -203,3 +203,28 @@ CREATE POLICY "Allow public all session_requests" ON session_requests FOR ALL US
 
 DROP POLICY IF EXISTS "Allow public all announcements" ON announcements;
 CREATE POLICY "Allow public all announcements" ON announcements FOR ALL USING (true) WITH CHECK (true);
+
+-- =========================================================
+-- 12. SUPERADMIN (PLATFORM YÖNETİCİSİ) TABLOSU & DEMO TALEPLERİ
+-- =========================================================
+CREATE TABLE IF NOT EXISTS superadmins (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR UNIQUE NOT NULL,
+  password VARCHAR NOT NULL,
+  full_name VARCHAR NOT NULL,
+  role VARCHAR DEFAULT 'superadmin',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- demo_requests tablosuna durum kolonu ekle
+ALTER TABLE demo_requests ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'bekliyor'; -- 'bekliyor' | 'arandi' | 'onaylandi' | 'reddedildi'
+
+-- Varsayılan Platform Superadmin Hesabı
+INSERT INTO superadmins (email, password, full_name, role)
+VALUES ('admin@fizyotim.com', 'fizyotim2026!', 'Fatih Apaydın', 'superadmin')
+ON CONFLICT (email) DO UPDATE SET password = 'fizyotim2026!', full_name = 'Fatih Apaydın';
+
+-- RLS İzinleri
+ALTER TABLE superadmins DISABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public all superadmins" ON superadmins;
+CREATE POLICY "Allow public all superadmins" ON superadmins FOR ALL USING (true) WITH CHECK (true);

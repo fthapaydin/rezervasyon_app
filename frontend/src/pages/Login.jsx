@@ -1012,6 +1012,9 @@ export default function Login({ onLogin }) {
               <button onClick={() => setShowLoginModal(true)} className="hover:text-slate-900 cursor-pointer font-medium text-slate-900">
                 Klinik Girişi
               </button>
+              <a href="/superadmin" className="hover:text-emerald-600 text-slate-400 text-[11px] font-mono flex items-center gap-1 transition">
+                <ShieldCheck size={13} /> Superadmin
+              </a>
             </div>
 
             <p className="text-slate-400">
@@ -1100,15 +1103,22 @@ export default function Login({ onLogin }) {
               </button>
             </form>
 
-            <div className="mt-5 pt-4 border-t border-slate-100">
+            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2">
               <button
                 type="button"
                 onClick={triggerDemoLogin}
                 disabled={loading}
-                className="w-full h-9 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium transition-colors cursor-pointer"
+                className="flex-1 h-9 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-medium transition-colors cursor-pointer"
               >
                 Demo Klinik Girişi
               </button>
+              <a
+                href="/superadmin"
+                className="h-9 px-3 rounded-lg bg-slate-900 hover:bg-emerald-600 text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                title="Superadmin Yönetim Paneli"
+              >
+                <ShieldCheck size={13} /> Admin
+              </a>
             </div>
 
           </div>

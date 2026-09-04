@@ -20,6 +20,7 @@ import Reports from './pages/Reports';
 import Requests from './pages/Requests';
 import Settings from './pages/Settings';
 import PatientPortal from './pages/PatientPortal';
+import SuperAdmin from './pages/SuperAdmin';
 
 import { API_URL } from './lib/api';
 
@@ -61,10 +62,20 @@ function App() {
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const lastPendingCountRef = useRef(null);
 
-  // Check if we're on the /portal route BEFORE auth check
-  const isPortal = window.location.pathname === '/portal';
+  const hostname = window.location.hostname.toLowerCase();
+
+  // 1. randevu.fizyotim.com VEYA /portal rotası -> Doğrudan Hasta Portalı (Randevu Al)
+  const isPortal = window.location.pathname === '/portal' || hostname.startsWith('randevu.');
   if (isPortal) {
     return <PatientPortal />;
+  }
+
+  // 2. admin.fizyotim.com VEYA /superadmin /admin rotası -> Doğrudan SuperAdmin Paneli
+  const isSuperAdmin = window.location.pathname === '/superadmin' || 
+                       window.location.pathname === '/admin' || 
+                       hostname.startsWith('admin.');
+  if (isSuperAdmin) {
+    return <SuperAdmin />;
   }
 
   // Tarayıcı masaüstü bildirim izni iste

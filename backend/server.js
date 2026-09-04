@@ -7,11 +7,29 @@ const axios = require('axios');
 const app = express();
 const port = process.env.PORT || 5001;
 
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://fizyotim.com',
+  'https://www.fizyotim.com',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.some(o => origin.endsWith(o.replace('https://', '')))) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
+const SUPERADMIN_SECRET = process.env.SUPERADMIN_SECRET_KEY || 'fizyotim_super_secret_2026_key';
 
 if (!supabaseUrl || !supabaseKey) {
   console.warn("UYARI: SUPABASE_URL veya SUPABASE_ANON_KEY environment variable olarak tanımlanmamış!");
@@ -24,6 +42,26 @@ const supabase = supabaseUrl && supabaseKey
 // Helper: Extract clinic_id from headers or query
 const getClinicId = (req) => {
   return req.headers['x-clinic-id'] || req.query.clinic_id || null;
+};
+
+// Superadmin Yetkilendirme Middleware'i
+const verifySuperAdmin = async (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const superKey = req.headers['x-superadmin-key'];
+
+  if (superKey && superKey === SUPERADMIN_SECRET) {
+    return next();
+  }
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    if (token === SUPERADMIN_SECRET || token.startsWith('sat_')) {
+      return next();
+    }
+  }
+
+  // Token veya key eşleşmezse
+  return res.status(403).json({ error: "Yetkisiz erişim: Superadmin yetkisi gereklidir." });
 };
 
 // --- AUTH & CLINICS ---
@@ -634,6 +672,474 @@ app.post('/api/whatsapp/send-template', async (req, res) => {
     res.json({ success: true, mode: 'web_fallback', message: messageText, webUrl });
   } catch (err) {
     console.error("WhatsApp gönderme hatası:", err.response?.data || err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =========================================================
+// SUPERADMIN API ROTalARI (/api/superadmin/*)
+// =========================================================
+
+// 1. Superadmin Giriş
+app.post('/api/superadmin/login', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "E-posta ve şifre zorunludur." });
+  }
+
+  try {
+    // Önce superadmins tablosundan kontrol et
+    let adminUser = null;
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('superadmins')
+        .select('*')
+        .eq('email', email.trim().toLowerCase())
+        .eq('password', password)
+        .maybeSingle();
+
+      if (!error && data) {
+        adminUser = data;
+      }
+    }
+
+    // Sabit fallback admin kontrolü (fizyotim.com platform sahibi için)
+    if (!adminUser && email.trim().toLowerCase() === 'admin@fizyotim.com' && (password === 'fizyotim2026!' || password === SUPERADMIN_SECRET)) {
+      adminUser = {
+        id: 'superadmin-master-id',
+        email: 'admin@fizyotim.com',
+        full_name: 'Fatih Apaydın',
+        role: 'superadmin'
+      };
+    }
+
+    if (!adminUser) {
+      return res.status(401).json({ error: "Geçersiz Superadmin e-posta veya şifre." });
+    }
+
+    const token = `sat_${Buffer.from(`${adminUser.id}:${Date.now()}:${SUPERADMIN_SECRET}`).toString('base64')}`;
+
+    res.json({
+      success: true,
+      superadmin: {
+        id: adminUser.id,
+        email: adminUser.email,
+        full_name: adminUser.full_name,
+        role: adminUser.role || 'superadmin'
+      },
+      token: SUPERADMIN_SECRET // veya üretilen token
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Superadmin Yetki Doğrulama
+app.get('/api/superadmin/me', verifySuperAdmin, (req, res) => {
+  res.json({ authenticated: true, role: 'superadmin' });
+});
+
+// 3. Platform Genel İstatistikleri (KPIs)
+app.get('/api/superadmin/stats', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+
+  try {
+    // Paralel sorgular ile platform metriklerini çek
+    const [
+      { data: clinics, error: cErr },
+      { count: staffCount },
+      { count: patientsCount },
+      { count: sessionsCount },
+      { data: payments },
+      { data: demoRequests }
+    ] = await Promise.all([
+      supabase.from('clinics').select('id, status, plan, created_at'),
+      supabase.from('staff').select('*', { count: 'exact', head: true }),
+      supabase.from('patients').select('*', { count: 'exact', head: true }),
+      supabase.from('sessions').select('*', { count: 'exact', head: true }),
+      supabase.from('payments').select('amount'),
+      supabase.from('demo_requests').select('id, status, created_at')
+    ]);
+
+    if (cErr) throw cErr;
+
+    const totalClinics = clinics?.length || 0;
+    const activeClinics = clinics?.filter(c => c.status === 'aktif')?.length || 0;
+    const trialClinics = clinics?.filter(c => c.status === 'deneme')?.length || 0;
+    const passiveClinics = clinics?.filter(c => c.status === 'pasif')?.length || 0;
+
+    // Tahmini Aylık Gelir (MRR) - Standart: 1.500₺, Premium: 3.500₺, Kurumsal: 6.000₺
+    const estimatedMRR = clinics?.reduce((total, c) => {
+      if (c.status !== 'aktif') return total;
+      if (c.plan === 'kurumsal') return total + 6000;
+      if (c.plan === 'premium') return total + 3500;
+      return total + 1500;
+    }, 0) || 0;
+
+    const totalPlatformTurnover = payments?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0;
+    const totalDemos = demoRequests?.length || 0;
+    const pendingDemos = demoRequests?.filter(d => !d.status || d.status === 'bekliyor')?.length || 0;
+
+    res.json({
+      clinics: {
+        total: totalClinics,
+        active: activeClinics,
+        trial: trialClinics,
+        passive: passiveClinics
+      },
+      staffCount: staffCount || 0,
+      patientsCount: patientsCount || 0,
+      sessionsCount: sessionsCount || 0,
+      totalPlatformTurnover,
+      estimatedMRR,
+      demos: {
+        total: totalDemos,
+        pending: pendingDemos
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. Tüm Klinikler Listesi (Detaylı)
+app.get('/api/superadmin/clinics', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+
+  try {
+    const { data: clinics, error } = await supabase
+      .from('clinics')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(clinics);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. Yeni Klinik Oluştur
+app.post('/api/superadmin/clinics', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+
+  const {
+    name,
+    slug,
+    owner_name,
+    phone,
+    email,
+    password,
+    status = 'aktif',
+    plan = 'standart',
+    city = 'İstanbul',
+    district = 'Kadıköy',
+    theme_color = '#059669'
+  } = req.body;
+
+  if (!name || !owner_name || !email || !password) {
+    return res.status(400).json({ error: "Klinik adı, sahip adı, e-posta ve şifre zorunludur." });
+  }
+
+  const generatedSlug = slug || name.toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') + '-' + Math.floor(1000 + Math.random() * 9000);
+
+  try {
+    const { data: clinic, error } = await supabase
+      .from('clinics')
+      .insert([{
+        name,
+        slug: generatedSlug,
+        owner_name,
+        phone: phone || '',
+        email: email.trim().toLowerCase(),
+        password,
+        status,
+        plan,
+        city,
+        district,
+        theme_color
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Otomatik ilk personel (Klinik Sahibi Terapist) oluştur
+    await supabase.from('staff').insert([{
+      clinic_id: clinic.id,
+      full_name: owner_name,
+      role: 'admin',
+      title: 'Klinik Sahibi / Baş Fzt.',
+      color: theme_color,
+      email: email.trim().toLowerCase(),
+      phone: phone || ''
+    }]).catch(() => {});
+
+    res.status(201).json(clinic);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 6. Klinik Durumu Değiştir (Aktif / Pasif / Deneme)
+app.put('/api/superadmin/clinics/:id/status', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { status } = req.body;
+
+  if (!['aktif', 'pasif', 'deneme'].includes(status)) {
+    return res.status(400).json({ error: "Geçersiz durum değeri." });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('clinics')
+      .update({ status })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 7. Klinik Abonelik Planı Değiştir
+app.put('/api/superadmin/clinics/:id/plan', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { plan } = req.body;
+
+  if (!['standart', 'premium', 'kurumsal'].includes(plan)) {
+    return res.status(400).json({ error: "Geçersiz plan." });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('clinics')
+      .update({ plan })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 8. Klinik Şifresi Sıfırla
+app.put('/api/superadmin/clinics/:id/reset-password', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { new_password } = req.body;
+
+  if (!new_password || new_password.length < 4) {
+    return res.status(400).json({ error: "Yeni şifre en az 4 karakter olmalıdır." });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('clinics')
+      .update({ password: new_password })
+      .eq('id', req.params.id)
+      .select('id, name, email')
+      .single();
+
+    if (error) throw error;
+    res.json({ message: "Şifre başarıyla güncellendi.", clinic: data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 9. Klinik Sil (Tüm bağlı veriler cascade silinir)
+app.delete('/api/superadmin/clinics/:id', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+
+  try {
+    const { error } = await supabase
+      .from('clinics')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.json({ message: "Klinik başarıyla silindi." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 10. Gelen Demo Başvuruları Listesi
+app.get('/api/superadmin/demo-requests', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+
+  try {
+    const { data, error } = await supabase
+      .from('demo_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 11. Demo Başvuru Durumunu Güncelle
+app.put('/api/superadmin/demo-requests/:id', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { status, notes } = req.body;
+
+  try {
+    const updatePayload = {};
+    if (status) updatePayload.status = status;
+    if (notes !== undefined) updatePayload.notes = notes;
+
+    const { data, error } = await supabase
+      .from('demo_requests')
+      .update(updatePayload)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 12. Demo Başvurusunu Tek Tıkla Kliniğe Dönüştür!
+app.post('/api/superadmin/demo-requests/:id/convert', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+
+  try {
+    const { data: demo, error: demoErr } = await supabase
+      .from('demo_requests')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (demoErr || !demo) return res.status(404).json({ error: "Demo başvurusu bulunamadı." });
+
+    const clinicEmail = (demo.email || `klinik_${Date.now()}@fizyotim.com`).trim().toLowerCase();
+    const cleanName = demo.clinic_name || `${demo.full_name} Kliniği`;
+    const generatedSlug = cleanName.toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '') + '-' + Math.floor(100 + Math.random() * 900);
+    const tempPassword = `fizyo${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const { data: newClinic, error: clinicErr } = await supabase
+      .from('clinics')
+      .insert([{
+        name: cleanName,
+        slug: generatedSlug,
+        owner_name: demo.full_name,
+        phone: demo.phone,
+        email: clinicEmail,
+        password: tempPassword,
+        status: 'deneme',
+        plan: demo.plan === 'yillik-kampanya' ? 'premium' : (demo.plan === 'ozel-teklif' ? 'kurumsal' : 'standart'),
+        city: demo.city || 'İstanbul',
+        district: 'Merkez',
+        theme_color: '#059669'
+      }])
+      .select()
+      .single();
+
+    if (clinicErr) throw clinicErr;
+
+    // Personel ekle
+    await supabase.from('staff').insert([{
+      clinic_id: newClinic.id,
+      full_name: demo.full_name,
+      role: 'admin',
+      title: 'Klinik Yöneticisi',
+      color: '#059669',
+      email: clinicEmail,
+      phone: demo.phone
+    }]).catch(() => {});
+
+    // Demo talebini onaylandı olarak işaretle
+    await supabase
+      .from('demo_requests')
+      .update({ status: 'onaylandi', notes: `Klinik açıldı: ${cleanName} (Giriş: ${clinicEmail} / ${tempPassword})` })
+      .eq('id', req.params.id);
+
+    res.json({
+      success: true,
+      message: "Demo başvurusu başarıyla kliniğe dönüştürüldü!",
+      clinic: newClinic,
+      credentials: {
+        email: clinicEmail,
+        password: tempPassword,
+        portal_url: `https://fizyotim.com/k/${generatedSlug}`
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 13. Demo Başvuru Sil
+app.delete('/api/superadmin/demo-requests/:id', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+
+  try {
+    const { error } = await supabase
+      .from('demo_requests')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.json({ message: "Başvuru silindi." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 14. Yeni Sistem Duyurusu Yayınla
+app.post('/api/superadmin/announcements', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { title, message, type = 'info' } = req.body;
+
+  if (!title || !message) {
+    return res.status(400).json({ error: "Başlık ve mesaj zorunludur." });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('announcements')
+      .insert([{ title, message, type, is_active: true }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 15. Sistem Duyurusunu Kaldır
+app.delete('/api/superadmin/announcements/:id', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+
+  try {
+    const { error } = await supabase
+      .from('announcements')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.json({ message: "Duyuru kaldırıldı." });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
