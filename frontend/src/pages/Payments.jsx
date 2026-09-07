@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import axios from 'axios';
-import { Plus, X, CheckCircle, FileText, AlertCircle, Filter } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { Plus, X, CheckCircle, FileText, AlertCircle, Filter, Sparkles, Layers } from 'lucide-react';
 import { generatePaymentReceipt } from '../lib/pdfGenerator';
 import { useToast } from '../components/ui/Toast';
 
@@ -29,20 +30,107 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
 
   const totalDebt = debtors.reduce((acc, d) => acc + d.debt, 0);
 
+  const selectedDebtor = debtors.find(d => d.id === formData.patient_id);
+  const patientSessions = sessions.filter(s => s.patient_id === formData.patient_id);
+  const unpaidPatientSessions = patientSessions.filter(s => {
+    const sPaid = payments.filter(p => p.session_id === s.id).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    return Number(s.treatment?.price || 0) - sPaid > 0;
+  });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.patient_id) {
+      toast.warning('Lütfen bir hasta seçin.');
+      return;
+    }
+    const enteredAmount = Number(formData.amount);
+    if (!enteredAmount || enteredAmount <= 0) {
+      toast.warning('Lütfen geçerli bir ödeme tutarı girin.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await axios.post(`${API_URL}/payments`, {
-        ...formData,
-        clinic_id: clinic?.id,
-      });
-      toast.success(`${Number(formData.amount).toLocaleString('tr-TR')} ₺ tutarındaki tahsilat kaydedildi.`, 'Ödeme Alındı');
+      if (formData.session_id === 'all') {
+        // TOPLU ÖDEME (FIFO - First In First Out Borç Kapatma Dağıtımı)
+        const sortedSessions = [...patientSessions].sort((a, b) => new Date(a.session_date) - new Date(b.session_date));
+        let remainingToAllocate = enteredAmount;
+        const paymentRows = [];
+
+        for (const s of sortedSessions) {
+          if (remainingToAllocate <= 0) break;
+          const sPaid = payments.filter(p => p.session_id === s.id).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+          const sCost = Number(s.treatment?.price || 0);
+          const sUnpaid = Math.max(0, sCost - sPaid);
+
+          if (sUnpaid > 0) {
+            const payThis = Math.min(sUnpaid, remainingToAllocate);
+            paymentRows.push({
+              session_id: s.id,
+              patient_id: formData.patient_id,
+              amount: payThis,
+              payment_method: formData.payment_method,
+              installments: formData.installments || 1,
+            });
+            remainingToAllocate -= payThis;
+          }
+        }
+
+        // Kalan tutar varsa son seansa bağla
+        if (remainingToAllocate > 0) {
+          const fallbackSession = sortedSessions[sortedSessions.length - 1] || sortedSessions[0];
+          if (paymentRows.length > 0) {
+            paymentRows[paymentRows.length - 1].amount += remainingToAllocate;
+          } else if (fallbackSession) {
+            paymentRows.push({
+              session_id: fallbackSession.id,
+              patient_id: formData.patient_id,
+              amount: remainingToAllocate,
+              payment_method: formData.payment_method,
+              installments: formData.installments || 1,
+            });
+          }
+        }
+
+        if (paymentRows.length === 0) {
+          throw new Error('Tahsilat atanabilecek açık seans bulunamadı.');
+        }
+
+        // Doğrudan Supabase ile batch insert
+        const { error: insErr } = await supabase.from('payments').insert(paymentRows);
+        if (insErr) {
+          for (const row of paymentRows) {
+            await axios.post(`${API_URL}/payments`, { ...row, clinic_id: clinic?.id });
+          }
+        }
+
+        toast.success(
+          `${enteredAmount.toLocaleString('tr-TR')} ₺ tutarındaki toplu tahsilat başarıyla kaydedildi (${paymentRows.length} seans kapatıldı).`,
+          'Toplu Ödeme Alındı'
+        );
+      } else {
+        // TEKİL SEANS TAHSİLATI
+        const payload = {
+          session_id: formData.session_id,
+          patient_id: formData.patient_id,
+          amount: enteredAmount,
+          payment_method: formData.payment_method,
+          installments: formData.installments || 1,
+        };
+
+        const { error: insErr } = await supabase.from('payments').insert([payload]);
+        if (insErr) {
+          await axios.post(`${API_URL}/payments`, { ...payload, clinic_id: clinic?.id });
+        }
+
+        toast.success(`${enteredAmount.toLocaleString('tr-TR')} ₺ tutarındaki tahsilat kaydedildi.`, 'Ödeme Alındı');
+      }
+
       setShowForm(false);
       setFormData({ patient_id: '', session_id: '', amount: '', payment_method: 'Nakit', installments: 1 });
       refresh();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Ödeme kaydedilirken hata oluştu', 'Hata');
+      toast.error(err.message || 'Ödeme kaydedilirken hata oluştu', 'Hata');
     } finally {
       setSubmitting(false);
     }
@@ -107,22 +195,18 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
                 value={formData.patient_id}
                 onChange={e => {
                   const pid = e.target.value;
-                  // Hasta seçildiğinde ilk ödenmemiş seansı bul ve tutarı doldur
-                  const debtorSessions = sessions.filter(s => s.patient_id === pid);
-                  const firstUnpaid = debtorSessions.find(s => {
-                    const sPaid = payments.filter(p => p.session_id === s.id).reduce((sum, p) => sum + Number(p.amount || 0), 0);
-                    return Number(s.treatment?.price || 0) - sPaid > 0;
-                  });
-                  const rem = firstUnpaid 
-                    ? Math.max(0, Number(firstUnpaid.treatment?.price || 0) - payments.filter(p => p.session_id === firstUnpaid.id).reduce((sum, p) => sum + Number(p.amount || 0), 0))
-                    : '';
-
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    patient_id: pid, 
-                    session_id: firstUnpaid?.id || '', 
-                    amount: rem ? String(rem) : '' 
-                  }));
+                  const debtor = debtors.find(d => d.id === pid);
+                  if (debtor) {
+                    // Varsayılan olarak Toplu Ödeme ('all') seçili gelsin ve tüm borcu doldursun
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      patient_id: pid, 
+                      session_id: 'all', 
+                      amount: String(debtor.debt) 
+                    }));
+                  } else {
+                    setFormData(prev => ({ ...prev, patient_id: '', session_id: '', amount: '' }));
+                  }
                 }}
               >
                 <option value="">Seçiniz...</option>
@@ -138,30 +222,46 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Seans <span className="text-red-400">*</span></label>
+              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">
+                Seans / Ödeme Türü <span className="text-red-400">*</span>
+              </label>
               <select 
                 required 
-                className="input-field" 
+                className="input-field font-medium" 
                 value={formData.session_id}
                 onChange={e => {
                   const sid = e.target.value;
-                  const selectedSession = sessions.find(s => s.id === sid);
-                  if (selectedSession) {
-                    const sPayments = payments.filter(p => p.session_id === sid);
-                    const sPaid = sPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-                    const sCost = Number(selectedSession.treatment?.price || 0);
-                    const sRemaining = Math.max(0, sCost - sPaid);
+                  if (sid === 'all') {
+                    const debtor = debtors.find(d => d.id === formData.patient_id);
                     setFormData(prev => ({ 
                       ...prev, 
-                      session_id: sid, 
-                      amount: sRemaining > 0 ? String(sRemaining) : prev.amount 
+                      session_id: 'all', 
+                      amount: debtor ? String(debtor.debt) : prev.amount 
                     }));
                   } else {
-                    setFormData(prev => ({ ...prev, session_id: '', amount: '' }));
+                    const selectedSession = sessions.find(s => s.id === sid);
+                    if (selectedSession) {
+                      const sPayments = payments.filter(p => p.session_id === sid);
+                      const sPaid = sPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                      const sCost = Number(selectedSession.treatment?.price || 0);
+                      const sRemaining = Math.max(0, sCost - sPaid);
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        session_id: sid, 
+                        amount: sRemaining > 0 ? String(sRemaining) : prev.amount 
+                      }));
+                    } else {
+                      setFormData(prev => ({ ...prev, session_id: '', amount: '' }));
+                    }
                   }
                 }}
               >
                 <option value="">Önce hasta seçin...</option>
+                {selectedDebtor && (
+                  <option value="all" className="font-bold text-emerald-800 bg-emerald-50">
+                    ⭐ Tüm Seanslar (Toplu Ödeme — Kalan Borç: {selectedDebtor.debt.toLocaleString('tr-TR')} ₺)
+                  </option>
+                )}
                 {sessions
                   .filter(s => s.patient_id === formData.patient_id)
                   .map(s => {
@@ -178,6 +278,15 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
                     );
                   })}
               </select>
+
+              {formData.session_id === 'all' && selectedDebtor && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-emerald-800 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/80">
+                  <Sparkles size={13} className="text-emerald-600 shrink-0" />
+                  <span>
+                    <strong>Toplu Ödeme Modu:</strong> Girilen {Number(formData.amount || selectedDebtor.debt).toLocaleString('tr-TR')} ₺ tutar hastanın {unpaidPatientSessions.length} açık seansına sırayla dağıtılarak kapatılacaktır.
+                  </span>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Tutar (₺) <span className="text-red-400">*</span></label>
@@ -300,31 +409,54 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
                       <span className="text-[14px] font-bold text-red-500">{d.debt.toLocaleString('tr-TR')} ₺</span>
                     </td>
                     <td className="px-5 py-3.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const debtorSessions = sessions.filter(s => s.patient_id === d.id);
-                          const firstUnpaid = debtorSessions.find(s => {
-                            const sPaid = payments.filter(p => p.session_id === s.id).reduce((sum, p) => sum + Number(p.amount || 0), 0);
-                            return Number(s.treatment?.price || 0) - sPaid > 0;
-                          });
-                          const rem = firstUnpaid 
-                            ? Math.max(0, Number(firstUnpaid.treatment?.price || 0) - payments.filter(p => p.session_id === firstUnpaid.id).reduce((sum, p) => sum + Number(p.amount || 0), 0))
-                            : d.debt;
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({
+                              patient_id: d.id,
+                              session_id: 'all',
+                              amount: String(d.debt),
+                              payment_method: 'Nakit',
+                              installments: 1
+                            });
+                            setShowForm(true);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                          title="Tüm kalan borcu toplu kapatmak için tahsilat formunu açar"
+                        >
+                          <Sparkles size={12} />
+                          <span>Toplu Kapat ({d.debt.toLocaleString('tr-TR')} ₺)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const debtorSessions = sessions.filter(s => s.patient_id === d.id);
+                            const firstUnpaid = debtorSessions.find(s => {
+                              const sPaid = payments.filter(p => p.session_id === s.id).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                              return Number(s.treatment?.price || 0) - sPaid > 0;
+                            });
+                            const rem = firstUnpaid 
+                              ? Math.max(0, Number(firstUnpaid.treatment?.price || 0) - payments.filter(p => p.session_id === firstUnpaid.id).reduce((sum, p) => sum + Number(p.amount || 0), 0))
+                              : d.debt;
 
-                          setFormData({
-                            patient_id: d.id,
-                            session_id: firstUnpaid?.id || '',
-                            amount: String(rem),
-                            payment_method: 'Nakit',
-                            installments: 1
-                          });
-                          setShowForm(true);
-                        }}
-                        className="h-7 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1"
-                      >
-                        Tahsilat Al
-                      </button>
+                            setFormData({
+                              patient_id: d.id,
+                              session_id: firstUnpaid?.id || '',
+                              amount: String(rem),
+                              payment_method: 'Nakit',
+                              installments: 1
+                            });
+                            setShowForm(true);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="h-7 px-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
+                          title="Tek bir seans tahsilatı girmek için formu açar"
+                        >
+                          Tek Seans
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
