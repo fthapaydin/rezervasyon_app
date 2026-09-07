@@ -101,29 +101,98 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Hasta <span className="text-red-400">*</span></label>
-              <select required className="input-field" onChange={e => set('patient_id', e.target.value)}>
+              <select 
+                required 
+                className="input-field" 
+                value={formData.patient_id}
+                onChange={e => {
+                  const pid = e.target.value;
+                  // Hasta seçildiğinde ilk ödenmemiş seansı bul ve tutarı doldur
+                  const debtorSessions = sessions.filter(s => s.patient_id === pid);
+                  const firstUnpaid = debtorSessions.find(s => {
+                    const sPaid = payments.filter(p => p.session_id === s.id).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                    return Number(s.treatment?.price || 0) - sPaid > 0;
+                  });
+                  const rem = firstUnpaid 
+                    ? Math.max(0, Number(firstUnpaid.treatment?.price || 0) - payments.filter(p => p.session_id === firstUnpaid.id).reduce((sum, p) => sum + Number(p.amount || 0), 0))
+                    : '';
+
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    patient_id: pid, 
+                    session_id: firstUnpaid?.id || '', 
+                    amount: rem ? String(rem) : '' 
+                  }));
+                }}
+              >
                 <option value="">Seçiniz...</option>
-                {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                {debtors.length === 0 ? (
+                  <option value="" disabled>Borcu olan hasta bulunmuyor</option>
+                ) : (
+                  debtors.map(d => (
+                    <option key={d.id} value={d.id}>
+                      {d.full_name} (Borç: {d.debt.toLocaleString('tr-TR')} ₺)
+                    </option>
+                  ))
+                )}
               </select>
             </div>
             <div className="sm:col-span-2">
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Seans <span className="text-red-400">*</span></label>
-              <select required className="input-field" onChange={e => set('session_id', e.target.value)}>
+              <select 
+                required 
+                className="input-field" 
+                value={formData.session_id}
+                onChange={e => {
+                  const sid = e.target.value;
+                  const selectedSession = sessions.find(s => s.id === sid);
+                  if (selectedSession) {
+                    const sPayments = payments.filter(p => p.session_id === sid);
+                    const sPaid = sPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                    const sCost = Number(selectedSession.treatment?.price || 0);
+                    const sRemaining = Math.max(0, sCost - sPaid);
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      session_id: sid, 
+                      amount: sRemaining > 0 ? String(sRemaining) : prev.amount 
+                    }));
+                  } else {
+                    setFormData(prev => ({ ...prev, session_id: '', amount: '' }));
+                  }
+                }}
+              >
                 <option value="">Önce hasta seçin...</option>
-                {sessions.filter(s => s.patient_id === formData.patient_id).map(s => (
-                  <option key={s.id} value={s.id}>
-                    {new Date(s.session_date).toLocaleDateString('tr-TR')} — {s.treatment?.name} ({s.treatment?.price} ₺)
-                  </option>
-                ))}
+                {sessions
+                  .filter(s => s.patient_id === formData.patient_id)
+                  .map(s => {
+                    const sPayments = payments.filter(p => p.session_id === s.id);
+                    const sPaid = sPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                    const sCost = Number(s.treatment?.price || 0);
+                    const sRemaining = sCost - sPaid;
+                    const isFullyPaid = sRemaining <= 0;
+
+                    return (
+                      <option key={s.id} value={s.id} disabled={isFullyPaid}>
+                        {new Date(s.session_date).toLocaleDateString('tr-TR')} — {s.treatment?.name || 'Seans'} {isFullyPaid ? '(Tamamen Ödendi)' : `(Kalan: ${sRemaining.toLocaleString('tr-TR')} ₺)`}
+                      </option>
+                    );
+                  })}
               </select>
             </div>
             <div>
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Tutar (₺) <span className="text-red-400">*</span></label>
-              <input required type="number" placeholder="1500" className="input-field font-semibold" onChange={e => set('amount', e.target.value)} />
+              <input 
+                required 
+                type="number" 
+                placeholder="1500" 
+                className="input-field font-semibold" 
+                value={formData.amount}
+                onChange={e => set('amount', e.target.value)} 
+              />
             </div>
             <div>
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Ödeme Yöntemi <span className="text-red-400">*</span></label>
-              <select className="input-field" onChange={e => set('payment_method', e.target.value)}>
+              <select className="input-field" value={formData.payment_method} onChange={e => set('payment_method', e.target.value)}>
                 <option value="Nakit">Nakit</option>
                 <option value="Kredi Kartı">Kredi Kartı</option>
                 <option value="Havale/EFT">Havale / EFT</option>
@@ -131,7 +200,7 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
             </div>
             <div>
               <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Taksit</label>
-              <select className="input-field" onChange={e => set('installments', parseInt(e.target.value) || 1)}>
+              <select className="input-field" value={formData.installments} onChange={e => set('installments', parseInt(e.target.value) || 1)}>
                 <option value="1">Peşin / Tek Çekim</option>
                 <option value="2">2 Taksit</option>
                 <option value="3">3 Taksit</option>
@@ -213,11 +282,12 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
                   <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Toplam Tutar</th>
                   <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Ödenen</th>
                   <th className="text-right px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Kalan Borç</th>
+                  <th className="text-right px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">İşlem</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {debtors.length === 0 && (
-                  <tr><td colSpan={6} className="px-5 py-12 text-center text-[13px] text-gray-400">Harika! Borcu olan hasta bulunmuyor.</td></tr>
+                  <tr><td colSpan={7} className="px-5 py-12 text-center text-[13px] text-gray-400">Harika! Borcu olan hasta bulunmuyor.</td></tr>
                 )}
                 {debtors.map(d => (
                   <tr key={d.id} className="hover:bg-gray-50/60 transition-colors">
@@ -228,6 +298,33 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
                     <td className="px-5 py-3.5 text-[13px] font-medium text-emerald-600">{d.paid.toLocaleString('tr-TR')} ₺</td>
                     <td className="px-5 py-3.5 text-right">
                       <span className="text-[14px] font-bold text-red-500">{d.debt.toLocaleString('tr-TR')} ₺</span>
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const debtorSessions = sessions.filter(s => s.patient_id === d.id);
+                          const firstUnpaid = debtorSessions.find(s => {
+                            const sPaid = payments.filter(p => p.session_id === s.id).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                            return Number(s.treatment?.price || 0) - sPaid > 0;
+                          });
+                          const rem = firstUnpaid 
+                            ? Math.max(0, Number(firstUnpaid.treatment?.price || 0) - payments.filter(p => p.session_id === firstUnpaid.id).reduce((sum, p) => sum + Number(p.amount || 0), 0))
+                            : d.debt;
+
+                          setFormData({
+                            patient_id: d.id,
+                            session_id: firstUnpaid?.id || '',
+                            amount: String(rem),
+                            payment_method: 'Nakit',
+                            installments: 1
+                          });
+                          setShowForm(true);
+                        }}
+                        className="h-7 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1"
+                      >
+                        Tahsilat Al
+                      </button>
                     </td>
                   </tr>
                 ))}
