@@ -1,26 +1,28 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Sparkles, Info, AlertTriangle, CheckCircle2, Megaphone, X, ChevronRight } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
+
+const EMOJI_REGEX = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/gu;
+function cleanText(text) {
+  if (!text) return '';
+  return String(text).replace(EMOJI_REGEX, '').replace(/^\s*[-•]\s*/gm, '• ').trim();
+}
 
 const TYPE_STYLES = {
   campaign: {
     bg: 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 text-white',
-    icon: Sparkles,
-    badge: 'KAMPANYA / DUYURU',
+    badge: 'KAMPANYA',
   },
   info: {
     bg: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white',
-    icon: Info,
     badge: 'GÜNCELLEME',
   },
   warning: {
     bg: 'bg-gradient-to-r from-amber-600 to-orange-600 text-white',
-    icon: AlertTriangle,
-    badge: 'ÖNEMLİ BİLDİRİM',
+    badge: 'ÖNEMLİ',
   },
   success: {
     bg: 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white',
-    icon: CheckCircle2,
     badge: 'BİLGİ',
   },
 };
@@ -117,16 +119,13 @@ export default function AnnouncementBanner({ onOpenModal }) {
             className={`${style.bg} px-4 py-2.5 shadow-sm transition-all animate-in fade-in slide-in-from-top-2 duration-200 flex items-center justify-between gap-3 text-[13px]`}
           >
             <div className="flex items-center gap-2.5 max-w-5xl mx-auto flex-1 min-w-0">
-              <span className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-                <Icon size={15} className="text-white" />
+              <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-white/25 uppercase tracking-wider shrink-0">
+                {style.badge}
               </span>
               <div className="flex flex-wrap items-center gap-2 min-w-0">
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/25 uppercase tracking-wider shrink-0">
-                  {style.badge}
-                </span>
-                <strong className="font-bold truncate">{item.title}</strong>
-                <span className="text-white/90 hidden sm:inline">—</span>
-                <span className="text-white/90 text-[12px] sm:text-[13px] truncate">{item.message}</span>
+                <strong className="font-bold truncate">{cleanText(item.title)}</strong>
+                <span className="text-white/80 hidden sm:inline">—</span>
+                <span className="text-white/90 text-[12px] sm:text-[13px] truncate">{cleanText(item.message)}</span>
               </div>
             </div>
 

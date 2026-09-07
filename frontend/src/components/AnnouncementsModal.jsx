@@ -1,34 +1,29 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { 
-  Sparkles, Info, AlertTriangle, CheckCircle2, Megaphone, X, 
-  Bell, BellOff, Calendar, Check, ExternalLink, Sliders
-} from 'lucide-react';
+import { X, Check } from 'lucide-react';
+
+const EMOJI_REGEX = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/gu;
+function cleanText(text) {
+  if (!text) return '';
+  return String(text).replace(EMOJI_REGEX, '').replace(/^\s*[-•]\s*/gm, '• ').trim();
+}
 
 const TYPE_CONFIG = {
   campaign: {
     badge: 'Kampanya & Fırsat',
     color: 'bg-purple-50 text-purple-700 border-purple-200',
-    iconBg: 'bg-purple-100 text-purple-700',
-    icon: Sparkles,
   },
   info: {
     badge: 'Sistem Güncellemesi',
     color: 'bg-blue-50 text-blue-700 border-blue-200',
-    iconBg: 'bg-blue-100 text-blue-700',
-    icon: Info,
   },
   warning: {
     badge: 'Önemli Bildirim',
     color: 'bg-amber-50 text-amber-700 border-amber-200',
-    iconBg: 'bg-amber-100 text-amber-700',
-    icon: AlertTriangle,
   },
   success: {
     badge: 'Yeni Özellik',
     color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    iconBg: 'bg-emerald-100 text-emerald-700',
-    icon: CheckCircle2,
   },
 };
 
@@ -101,18 +96,13 @@ export default function AnnouncementsModal({ isOpen, onClose, onPreferenceChange
       >
         {/* ─── Header ─── */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0 bg-gray-50/50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-600/20">
-              <Megaphone size={20} strokeWidth={2.2} />
-            </div>
-            <div>
-              <h3 className="text-[17px] font-black text-gray-900 tracking-tight leading-tight">
-                Duyurular &amp; Güncelleme Geçmişi
-              </h3>
-              <p className="text-[12px] text-gray-500 mt-0.5">
-                Fizyotim yenilikleri, sistem güncellemeleri ve önemli duyurular
-              </p>
-            </div>
+          <div>
+            <h3 className="text-[17px] font-black text-gray-900 tracking-tight leading-tight">
+              Duyurular &amp; Güncelleme Geçmişi
+            </h3>
+            <p className="text-[12px] text-gray-500 mt-0.5">
+              Fizyotim yenilikleri, sistem güncellemeleri ve önemli duyurular
+            </p>
           </div>
 
           <button
@@ -125,8 +115,7 @@ export default function AnnouncementsModal({ isOpen, onClose, onPreferenceChange
 
         {/* ─── Banner Display Preference Bar ─── */}
         <div className="px-6 py-3 bg-emerald-50/60 border-b border-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[12px]">
-          <div className="flex items-center gap-2 text-emerald-950 font-medium">
-            <Bell size={15} className="text-emerald-700 shrink-0" />
+          <div className="text-emerald-950 font-medium">
             <span>Yeni duyuruları üst bildirim şeridinde göster:</span>
           </div>
 
@@ -139,7 +128,7 @@ export default function AnnouncementsModal({ isOpen, onClose, onPreferenceChange
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              {showBanners ? <Check size={12} strokeWidth={3} /> : <BellOff size={12} />}
+              {showBanners && <Check size={12} strokeWidth={3} />}
               <span>{showBanners ? 'Açık (Göster)' : 'Kapalı (Gösterme)'}</span>
             </button>
 
@@ -204,16 +193,12 @@ export default function AnnouncementsModal({ isOpen, onClose, onPreferenceChange
             </div>
           ) : filteredAnnouncements.length === 0 ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-3">
-                <Megaphone size={22} />
-              </div>
               <p className="text-[14px] font-bold text-gray-700">Henüz duyuru bulunmuyor</p>
               <p className="text-[12px] text-gray-400 mt-1">Bu kategoride listelenecek bir bildirim yok.</p>
             </div>
           ) : (
             filteredAnnouncements.map((item) => {
               const typeInfo = TYPE_CONFIG[item.type] || TYPE_CONFIG.info;
-              const Icon = typeInfo.icon;
               const isDismissed = dismissedIds.includes(item.id);
               const formattedDate = item.created_at 
                 ? new Date(item.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -230,14 +215,12 @@ export default function AnnouncementsModal({ isOpen, onClose, onPreferenceChange
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2.5 flex-wrap">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${typeInfo.color}`}>
-                        <Icon size={11} />
-                        <span>{typeInfo.badge}</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${typeInfo.color}`}>
+                        {typeInfo.badge}
                       </span>
 
                       {item.is_active ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
                           Aktif Duyuru
                         </span>
                       ) : (
@@ -253,18 +236,17 @@ export default function AnnouncementsModal({ isOpen, onClose, onPreferenceChange
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1 text-[11px] text-gray-400 shrink-0">
-                      <Calendar size={12} />
-                      <span>{formattedDate}</span>
-                    </div>
+                    <span className="text-[11px] text-gray-400 shrink-0">
+                      {formattedDate}
+                    </span>
                   </div>
 
                   <h4 className="text-[15px] font-bold text-gray-900 mb-1.5">
-                    {item.title}
+                    {cleanText(item.title)}
                   </h4>
 
-                  <p className="text-[13px] text-gray-600 leading-relaxed">
-                    {item.message}
+                  <p className="text-[13px] text-gray-600 leading-relaxed whitespace-pre-line">
+                    {cleanText(item.message)}
                   </p>
                 </div>
               );
