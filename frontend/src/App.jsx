@@ -21,6 +21,8 @@ import Requests from './pages/Requests';
 import Settings from './pages/Settings';
 import PatientPortal from './pages/PatientPortal';
 import SuperAdmin from './pages/SuperAdmin';
+import NotFound from './pages/NotFound';
+import OfflineBanner from './components/common/OfflineBanner';
 
 import { API_URL } from './lib/api';
 
@@ -72,19 +74,45 @@ function App() {
   const lastPendingCountRef = useRef(null);
 
   const hostname = window.location.hostname.toLowerCase();
+  const rawPath = window.location.pathname.replace(/\/+$/, '') || '/';
 
   // 1. randevu.fizyotim.com VEYA /portal rotası -> Doğrudan Hasta Portalı (Randevu Al)
-  const isPortal = window.location.pathname === '/portal' || hostname.startsWith('randevu.');
+  const isPortal = rawPath === '/portal' || hostname.startsWith('randevu.');
   if (isPortal) {
-    return <PatientPortal />;
+    return (
+      <>
+        <OfflineBanner />
+        <PatientPortal />
+      </>
+    );
   }
 
   // 2. admin.fizyotim.com VEYA /superadmin /admin rotası -> Doğrudan SuperAdmin Paneli
-  const isSuperAdmin = window.location.pathname === '/superadmin' || 
-                       window.location.pathname === '/admin' || 
+  const isSuperAdmin = rawPath === '/superadmin' || 
+                       rawPath === '/admin' || 
                        hostname.startsWith('admin.');
   if (isSuperAdmin) {
-    return <SuperAdmin />;
+    return (
+      <>
+        <OfflineBanner />
+        <SuperAdmin />
+      </>
+    );
+  }
+
+  // 3. Geçersiz / Tanımsız URL kontrolü (404 Sayfası)
+  const validPaths = ['/', '/login', '/index.html'];
+  const is404 = !validPaths.includes(rawPath);
+  if (is404) {
+    return (
+      <>
+        <OfflineBanner />
+        <NotFound onGoHome={() => {
+          window.history.pushState({}, '', '/');
+          window.location.href = '/';
+        }} />
+      </>
+    );
   }
 
   // Tarayıcı masaüstü bildirim izni iste
@@ -300,13 +328,19 @@ function App() {
 
   // Not logged in -> Show clinic login screen
   if (!clinic) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <>
+        <OfflineBanner />
+        <Login onLogin={handleLogin} />
+      </>
+    );
   }
 
   const meta = pageMeta[activeTab] || pageMeta.dashboard;
 
   return (
-    <div className="flex h-screen overflow-hidden font-[Inter]">
+    <div className="flex h-screen overflow-hidden font-[Inter] relative">
+      <OfflineBanner />
       <Sidebar
         activeTab={activeTab}
         setActiveTab={(tab) => { setActiveTab(tab); setSelectedPatientId(null); }}
