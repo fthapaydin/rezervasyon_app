@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { 
   RefreshCw, Link2, Check, QrCode, Megaphone, Bell, Volume2, 
-  ArrowRight, ExternalLink, KeyRound, User, LogOut, ChevronDown, Lock, X, ShieldCheck, Stethoscope, UserCheck, Activity, Eye, EyeOff
+  ArrowRight, ExternalLink, KeyRound, User, LogOut, ChevronDown, Lock, X, ShieldCheck, Stethoscope, UserCheck, Eye, EyeOff
 } from 'lucide-react';
 import { MobileMenuButton } from './Sidebar';
 import QRCodeModal from '../QRCodeModal';
-import DiagnosticsModal from '../common/DiagnosticsModal';
 import { useToast } from '../ui/Toast';
 import { playNotificationSound } from '../../lib/notificationSound';
 import { supabase } from '../../lib/supabase';
@@ -26,7 +25,6 @@ export default function Header({
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
-  const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -168,18 +166,6 @@ export default function Header({
             </button>
           )}
 
-          {/* Diagnostics / Sistem Testi Button (Admin Only) */}
-          {userRole === 'admin' && (
-            <button
-              onClick={() => setShowDiagnosticsModal(true)}
-              className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-[12px] font-medium transition-colors cursor-pointer hidden md:inline-flex items-center gap-1.5"
-              title="Sistem ve Yeni Özellikleri Otomatik Test Et"
-            >
-              <Activity size={12} className="text-emerald-600" />
-              <span>Sistem Testi</span>
-            </button>
-          )}
-
           {clinic && (
             <>
               {/* QR Stand Button */}
@@ -259,19 +245,6 @@ export default function Header({
                 </div>
 
                 <div className="p-1 space-y-0.5">
-                  {userRole === 'admin' && (
-                    <button
-                      onClick={() => {
-                        setShowUserDropdown(false);
-                        setShowDiagnosticsModal(true);
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-xl text-[12px] font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
-                    >
-                      <Activity size={14} className="text-emerald-600" />
-                      <span>Sistem & Özellik Testi</span>
-                    </button>
-                  )}
-
                   <button
                     onClick={() => {
                       setShowUserDropdown(false);
@@ -299,14 +272,6 @@ export default function Header({
           </div>
         </div>
       </header>
-
-      {/* Diagnostics / Sistem Test Modal */}
-      <DiagnosticsModal
-        isOpen={showDiagnosticsModal}
-        onClose={() => setShowDiagnosticsModal(false)}
-        clinic={clinic}
-        onRefreshData={onRefresh}
-      />
 
       {/* QR Code Stand Modal */}
       {showQRModal && (

@@ -111,7 +111,6 @@ export default function AnnouncementBanner({ onOpenModal }) {
     <div className="space-y-1 z-30 font-[Inter]">
       {visibleAnnouncements.map((item) => {
         const style = TYPE_STYLES[item.type] || TYPE_STYLES.campaign;
-        const Icon = style.icon;
 
         return (
           <div

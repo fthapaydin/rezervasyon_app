@@ -108,9 +108,10 @@ export async function runDiagnosticsSuite(clinic) {
   const t3 = performance.now();
   try {
     const sample = { session_date: '2026-09-10', session_time: '18:00', therapist_id: 'th-1' };
-    const d = new Date(sample.session_date + 'T00:00:00');
+    const [y, m, day] = sample.session_date.split('-').map(Number);
+    const d = new Date(y, m - 1, day);
     d.setDate(d.getDate() + 7);
-    const targetDate = d.toISOString().split('T')[0];
+    const targetDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
     const isMatchDate = targetDate === '2026-09-17';
     const isPreserveTime = sample.session_time === '18:00';
@@ -231,7 +232,6 @@ export async function seedDemoTestData(clinicId) {
       treatment_id: treatments[0].id,
       session_date: todayStr,
       session_time: '10:00',
-      duration_minutes: treatments[0].duration_minutes || 60,
       status: 'tamamlandi',
       notes: '[Otomatik Test] Başarılı seans simülasyonu'
     },
@@ -241,7 +241,6 @@ export async function seedDemoTestData(clinicId) {
       treatment_id: treatments[1 % treatments.length].id,
       session_date: todayStr,
       session_time: '11:00',
-      duration_minutes: 50,
       status: 'tamamlandi',
       notes: '[Otomatik Test] Düzenli hasta seansı'
     },
@@ -251,7 +250,6 @@ export async function seedDemoTestData(clinicId) {
       treatment_id: treatments[0].id,
       session_date: todayStr,
       session_time: '14:00',
-      duration_minutes: 60,
       status: 'bekliyor',
       notes: '[Otomatik Test] Bugün öğleden sonra randevusu'
     },
@@ -261,7 +259,6 @@ export async function seedDemoTestData(clinicId) {
       treatment_id: treatments[2 % treatments.length].id,
       session_date: todayStr,
       session_time: '16:00',
-      duration_minutes: 45,
       status: 'bekliyor',
       notes: '[Otomatik Test] Takip seansı'
     }

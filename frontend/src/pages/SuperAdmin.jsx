@@ -10,6 +10,12 @@ import {
 } from 'lucide-react';
 import { API_URL } from '../lib/api';
 
+const EMOJI_REGEX = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/gu;
+function cleanText(text) {
+  if (!text) return '';
+  return String(text).replace(EMOJI_REGEX, '').replace(/^\s*[-•]\s*/gm, '• ').trim();
+}
+
 export default function SuperAdmin() {
   // Auth State
   const [token, setToken] = useState(() => localStorage.getItem('fizyotim_superadmin_token') || '');
@@ -259,7 +265,11 @@ export default function SuperAdmin() {
     setAnnouncementSubmitting(true);
 
     try {
-      await axios.post(`${API_URL}/superadmin/announcements`, newAnnouncement, getAuthHeaders());
+      await axios.post(`${API_URL}/superadmin/announcements`, {
+        ...newAnnouncement,
+        title: cleanText(newAnnouncement.title),
+        message: cleanText(newAnnouncement.message),
+      }, getAuthHeaders());
       setNewAnnouncement({ title: '', message: '', type: 'info' });
       fetchData();
       alert("Sistem duyurusu tüm kliniklerin paneline anında yayınlandı!");
@@ -957,7 +967,7 @@ export default function SuperAdmin() {
                     required
                     value={newAnnouncement.title}
                     onChange={(e) => setNewAnnouncement({...newAnnouncement, title: e.target.value})}
-                    placeholder="Örn: 🎉 Fizyotim 2.0 Güncellemesi Yayında!"
+                    placeholder="Örn: Fizyotim 2.0 Güncellemesi Yayında!"
                     className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -1006,12 +1016,12 @@ export default function SuperAdmin() {
                 <div key={ann.id} className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-white">{ann.title}</span>
+                      <span className="font-bold text-sm text-white">{cleanText(ann.title)}</span>
                       <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-slate-800 text-slate-300">
                         {ann.type}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">{ann.message}</p>
+                    <p className="text-xs text-slate-400 mt-1">{cleanText(ann.message)}</p>
                   </div>
                   <button
                     onClick={() => handleDeleteAnnouncement(ann.id)}
