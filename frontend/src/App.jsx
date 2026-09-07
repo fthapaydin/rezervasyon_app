@@ -47,6 +47,15 @@ function App() {
     }
   });
 
+  const [activeUser, setActiveUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('fizyo_active_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showAnnouncementsModal, setShowAnnouncementsModal] = useState(false);
@@ -224,10 +233,65 @@ function App() {
     setClinic(updatedClinic);
   };
 
+  const handleLogin = (loggedClinic) => {
+    setClinic(loggedClinic);
+    try {
+      const savedUser = localStorage.getItem('fizyo_active_user');
+      if (savedUser) {
+        setActiveUser(JSON.parse(savedUser));
+      } else {
+        const defaultOwner = {
+          is_owner: true,
+          role: 'admin',
+          full_name: loggedClinic.owner_name || loggedClinic.name,
+          email: loggedClinic.email,
+          clinic_id: loggedClinic.id,
+          allowed_tabs: ['dashboard', 'requests', 'sessions', 'patients', 'treatments', 'staff', 'payments', 'reports', 'settings']
+        };
+        setActiveUser(defaultOwner);
+        localStorage.setItem('fizyo_active_user', JSON.stringify(defaultOwner));
+      }
+    } catch {}
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('fizyo_clinic');
+    localStorage.removeItem('fizyo_active_user');
     setClinic(null);
+    setActiveUser(null);
   };
+
+  // Aktif kullanıcı boşsa ve klinik varsa varsayılan sahip oluştur
+  useEffect(() => {
+    if (clinic && !activeUser) {
+      try {
+        const savedUser = localStorage.getItem('fizyo_active_user');
+        if (savedUser) {
+          setActiveUser(JSON.parse(savedUser));
+        } else {
+          const defaultOwner = {
+            is_owner: true,
+            role: 'admin',
+            full_name: clinic.owner_name || clinic.name,
+            email: clinic.email,
+            clinic_id: clinic.id,
+            allowed_tabs: ['dashboard', 'requests', 'sessions', 'patients', 'treatments', 'staff', 'payments', 'reports', 'settings']
+          };
+          setActiveUser(defaultOwner);
+          localStorage.setItem('fizyo_active_user', JSON.stringify(defaultOwner));
+        }
+      } catch {}
+    }
+  }, [clinic, activeUser]);
+
+  // Sekme Koruması: Personel izinli olmadığı bir sekmedeyse izinli ilk sekmeye yönlendir
+  useEffect(() => {
+    if (activeUser && activeUser.role !== 'admin' && Array.isArray(activeUser.allowed_tabs)) {
+      if (activeUser.allowed_tabs.length > 0 && !activeUser.allowed_tabs.includes(activeTab)) {
+        setActiveTab(activeUser.allowed_tabs[0]);
+      }
+    }
+  }, [activeUser, activeTab]);
 
   const openPatientDetail = (id) => {
     setSelectedPatientId(id);
@@ -236,7 +300,7 @@ function App() {
 
   // Not logged in -> Show clinic login screen
   if (!clinic) {
-    return <Login onLogin={setClinic} />;
+    return <Login onLogin={handleLogin} />;
   }
 
   const meta = pageMeta[activeTab] || pageMeta.dashboard;
@@ -251,6 +315,7 @@ function App() {
         onLogout={handleLogout}
         pendingCount={pendingCount}
         clinic={clinic}
+        activeUser={activeUser}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -258,6 +323,7 @@ function App() {
           title={meta.title}
           subtitle={meta.subtitle}
           clinic={clinic}
+          activeUser={activeUser}
           onRefresh={fetchData}
           onMenuClick={() => setMobileOpen(true)}
           onLogout={handleLogout}
@@ -278,9 +344,9 @@ function App() {
               <>
                 {activeTab === 'dashboard'  && <Dashboard clinic={clinic} patients={patients} sessions={sessions} payments={payments} requests={requests} onPatientClick={openPatientDetail} onNavigateToRequests={() => setActiveTab('requests')} setActiveTab={setActiveTab} />}
                 {activeTab === 'patients'   && <Patients clinic={clinic} patients={patients} sessions={sessions} staff={staff} treatments={treatments} selectedPatientId={selectedPatientId} setSelectedPatientId={setSelectedPatientId} refresh={fetchData} />}
-                {activeTab === 'treatments' && <Treatments clinic={clinic} treatments={treatments} refresh={fetchData} />}
+                {activeTab === 'treatments' && <Treatments clinic={clinic} treatments={treatments} staff={staff} refresh={fetchData} />}
                 {activeTab === 'staff'      && <Staff clinic={clinic} staff={staff} refresh={fetchData} />}
-                {activeTab === 'sessions'   && <Sessions clinic={clinic} staff={staff} sessions={sessions} requests={requests} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} />}
+                {activeTab === 'sessions'   && <Sessions clinic={clinic} staff={staff} sessions={sessions} requests={requests} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} activeUser={activeUser} />}
                 {activeTab === 'payments'   && <Payments clinic={clinic} payments={payments} sessions={sessions} patients={patients} refresh={fetchData} />}
                 {activeTab === 'reports'    && <Reports clinic={clinic} patients={patients} sessions={sessions} payments={payments} treatments={treatments} />}
                 {activeTab === 'requests'   && <Requests clinic={clinic} staff={staff} requests={requests} refresh={fetchData} />}

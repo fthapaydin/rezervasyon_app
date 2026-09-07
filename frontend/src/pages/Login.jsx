@@ -9,6 +9,8 @@ import {
   Calendar, Copy, FileText, QrCode, Wallet, CreditCard, ArrowRightLeft, Users
 } from 'lucide-react';
 
+import { getStaffPassword, getStaffAllowedTabs } from '../lib/rbacUtils';
+
 export default function Login({ onLogin }) {
   // Login State
   const [email, setEmail] = useState('');
@@ -54,48 +56,111 @@ export default function Login({ onLogin }) {
     setError('');
 
     try {
-      // 1. Supabase clinics tablosundan kliniği sorgula
       const cleanEmail = loginEmail.trim().toLowerCase();
-      let query = supabase.from('clinics').select('*').eq('password', loginPass);
+
+      // 1. Supabase clinics tablosundan kliniği sorgula
+      let clinicQuery = supabase.from('clinics').select('*').eq('password', loginPass);
 
       if (cleanEmail === 'demo@fizyotim.com' || cleanEmail === 'demo@fizyopanel.com' || cleanEmail === 'demo') {
-        query = query.or('email.eq.demo@fizyotim.com,email.eq.demo@fizyopanel.com,slug.eq.demo-klinik');
+        clinicQuery = clinicQuery.or('email.eq.demo@fizyotim.com,email.eq.demo@fizyopanel.com,slug.eq.demo-klinik');
       } else {
-        query = query.eq('email', cleanEmail);
+        clinicQuery = clinicQuery.eq('email', cleanEmail);
       }
 
-      const { data: clinic, error: clinicErr } = await query.maybeSingle();
+      const { data: clinic, error: clinicErr } = await clinicQuery.maybeSingle();
 
-      if (clinicErr) {
-        // Fallback: Backend API'ye sor
-        try {
-          const res = await axios.post(`${API_URL}/auth/clinic-login`, { email: loginEmail, password: loginPass });
-          if (res.data) {
-            localStorage.setItem('fizyo_clinic', JSON.stringify(res.data));
-            onLogin(res.data);
+      if (clinic) {
+        if (clinic.status === 'pasif') {
+          setError('Klinik hesabınız pasife alınmıştır. Lütfen sistem yöneticinizle iletişime geçiniz.');
+          setLoading(false);
+          return;
+        }
+
+        const activeUser = {
+          is_owner: true,
+          role: 'admin',
+          full_name: clinic.owner_name || clinic.name,
+          email: clinic.email,
+          clinic_id: clinic.id,
+          allowed_tabs: ['dashboard', 'requests', 'sessions', 'patients', 'treatments', 'staff', 'payments', 'reports', 'settings']
+        };
+
+        localStorage.setItem('fizyo_clinic', JSON.stringify(clinic));
+        localStorage.setItem('fizyo_active_user', JSON.stringify(activeUser));
+        onLogin(clinic);
+        return;
+      }
+
+      // 2. Supabase staff (Personel) tablosundan kullanıcıyı sorgula
+      const { data: staffMember } = await supabase
+        .from('staff')
+        .select('*, clinic:clinics(*)')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (staffMember && staffMember.clinic) {
+        const validPassword = getStaffPassword(staffMember, staffMember.clinic);
+
+        if (loginPass === validPassword || (cleanEmail.includes('demo') && loginPass === 'demo123')) {
+          if (staffMember.clinic.status === 'pasif') {
+            setError('Bağlı olduğunuz klinik hesabı pasife alınmıştır.');
+            setLoading(false);
             return;
           }
-        } catch (apiErr) {
-          setError(apiErr.response?.data?.error || 'Giriş yapılamadı.');
+
+          if (staffMember.is_active === false) {
+            setError('Personel hesabınız pasife alınmıştır. Lütfen klinik yöneticinizle görüşün.');
+            setLoading(false);
+            return;
+          }
+
+          const allowedTabs = getStaffAllowedTabs(staffMember, staffMember.clinic);
+          const activeUser = {
+            is_owner: false,
+            staff_id: staffMember.id,
+            full_name: staffMember.full_name,
+            role: staffMember.role || 'therapist',
+            title: staffMember.title,
+            color: staffMember.color,
+            email: staffMember.email,
+            clinic_id: staffMember.clinic_id,
+            allowed_tabs: allowedTabs
+          };
+
+          localStorage.setItem('fizyo_clinic', JSON.stringify(staffMember.clinic));
+          localStorage.setItem('fizyo_active_user', JSON.stringify(activeUser));
+          onLogin(staffMember.clinic);
+          return;
+        } else {
+          setError('Hatalı personel şifresi. Lütfen şifrenizi kontrol ediniz.');
+          setLoading(false);
           return;
         }
       }
 
-      if (!clinic) {
-        setError('E-posta veya şifre hatalı. Lütfen yöneticinizden aldığınız giriş bilgilerini kullanın.');
-        setLoading(false);
+      // Fallback: Backend API'ye sor
+      try {
+        const res = await axios.post(`${API_URL}/auth/clinic-login`, { email: loginEmail, password: loginPass });
+        if (res.data) {
+          const activeUser = {
+            is_owner: true,
+            role: 'admin',
+            full_name: res.data.owner_name || res.data.name,
+            email: res.data.email,
+            clinic_id: res.data.id,
+            allowed_tabs: ['dashboard', 'requests', 'sessions', 'patients', 'treatments', 'staff', 'payments', 'reports', 'settings']
+          };
+          localStorage.setItem('fizyo_clinic', JSON.stringify(res.data));
+          localStorage.setItem('fizyo_active_user', JSON.stringify(activeUser));
+          onLogin(res.data);
+          return;
+        }
+      } catch (apiErr) {
+        setError(apiErr.response?.data?.error || 'E-posta veya şifre hatalı. Lütfen giriş bilgilerinizi kontrol edin.');
         return;
       }
 
-      if (clinic.status === 'pasif') {
-        setError('Klinik hesabınız pasife alınmıştır. Lütfen sistem yöneticinizle iletişime geçiniz.');
-        setLoading(false);
-        return;
-      }
-
-      // Başarılı giriş
-      localStorage.setItem('fizyo_clinic', JSON.stringify(clinic));
-      onLogin(clinic);
+      setError('E-posta veya şifre hatalı. Lütfen yöneticinizden aldığınız giriş bilgilerini kullanın.');
     } catch (err) {
       console.error(err);
       setError('Bağlantı hatası oluştu. Lütfen internetinizi kontrol edip tekrar deneyin.');

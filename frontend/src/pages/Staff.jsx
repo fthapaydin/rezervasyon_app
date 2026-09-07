@@ -3,10 +3,14 @@ import axios from 'axios';
 import { supabase } from '../lib/supabase';
 import { API_URL } from '../lib/api';
 import { 
-  Users, Plus, X, Pencil, Trash2, ShieldCheck, Stethoscope, UserCheck, Phone, Mail, CheckCircle2 
+  Users, Plus, X, Pencil, Trash2, ShieldCheck, Stethoscope, UserCheck, Phone, Mail, 
+  CheckCircle2, KeyRound, Layers, Check, Copy, Shield, Lock
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import ConfirmModal from '../components/ui/ConfirmModal';
+import { 
+  ALL_TABS, getDefaultTabsForRole, getStaffPassword, getStaffAllowedTabs, syncStaffMetaToClinic 
+} from '../lib/rbacUtils';
 
 const ROLE_MAP = {
   admin:     { label: 'Klinik Sahibi / Yönetici', icon: ShieldCheck, bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
@@ -33,6 +37,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [copiedPassId, setCopiedPassId] = useState(null);
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -41,6 +46,8 @@ export default function Staff({ clinic, staff = [], refresh }) {
     color: '#059669',
     phone: '',
     email: '',
+    password: '123456',
+    allowed_tabs: getDefaultTabsForRole('therapist'),
   });
 
   const openAdd = () => {
@@ -53,6 +60,8 @@ export default function Staff({ clinic, staff = [], refresh }) {
       color: COLOR_PRESETS[Math.floor(Math.random() * COLOR_PRESETS.length)],
       phone: '',
       email: '',
+      password: '123456',
+      allowed_tabs: getDefaultTabsForRole('therapist'),
     });
     setShowModal(true);
   };
@@ -60,6 +69,8 @@ export default function Staff({ clinic, staff = [], refresh }) {
   const openEdit = (member) => {
     setModalMode('edit');
     setSelectedStaff(member);
+    const pass = getStaffPassword(member, clinic);
+    const tabs = getStaffAllowedTabs(member, clinic);
     setFormData({
       full_name: member.full_name || '',
       role: member.role || 'therapist',
@@ -67,8 +78,33 @@ export default function Staff({ clinic, staff = [], refresh }) {
       color: member.color || '#059669',
       phone: member.phone || '',
       email: member.email || '',
+      password: pass,
+      allowed_tabs: tabs,
     });
     setShowModal(true);
+  };
+
+  const handleRoleChange = (newRole) => {
+    setFormData(prev => ({
+      ...prev,
+      role: newRole,
+      title: newRole === 'admin' 
+        ? 'Klinik Sahibi / Yönetici' 
+        : newRole === 'secretary' 
+        ? 'Sekreter / Danışma' 
+        : 'Fizyoterapist',
+      allowed_tabs: getDefaultTabsForRole(newRole),
+    }));
+  };
+
+  const toggleTab = (tabId) => {
+    setFormData(prev => {
+      const current = prev.allowed_tabs || [];
+      const next = current.includes(tabId)
+        ? current.filter(id => id !== tabId)
+        : [...current, tabId];
+      return { ...prev, allowed_tabs: next };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -77,24 +113,78 @@ export default function Staff({ clinic, staff = [], refresh }) {
 
     setSubmitting(true);
     try {
+      let targetStaffId = selectedStaff?.id;
+
       if (modalMode === 'add') {
-        const { error } = await supabase.from('staff').insert([{
+        const payload = {
           ...formData,
           clinic_id: clinic?.id,
           is_active: true,
-        }]);
-        if (error) {
-          await axios.post(`${API_URL}/staff`, { ...formData, clinic_id: clinic?.id });
+        };
+
+        let { data, error } = await supabase.from('staff').insert([payload]).select();
+
+        // Eğer veritabanında password veya allowed_tabs kolonları henüz eklenmemişse
+        if (error && (error.message?.includes('password') || error.message?.includes('allowed_tabs'))) {
+          delete payload.password;
+          delete payload.allowed_tabs;
+          const retry = await supabase.from('staff').insert([payload]).select();
+          data = retry.data;
+          error = retry.error;
         }
+
+        if (error) {
+          // Backend API fallback
+          try {
+            const apiRes = await axios.post(`${API_URL}/staff`, { ...payload, clinic_id: clinic?.id });
+            targetStaffId = apiRes.data?.id;
+          } catch (apiErr) {
+            throw new Error(apiErr.response?.data?.error || error.message);
+          }
+        } else if (data?.[0]) {
+          targetStaffId = data[0].id;
+        }
+
+        // Yedek JSONB senkronizasyonu
+        if (targetStaffId) {
+          await syncStaffMetaToClinic(clinic, targetStaffId, {
+            password: formData.password,
+            allowed_tabs: formData.allowed_tabs
+          });
+        }
+
         toast.success(`"${formData.full_name}" ekibe eklendi.`, 'Personel Kaydedildi');
       } else {
-        const { error } = await supabase
+        const payload = { ...formData };
+        let { error } = await supabase
           .from('staff')
-          .update(formData)
+          .update(payload)
           .eq('id', selectedStaff.id);
-        if (error) {
-          await axios.put(`${API_URL}/staff/${selectedStaff.id}`, formData);
+
+        if (error && (error.message?.includes('password') || error.message?.includes('allowed_tabs'))) {
+          delete payload.password;
+          delete payload.allowed_tabs;
+          const retry = await supabase
+            .from('staff')
+            .update(payload)
+            .eq('id', selectedStaff.id);
+          error = retry.error;
         }
+
+        if (error) {
+          try {
+            await axios.put(`${API_URL}/staff/${selectedStaff.id}`, payload);
+          } catch (apiErr) {
+            throw new Error(apiErr.response?.data?.error || error.message);
+          }
+        }
+
+        // Yedek JSONB senkronizasyonu
+        await syncStaffMetaToClinic(clinic, selectedStaff.id, {
+          password: formData.password,
+          allowed_tabs: formData.allowed_tabs
+        });
+
         toast.success(`"${formData.full_name}" bilgileri güncellendi.`, 'Personel Güncellendi');
       }
 
@@ -126,6 +216,13 @@ export default function Staff({ clinic, staff = [], refresh }) {
     }
   };
 
+  const copyPassword = (staffId, pass) => {
+    navigator.clipboard.writeText(pass);
+    setCopiedPassId(staffId);
+    toast.info('Personel başlangıç şifresi panoya kopyalandı.', 'Şifre Kopyalandı');
+    setTimeout(() => setCopiedPassId(null), 2000);
+  };
+
   return (
     <div className="space-y-6">
       <ConfirmModal
@@ -142,7 +239,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <p className="text-[13px] text-gray-500">
-            Kliniğinizdeki fizyoterapistleri, sekreterleri ve yöneticileri tanımlayın. Seanslar ilgili terapistlere atanabilir.
+            Fizyoterapistlerinizi ve sekreterlerinizi ekleyin; kendi e-postalarıyla giriş yapıp sadece yetkili oldukları sekmeleri yönetebilirler.
           </p>
         </div>
         <button
@@ -158,12 +255,15 @@ export default function Staff({ clinic, staff = [], refresh }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {staff.length === 0 ? (
           <div className="col-span-full bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center text-gray-400">
-            Henüz personel eklenmemiş. Yukarıdaki butondan terapist veya sekreter ekleyebilirsiniz.
+            Henüz personel eklenmemiş. Yukarıdaki butondan fizyoterapist veya sekreter ekleyebilirsiniz.
           </div>
         ) : (
           staff.map((member) => {
             const roleInfo = ROLE_MAP[member.role] || ROLE_MAP.therapist;
             const RoleIcon = roleInfo.icon;
+            const staffPass = getStaffPassword(member, clinic);
+            const staffTabs = getStaffAllowedTabs(member, clinic);
+
             return (
               <div
                 key={member.id}
@@ -176,7 +276,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
                         className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-bold text-[15px] shadow-sm shrink-0"
                         style={{ backgroundColor: member.color || '#059669' }}
                       >
-                        {member.full_name.charAt(0)}
+                        {member.full_name?.charAt(0)}
                       </div>
                       <div>
                         <h4 className="font-bold text-gray-900 text-[15px]">{member.full_name}</h4>
@@ -206,7 +306,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
                   </div>
 
                   {/* Role Badge & Color */}
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center justify-between gap-2 mb-3">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${roleInfo.bg}`}>
                       <RoleIcon size={12} />
                       <span>{roleInfo.label}</span>
@@ -219,20 +319,47 @@ export default function Staff({ clinic, staff = [], refresh }) {
                     />
                   </div>
 
-                  {/* Contact Info */}
-                  <div className="space-y-1.5 pt-3 border-t border-gray-100 text-[12px] text-gray-500">
+                  {/* Allowed Tabs Summary */}
+                  <div className="mb-3 py-2 px-3 rounded-xl bg-gray-50/80 border border-gray-100 flex items-center justify-between text-[11px]">
+                    <span className="text-gray-500 font-medium flex items-center gap-1.5">
+                      <Layers size={13} className="text-slate-500" />
+                      <span>Erişim İzinleri:</span>
+                    </span>
+                    <span className="font-bold text-slate-700">
+                      {member.role === 'admin' ? 'Tam Yetki (9/9)' : `${staffTabs.length} Sekme`}
+                    </span>
+                  </div>
+
+                  {/* Contact Info & Password */}
+                  <div className="space-y-2 pt-3 border-t border-gray-100 text-[12px] text-gray-500">
+                    {member.email && (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Mail size={13} className="text-gray-400 shrink-0" />
+                          <span className="truncate">{member.email}</span>
+                        </div>
+                      </div>
+                    )}
                     {member.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone size={13} className="text-gray-400" />
+                      <div className="flex items-center gap-1.5">
+                        <Phone size={13} className="text-gray-400 shrink-0" />
                         <span>{member.phone}</span>
                       </div>
                     )}
-                    {member.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail size={13} className="text-gray-400" />
-                        <span>{member.email}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
+                      <span className="flex items-center gap-1 font-mono">
+                        <KeyRound size={12} className="text-slate-400" /> Şifre: <strong className="text-slate-700">{staffPass}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copyPassword(member.id, staffPass)}
+                        className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
+                        title="Giriş şifresini kopyala"
+                      >
+                        {copiedPassId === member.id ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
+                        <span>{copiedPassId === member.id ? 'Kopyalandı' : 'Kopyala'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -245,12 +372,12 @@ export default function Staff({ clinic, staff = [], refresh }) {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5 sticky top-0 bg-white z-10">
               <div className="flex items-center gap-2">
                 <Users size={18} className="text-emerald-600" />
                 <h3 className="text-[16px] font-bold text-gray-900">
-                  {modalMode === 'add' ? 'Yeni Personel Ekle' : 'Personel Bilgilerini Düzenle'}
+                  {modalMode === 'add' ? 'Yeni Personel Tanımla' : 'Personel Bilgilerini ve Yetkilerini Düzenle'}
                 </h3>
               </div>
               <button
@@ -276,15 +403,15 @@ export default function Staff({ clinic, staff = [], refresh }) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">Rol (Yetki) *</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">Rol (Görev) *</label>
                   <select
                     value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    onChange={(e) => handleRoleChange(e.target.value)}
                     className="input-field bg-white"
                   >
-                    <option value="therapist">Fizyoterapist (Seans &amp; Hasta)</option>
-                    <option value="secretary">Sekreterlik (Randevu Yönetimi)</option>
-                    <option value="admin">Yönetici / Klinik Sahibi</option>
+                    <option value="therapist">Fizyoterapist (Kendi takvimi &amp; hastaları)</option>
+                    <option value="secretary">Sekreterlik / Danışma (Randevu yönetimi)</option>
+                    <option value="admin">Yönetici / Baş Hekim (Tüm yetkiler)</option>
                   </select>
                 </div>
 
@@ -292,10 +419,58 @@ export default function Staff({ clinic, staff = [], refresh }) {
                   <label className="block text-[12px] font-semibold text-gray-600 mb-1">Unvan / Uzmanlık</label>
                   <input
                     type="text"
-                    placeholder="Manuel Terapist"
+                    placeholder="Manuel Terapi Uzmanı"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     className="input-field"
+                  />
+                </div>
+              </div>
+
+              {/* Login Credentials: Email & Password */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-[13px]">
+                  <KeyRound size={15} className="text-emerald-600" />
+                  <span>Sisteme Giriş Bilgileri</span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Personeliniz kliniğe giriş yaparken bu e-posta ve şifreyi kullanacaktır. Dilediğinde kendi ekranından şifresini değiştirebilir.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[12px] font-semibold text-gray-600 mb-1">Giriş E-Postası *</label>
+                    <input
+                      required
+                      type="email"
+                      placeholder="ayse@klinik.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="input-field bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-gray-600 mb-1">Başlangıç Şifresi *</label>
+                    <input
+                      required
+                      type="text"
+                      placeholder="123456"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="input-field bg-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">İletişim Telefonu</label>
+                  <input
+                    type="tel"
+                    placeholder="05XXXXXXXXX"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="input-field bg-white"
                   />
                 </div>
               </div>
@@ -320,27 +495,62 @@ export default function Staff({ clinic, staff = [], refresh }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">Telefon</label>
-                  <input
-                    type="tel"
-                    placeholder="05XXXXXXXXX"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="input-field"
-                  />
+              {/* RBAC Allowed Tabs Selection */}
+              <div className="pt-3 border-t border-gray-100 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-[12px] font-bold text-gray-800 flex items-center gap-1.5">
+                      <Shield size={14} className="text-emerald-600" />
+                      <span>Erişebileceği Sekmeler &amp; Sayfalar</span>
+                    </label>
+                    <p className="text-[11px] text-gray-400">
+                      Personelin sol menüde görebileceği sekmeleri belirleyin.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, allowed_tabs: ALL_TABS.map(t => t.id) })}
+                      className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline cursor-pointer"
+                    >
+                      Tümü
+                    </button>
+                    <span className="text-gray-300">•</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, allowed_tabs: getDefaultTabsForRole(formData.role) })}
+                      className="text-[11px] font-semibold text-gray-500 hover:text-gray-700 hover:underline cursor-pointer"
+                    >
+                      Varsayılan
+                    </button>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">E-Posta</label>
-                  <input
-                    type="email"
-                    placeholder="terapist@klinik.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="input-field"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {ALL_TABS.map((tab) => {
+                    const isChecked = formData.allowed_tabs?.includes(tab.id);
+                    return (
+                      <label
+                        key={tab.id}
+                        className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                          isChecked
+                            ? 'border-emerald-300 bg-emerald-50/50 text-emerald-950 font-medium'
+                            : 'border-gray-200 hover:border-gray-300 bg-gray-50/30 text-gray-600'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
+                          checked={isChecked}
+                          onChange={() => toggleTab(tab.id)}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[12px] font-bold leading-tight">{tab.label}</div>
+                          <div className="text-[10px] text-gray-400 truncate mt-0.5">{tab.desc}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 

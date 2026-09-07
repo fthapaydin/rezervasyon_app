@@ -34,10 +34,12 @@ CREATE TABLE IF NOT EXISTS staff (
   clinic_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
   full_name VARCHAR NOT NULL,
   email VARCHAR,
+  password VARCHAR DEFAULT '123456',         -- Personel Giriş Şifresi
   phone VARCHAR,
   role VARCHAR NOT NULL DEFAULT 'therapist', -- 'admin' | 'therapist' | 'secretary'
   title VARCHAR DEFAULT 'Fizyoterapist',     -- 'Uzm. Fzt.', 'Manuel Terapist', 'Sekreter' vb.
   color VARCHAR DEFAULT '#059669',          -- Takvimdeki terapist rengi
+  allowed_tabs JSONB DEFAULT '["sessions","patients","requests"]'::jsonb, -- Özel Sekme Yetkileri
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -65,6 +67,7 @@ CREATE TABLE IF NOT EXISTS treatments (
   name VARCHAR NOT NULL,
   price DECIMAL NOT NULL,
   duration_minutes INTEGER NOT NULL DEFAULT 60,
+  assigned_staff_ids JSONB DEFAULT '[]'::jsonb, -- Bu tedaviyi vermeye yetkili doktor/personel ID'leri
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -228,3 +231,12 @@ ON CONFLICT (email) DO UPDATE SET password = 'fizyotim2026!', full_name = 'Fatih
 ALTER TABLE superadmins DISABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public all superadmins" ON superadmins;
 CREATE POLICY "Allow public all superadmins" ON superadmins FOR ALL USING (true) WITH CHECK (true);
+
+-- =========================================================
+-- 13. RBAC, PERSONEL ŞİFRELERİ & GELİŞMİŞ ÇALIŞMA SAATLERİ MİGRASYONU
+-- =========================================================
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS password VARCHAR DEFAULT '123456';
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS allowed_tabs JSONB DEFAULT '["sessions","patients","requests"]'::jsonb;
+ALTER TABLE treatments ADD COLUMN IF NOT EXISTS assigned_staff_ids JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE clinics ADD COLUMN IF NOT EXISTS working_schedule JSONB;
+

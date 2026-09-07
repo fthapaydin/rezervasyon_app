@@ -4,9 +4,11 @@ import { supabase } from '../lib/supabase';
 import { TURKEY_CITIES } from '../lib/turkeyCities';
 import { API_URL } from '../lib/api';
 import { 
-  Settings as SettingsIcon, Building2, Palette, Clock, MessageSquare, Save, CheckCircle2, MapPin 
+  Settings as SettingsIcon, Building2, Palette, Clock, MessageSquare, Save, CheckCircle2, MapPin,
+  Coffee, Calendar, Copy, Sparkles, Check
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
+import { ALL_DAYS, DAY_FULL_NAMES, TIME_OPTIONS, getClinicSchedule } from '../lib/scheduleUtils';
 
 const THEME_COLORS = [
   { name: 'Zümrüt Yeşili', hex: '#059669', bg: 'bg-emerald-600' },
@@ -17,10 +19,9 @@ const THEME_COLORS = [
   { name: 'Turuncu', hex: '#ea580c', bg: 'bg-orange-600' },
 ];
 
-const ALL_DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-
 export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements }) {
   const { toast } = useToast();
+  const [schedule, setSchedule] = useState(() => getClinicSchedule(clinic));
   const [formData, setFormData] = useState({
     name: clinic?.name || '',
     owner_name: clinic?.owner_name || '',
@@ -52,16 +53,50 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
     }));
   };
 
-  const toggleDay = (day) => {
-    setFormData((prev) => {
-      const exists = prev.working_days.includes(day);
+  const updateDaySchedule = (dayKey, field, value) => {
+    setSchedule(prev => ({
+      ...prev,
+      days: {
+        ...prev.days,
+        [dayKey]: {
+          ...prev.days[dayKey],
+          [field]: value
+        }
+      }
+    }));
+  };
+
+  const copyMondayToAll = () => {
+    const mondayConf = schedule.days['Pzt'] || { active: true, start: '08:00', end: '20:00' };
+    setSchedule(prev => {
+      const nextDays = { ...prev.days };
+      ALL_DAYS.forEach(d => {
+        if (d !== 'Paz') {
+          nextDays[d] = { ...mondayConf, active: true };
+        }
+      });
+      return { ...prev, days: nextDays };
+    });
+    toast.info('Pazartesi saatleri hafta içine kopyalandı.', 'Saatler Eşitlendi');
+  };
+
+  const applyStandardWeekdayPreset = () => {
+    setSchedule(prev => {
+      const nextDays = { ...prev.days };
+      ['Pzt', 'Sal', 'Çar', 'Per', 'Cum'].forEach(d => {
+        nextDays[d] = { active: true, start: '09:00', end: '19:00' };
+      });
+      nextDays['Cmt'] = { active: true, start: '10:00', end: '16:00' };
+      nextDays['Paz'] = { active: false, start: '10:00', end: '16:00' };
       return {
         ...prev,
-        working_days: exists
-          ? prev.working_days.filter((d) => d !== day)
-          : [...prev.working_days, day],
+        break_enabled: true,
+        break_start: '12:00',
+        break_end: '13:00',
+        days: nextDays
       };
     });
+    toast.info('Hafta içi 09-19, Cmt 10-16, Pazar tatil şablonu uygulandı.', 'Standart Şablon');
   };
 
   const handleSubmit = async (e) => {
@@ -72,22 +107,45 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
     setSavedSuccess(false);
 
     try {
+      const activeDaysList = Object.keys(schedule.days).filter(d => schedule.days[d]?.active);
+      const activeStarts = Object.values(schedule.days).filter(d => d.active).map(d => d.start).sort();
+      const activeEnds = Object.values(schedule.days).filter(d => d.active).map(d => d.end).sort();
+      const calculatedMinStart = activeStarts[0] || '08:00';
+      const calculatedMaxEnd = activeEnds[activeEnds.length - 1] || '20:00';
+
+      const fullSchedule = {
+        ...schedule,
+        active_days: activeDaysList
+      };
+
+      const payload = {
+        ...formData,
+        work_start_time: calculatedMinStart,
+        work_end_time: calculatedMaxEnd,
+        working_days: fullSchedule
+      };
+
       const { data, error } = await supabase
         .from('clinics')
-        .update(formData)
+        .update(payload)
         .eq('id', clinic.id)
         .select()
         .single();
 
       if (error) {
-        const res = await axios.put(`${API_URL}/clinics/${clinic.id}`, formData);
+        // Fallback: working_days as array if backend accepts only array
+        const fallbackPayload = {
+          ...payload,
+          working_days: activeDaysList
+        };
+        const res = await axios.put(`${API_URL}/clinics/${clinic.id}`, fallbackPayload);
         onClinicUpdated(res.data);
       } else if (data) {
         onClinicUpdated(data);
       }
 
       setSavedSuccess(true);
-      toast.success('Klinik ayarları başarıyla kaydedildi.', 'Ayarlar Güncellendi');
+      toast.success('Klinik ayarları ve mesai programı başarıyla kaydedildi.', 'Ayarlar Güncellendi');
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err) {
       toast.error(err.message || 'Ayarlar kaydedilirken hata oluştu.', 'Hata');
@@ -220,59 +278,162 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         </div>
       </div>
 
-      {/* 3. Çalışma Saatleri & Günleri */}
+      {/* 3. Çalışma Saatleri, Günlük Mesai & Mola (Öğle Arası) */}
       <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-5">
-        <div className="flex items-center gap-2.5 pb-4 border-b border-gray-100">
-          <Clock size={18} className="text-emerald-600" />
-          <h3 className="text-[15px] font-bold text-gray-900">Çalışma Saatleri &amp; Günleri</h3>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-[12px] font-semibold text-gray-600 mb-1">Mesai Başlangıç Saati</label>
-            <select
-              value={formData.work_start_time}
-              onChange={(e) => setFormData({ ...formData, work_start_time: e.target.value })}
-              className="input-field bg-white"
-            >
-              {['07:00', '08:00', '09:00', '10:00'].map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <Clock size={18} className="text-emerald-600" />
+            <div>
+              <h3 className="text-[15px] font-bold text-gray-900">Çalışma Saatleri &amp; Günlük Mesai</h3>
+              <p className="text-[12px] text-gray-400">Her gün için ayrı mesai saatleri ve öğle arası/mola aralığı belirleyin</p>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-[12px] font-semibold text-gray-600 mb-1">Mesai Bitiş Saati</label>
-            <select
-              value={formData.work_end_time}
-              onChange={(e) => setFormData({ ...formData, work_end_time: e.target.value })}
-              className="input-field bg-white"
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={applyStandardWeekdayPreset}
+              className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-[11px] font-medium text-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Hafta içi 09:00 - 19:00, Cumartesi 10:00 - 16:00 uygula"
             >
-              {['17:00', '18:00', '19:00', '20:00', '21:00', '22:00'].map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+              <Sparkles size={12} className="text-amber-500" />
+              <span>Standart Şablon</span>
+            </button>
+            <button
+              type="button"
+              onClick={copyMondayToAll}
+              className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-[11px] font-medium text-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Pazartesi saatlerini Salı-Cumartesi arasındaki günlere kopyala"
+            >
+              <Copy size={12} className="text-blue-500" />
+              <span>Pzt'yi Kopyala</span>
+            </button>
           </div>
         </div>
 
-        <div>
-          <label className="block text-[12px] font-semibold text-gray-600 mb-2">Çalışılan Günler</label>
-          <div className="flex flex-wrap gap-2">
-            {ALL_DAYS.map((day) => {
-              const isSelected = formData.working_days.includes(day);
+        {/* ─── Öğle Arası / Mola Ayarı ─── */}
+        <div className="p-4 rounded-xl bg-amber-50/50 border border-amber-200/60 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Coffee size={16} className="text-amber-700" />
+              <span className="text-[13px] font-bold text-amber-900">Öğle Arası / Dinlenme Molası</span>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={schedule.break_enabled}
+                onChange={(e) => setSchedule(prev => ({ ...prev, break_enabled: e.target.checked }))}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+            </label>
+          </div>
+
+          {schedule.break_enabled && (
+            <div className="pt-2 border-t border-amber-200/40 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] font-semibold text-amber-900 shrink-0 w-24">Mola Başlangıç:</span>
+                <select
+                  value={schedule.break_start}
+                  onChange={(e) => setSchedule(prev => ({ ...prev, break_start: e.target.value }))}
+                  className="input-field bg-white text-[12px] h-8"
+                >
+                  {TIME_OPTIONS.filter(t => t >= '11:00' && t <= '15:00').map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] font-semibold text-amber-900 shrink-0 w-24">Mola Bitiş:</span>
+                <select
+                  value={schedule.break_end}
+                  onChange={(e) => setSchedule(prev => ({ ...prev, break_end: e.target.value }))}
+                  className="input-field bg-white text-[12px] h-8"
+                >
+                  {TIME_OPTIONS.filter(t => t > schedule.break_start && t <= '16:00').map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          <p className="text-[11px] text-amber-800/80 leading-relaxed">
+            💡 Mola saatleri klinik takviminde kilitli mola hücresi olarak görünür, online rezervasyon sayfasında ise randevuya otomatik kapatılır.
+          </p>
+        </div>
+
+        {/* ─── Gün Bazlı Saat Seçici ─── */}
+        <div className="space-y-2.5">
+          <label className="block text-[12px] font-bold text-slate-700">
+            Haftalık Gün Programı &amp; Çalışma Saatleri
+          </label>
+
+          <div className="divide-y divide-gray-100 border border-gray-200/80 rounded-xl overflow-hidden bg-white">
+            {ALL_DAYS.map((dayKey) => {
+              const dayConf = schedule.days[dayKey] || { active: false, start: '09:00', end: '19:00' };
+              const fullName = DAY_FULL_NAMES[dayKey] || dayKey;
+
               return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => toggleDay(day)}
-                  className={`h-9 px-3.5 rounded-xl text-[12px] font-semibold transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                <div 
+                  key={dayKey} 
+                  className={`p-3 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors ${
+                    dayConf.active ? 'bg-white' : 'bg-slate-50/60 opacity-75'
                   }`}
                 >
-                  {day}
-                </button>
+                  {/* Gün Başlığı ve Durum Butonu */}
+                  <div className="flex items-center justify-between sm:justify-start gap-3 sm:w-48">
+                    <span className="font-bold text-[13px] text-slate-900">
+                      {fullName} <span className="text-[11px] font-normal text-slate-400">({dayKey})</span>
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => updateDaySchedule(dayKey, 'active', !dayConf.active)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                        dayConf.active
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {dayConf.active ? '✓ Açık' : '✕ Tatil'}
+                    </button>
+                  </div>
+
+                  {/* Saat Seçiciler (Açık ise) */}
+                  {dayConf.active ? (
+                    <div className="flex items-center gap-2 text-[12px]">
+                      <span className="text-slate-400 text-[11px]">Başlangıç:</span>
+                      <select
+                        value={dayConf.start}
+                        onChange={(e) => updateDaySchedule(dayKey, 'start', e.target.value)}
+                        className="input-field bg-white h-8 text-[12px] w-24 py-1"
+                      >
+                        {TIME_OPTIONS.filter(t => t <= '14:00').map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+
+                      <span className="text-slate-400">—</span>
+
+                      <span className="text-slate-400 text-[11px]">Bitiş:</span>
+                      <select
+                        value={dayConf.end}
+                        onChange={(e) => updateDaySchedule(dayKey, 'end', e.target.value)}
+                        className="input-field bg-white h-8 text-[12px] w-24 py-1"
+                      >
+                        {TIME_OPTIONS.filter(t => t > dayConf.start).map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-slate-400 italic">
+                      Bu gün randevu kabul edilmez (Klinik kapalı).
+                    </span>
+                  )}
+                </div>
               );
             })}
           </div>

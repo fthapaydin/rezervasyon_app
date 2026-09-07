@@ -36,7 +36,7 @@ const NAV_GROUPS = [
   }
 ];
 
-export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobileOpen, onLogout, pendingCount = 0, clinic }) {
+export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobileOpen, onLogout, pendingCount = 0, clinic, activeUser }) {
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('fizyo_sidebar_collapsed') === 'true';
@@ -44,6 +44,14 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
       return false;
     }
   });
+
+  const navGroups = NAV_GROUPS.map(group => {
+    if (!activeUser || activeUser.role === 'admin' || !activeUser.allowed_tabs) {
+      return group;
+    }
+    const filteredItems = group.items.filter(item => activeUser.allowed_tabs.includes(item.id));
+    return { ...group, items: filteredItems };
+  }).filter(group => group.items.length > 0);
 
   const toggleCollapse = () => {
     setCollapsed(prev => {
@@ -120,7 +128,7 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
 
       {/* ─── Navigation Menu with Categories ─── */}
       <nav className={`flex-1 ${isCollapsed ? 'px-2 py-3 space-y-1.5 overflow-visible' : 'px-3 py-3 space-y-4 overflow-y-auto'}`}>
-        {NAV_GROUPS.map((group, gIdx) => (
+        {navGroups.map((group, gIdx) => (
           <div key={group.title} className="space-y-0.5">
             {!isCollapsed ? (
               <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider select-none">
@@ -210,17 +218,20 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
           <>
             <div className="p-2.5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs mb-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 font-black text-[12px] flex items-center justify-center shrink-0 border border-emerald-200">
-                  {clinic?.owner_name ? clinic.owner_name.charAt(0).toUpperCase() : 'K'}
+                <div 
+                  className="w-8 h-8 rounded-xl text-white font-black text-[12px] flex items-center justify-center shrink-0 shadow-2xs"
+                  style={{ backgroundColor: activeUser?.color || (activeUser?.role === 'admin' || !activeUser?.role ? '#059669' : '#2563eb') }}
+                >
+                  {(activeUser?.full_name || clinic?.owner_name || 'K').charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[12px] font-bold text-gray-800 truncate leading-tight">
-                    {clinic?.owner_name || 'Klinik Yöneticisi'}
+                    {activeUser?.full_name || clinic?.owner_name || 'Klinik Yöneticisi'}
                   </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     <span className="text-[10px] text-gray-500 font-medium capitalize truncate">
-                      {clinic?.city ? `${clinic.city}` : 'Aktif Hesap'}
+                      {activeUser?.title || (activeUser?.role === 'therapist' ? 'Fizyoterapist' : activeUser?.role === 'secretary' ? 'Sekreterlik' : (clinic?.city || 'Yönetici'))}
                     </span>
                   </div>
                 </div>
@@ -240,14 +251,15 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
             {/* Collapsed Profile Icon with Tooltip */}
             <div className="relative group">
               <div 
-                className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 font-black text-[13px] flex items-center justify-center border border-emerald-200 cursor-default"
-                title={clinic?.owner_name || 'Klinik Yöneticisi'}
+                className="w-10 h-10 rounded-xl text-white font-black text-[13px] flex items-center justify-center border shadow-2xs cursor-default"
+                style={{ backgroundColor: activeUser?.color || (activeUser?.role === 'admin' || !activeUser?.role ? '#059669' : '#2563eb') }}
+                title={activeUser?.full_name || clinic?.owner_name || 'Klinik Yöneticisi'}
               >
-                {clinic?.owner_name ? clinic.owner_name.charAt(0).toUpperCase() : 'K'}
+                {(activeUser?.full_name || clinic?.owner_name || 'K').charAt(0).toUpperCase()}
               </div>
               <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-slate-900 text-white text-[12px] font-semibold rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50">
-                <p className="font-bold">{clinic?.owner_name || 'Klinik Yöneticisi'}</p>
-                <p className="text-[10px] text-slate-400">{clinic?.name || 'Fizyotim Pro'}</p>
+                <p className="font-bold">{activeUser?.full_name || clinic?.owner_name || 'Klinik Yöneticisi'}</p>
+                <p className="text-[10px] text-slate-400">{activeUser?.title || clinic?.name || 'Fizyotim Pro'}</p>
                 <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
               </div>
             </div>

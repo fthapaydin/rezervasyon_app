@@ -17,6 +17,8 @@ import { exportSessionsToExcel } from '../lib/excelExport';
 import { useToast } from '../components/ui/Toast';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { API_URL } from '../lib/api';
+import { getClinicSchedule, isBreakSlot, isDayWorkingHour } from '../lib/scheduleUtils';
+import { getTreatmentAssignedStaff } from '../lib/rbacUtils';
 
 const DAY_NAMES = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 const SHORT_DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -102,7 +104,7 @@ function DragOverlayCard({ session }) {
 }
 
 
-export default function Sessions({ clinic, staff = [], sessions, requests = [], patients, treatments, refresh, onPatientClick }) {
+export default function Sessions({ clinic, staff = [], sessions, requests = [], patients, treatments, refresh, onPatientClick, activeUser }) {
   const { toast } = useToast();
   const [viewMode, setViewModeState] = useState(() => {
     try {
@@ -119,7 +121,56 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
     } catch {}
   };
 
-  const [selectedTherapistId, setSelectedTherapistId] = useState('all');
+  const isTherapistRole = activeUser?.role === 'therapist' && activeUser?.staff_id;
+
+  const [selectedTherapistId, setSelectedTherapistId] = useState(() => {
+    if (activeUser?.role === 'therapist' && activeUser?.staff_id) {
+      return activeUser.staff_id;
+    }
+    return 'all';
+  });
+
+  useEffect(() => {
+    if (activeUser?.role === 'therapist' && activeUser?.staff_id) {
+      setSelectedTherapistId(activeUser.staff_id);
+    }
+  }, [activeUser]);
+
+  const clinicSchedule = useMemo(() => getClinicSchedule(clinic), [clinic]);
+
+  const dynamicHours = useMemo(() => {
+    let minHour = 8;
+    let maxHour = 20;
+    if (clinicSchedule?.days) {
+      Object.values(clinicSchedule.days).forEach(conf => {
+        if (conf?.active) {
+          const s = parseInt(conf.start?.split(':')[0], 10);
+          const e = parseInt(conf.end?.split(':')[0], 10);
+          if (!isNaN(s) && s < minHour) minHour = s;
+          if (!isNaN(e) && e > maxHour) maxHour = e;
+        }
+      });
+    }
+    const res = [];
+    for (let h = minHour; h <= maxHour; h++) {
+      res.push(`${String(h).padStart(2, '0')}:00`);
+    }
+    return res.length > 0 ? res : HOURS;
+  }, [clinicSchedule]);
+
+  // Belirli bir tedaviye atanmış veya tüm terapistleri getir
+  const getEligibleTherapistsForTreatment = useCallback((treatmentId) => {
+    const allTherapists = staff.filter(s => s.role === 'therapist' || s.role === 'admin');
+    if (!treatmentId) return allTherapists;
+    const tr = treatments.find(t => t.id === treatmentId);
+    const assignedIds = getTreatmentAssignedStaff(tr, clinic);
+    if (!assignedIds || assignedIds.length === 0) {
+      return allTherapists;
+    }
+    const matched = staff.filter(s => assignedIds.includes(s.id));
+    return matched.length > 0 ? matched : allTherapists;
+  }, [staff, treatments, clinic]);
+
   const [modalMode, setModalMode] = useState(null);
   const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', therapist_id: '', session_date: '', session_time: '', notes: '' });
   const [recurData, setRecurData] = useState({ patient_id: '', treatment_id: '', therapist_id: '', session_time: '', start_date: '', repeat_type: 'weekly', repeat_count: 8 });
@@ -207,10 +258,19 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   };
 
   const handleCellClick = (dateStr, hourStr) => {
+    if (isBreakSlot(hourStr, clinicSchedule)) {
+      toast.info('Bu saat kliniğin mola / öğle arası saatidir.', 'Mola Vakti');
+      return;
+    }
+
+    const defaultTherapist = isTherapistRole 
+      ? activeUser.staff_id 
+      : (selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''));
+
     setFormData({
       patient_id: '',
       treatment_id: treatments[0]?.id || '',
-      therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''),
+      therapist_id: defaultTherapist,
       session_date: dateStr,
       session_time: hourStr,
       notes: ''
@@ -226,6 +286,12 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
     }
 
     const timeFormatted = formData.session_time?.substring(0, 5);
+
+    // Mola Saati Kontrolü
+    if (isBreakSlot(timeFormatted, clinicSchedule)) {
+      toast.warning('Seçtiğiniz saat kliniğin mola / öğle arası saatidir. Lütfen randevuyu mesai saatine ayarlayınız.', 'Mola Saati Koruması');
+      return;
+    }
 
     // Geçmiş Tarih Kontrolü
     if (formData.session_date < today && !allowPastBooking) {
@@ -411,6 +477,11 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
     e.preventDefault(); 
     if (staff.length > 1 && !recurData.therapist_id) {
       toast.warning('Lütfen bir fizyoterapist seçiniz.', 'Terapist Seçimi');
+      return;
+    }
+
+    if (isBreakSlot(recurData.session_time, clinicSchedule)) {
+      toast.warning('Tekrarlayan randevu saati kliniğin mola / öğle arası saatine denk gelmektedir.', 'Mola Saati Koruması');
       return;
     }
     setSubmitting(true);
@@ -810,6 +881,15 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
 
     if (!targetDate || !targetTime) return;
 
+    // Mola saati koruması
+    if (isBreakSlot(targetTime, clinicSchedule)) {
+      toast.warning(
+        `Seçtiğiniz saat (${targetTime}) kliniğin mola / öğle arası saatidir. Randevular mola saatine taşınamaz.`,
+        'Mola Koruması'
+      );
+      return;
+    }
+
     // Geçmiş tarihe taşıma engeli
     if (targetDate < today) {
       toast.warning(
@@ -881,10 +961,17 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
           {staff.length > 0 && (
             <div className="flex items-center gap-1.5">
               <Stethoscope size={15} className="text-gray-400" />
-              <select value={selectedTherapistId} onChange={(e) => setSelectedTherapistId(e.target.value)} className="h-8 px-2.5 rounded-lg border border-gray-200 bg-white text-[12px] font-semibold text-gray-700 outline-none">
-                <option value="all">Tüm Terapistler ({staff.length})</option>
-                {staff.map((s) => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
-              </select>
+              {isTherapistRole ? (
+                <div className="h-8 px-2.5 rounded-lg border border-emerald-200 bg-emerald-50 text-[12px] font-bold text-emerald-800 flex items-center gap-1.5 shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                  <span>{activeUser?.full_name} (Kendi Takvimim)</span>
+                </div>
+              ) : (
+                <select value={selectedTherapistId} onChange={(e) => setSelectedTherapistId(e.target.value)} className="h-8 px-2.5 rounded-lg border border-gray-200 bg-white text-[12px] font-semibold text-gray-700 outline-none">
+                  <option value="all">Tüm Terapistler ({staff.length})</option>
+                  {staff.map((s) => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+                </select>
+              )}
             </div>
           )}
           <div className="flex bg-slate-100 p-0.5 rounded-lg text-[12px] font-medium text-slate-600">
@@ -903,11 +990,19 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
             <FileSpreadsheet size={13} className="text-slate-500" />
             <span>Excel'e Aktar</span>
           </button>
-          <button onClick={() => { setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_date: today, session_time: '09:00', notes: '' }); setModalMode('single'); }} className="flex items-center gap-1.5 h-8 px-3.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer">
+          <button onClick={() => { 
+            const defaultTh = isTherapistRole ? activeUser.staff_id : (selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''));
+            setFormData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: defaultTh, session_date: today, session_time: '09:00', notes: '' }); 
+            setModalMode('single'); 
+          }} className="flex items-center gap-1.5 h-8 px-3.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer">
             <Plus size={13} />
             <span>+ Tekli Seans</span>
           </button>
-          <button onClick={() => { setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''), session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 }); setModalMode('recurring'); }} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-colors cursor-pointer">
+          <button onClick={() => { 
+            const defaultTh = isTherapistRole ? activeUser.staff_id : (selectedTherapistId !== 'all' ? selectedTherapistId : (staff.length === 1 ? staff[0]?.id : ''));
+            setRecurData({ patient_id: '', treatment_id: treatments[0]?.id || '', therapist_id: defaultTh, session_time: '10:00', start_date: today, repeat_type: 'weekly', repeat_count: 8 }); 
+            setModalMode('recurring'); 
+          }} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-colors cursor-pointer">
             <Repeat size={13} className="text-slate-500" />
             <span>Tekrarlayan Paket</span>
           </button>
@@ -920,12 +1015,49 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
           <form onSubmit={handleSingleSubmit} className="space-y-4">
             <FormField label="Hasta *"><select required value={formData.patient_id} className="input-field" onChange={e => setFormData({...formData, patient_id: e.target.value})}><option value="">Hasta seçiniz...</option>{patients.map(p => <option key={p.id} value={p.id}>{p.full_name}{p.complaint ? ` — (${p.complaint})` : ''}</option>)}</select></FormField>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Tedavi *"><select required value={formData.treatment_id} className="input-field" onChange={e => setFormData({...formData, treatment_id: e.target.value})}><option value="">Tedavi seçiniz...</option>{treatments.map(t => <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes} dk) — {t.price} ₺</option>)}</select></FormField>
-              <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
-                <select required={staff.length > 1} value={formData.therapist_id} className="input-field" onChange={e => setFormData({...formData, therapist_id: e.target.value})}>
-                  <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist seçiniz...'}</option>
-                  {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+              <FormField label="Tedavi *">
+                <select 
+                  required 
+                  value={formData.treatment_id} 
+                  className="input-field" 
+                  onChange={e => {
+                    const newTrId = e.target.value;
+                    const eligible = getEligibleTherapistsForTreatment(newTrId);
+                    let newThId = formData.therapist_id;
+                    if (!eligible.some(s => s.id === newThId)) {
+                      newThId = isTherapistRole ? (eligible.some(s => s.id === activeUser.staff_id) ? activeUser.staff_id : '') : (eligible[0]?.id || '');
+                    }
+                    setFormData({...formData, treatment_id: newTrId, therapist_id: newThId});
+                  }}
+                >
+                  <option value="">Tedavi seçiniz...</option>
+                  {treatments.map(t => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes} dk) — {t.price} ₺</option>
+                  ))}
                 </select>
+              </FormField>
+              <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
+                {isTherapistRole ? (
+                  <div className="input-field bg-gray-50 flex items-center justify-between text-gray-700">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeUser?.color || '#059669' }} />
+                      <span className="truncate font-semibold">{activeUser?.full_name}</span>
+                    </div>
+                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">Terapist</span>
+                  </div>
+                ) : (
+                  <select 
+                    required={staff.length > 1} 
+                    value={formData.therapist_id} 
+                    className="input-field" 
+                    onChange={e => setFormData({...formData, therapist_id: e.target.value})}
+                  >
+                    <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist seçiniz...'}</option>
+                    {getEligibleTherapistsForTreatment(formData.treatment_id).map(s => (
+                      <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>
+                    ))}
+                  </select>
+                )}
               </FormField>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -961,12 +1093,49 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
           <form onSubmit={handleRecurSubmit} className="space-y-4">
             <FormField label="Hasta *"><select required value={recurData.patient_id} className="input-field" onChange={e => setRecurData({...recurData, patient_id: e.target.value})}><option value="">Hasta seçiniz...</option>{patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}</select></FormField>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Tedavi *"><select required value={recurData.treatment_id} className="input-field" onChange={e => setRecurData({...recurData, treatment_id: e.target.value})}><option value="">Tedavi...</option>{treatments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></FormField>
-              <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
-                <select required={staff.length > 1} value={recurData.therapist_id} className="input-field" onChange={e => setRecurData({...recurData, therapist_id: e.target.value})}>
-                  <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist...'}</option>
-                  {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+              <FormField label="Tedavi *">
+                <select 
+                  required 
+                  value={recurData.treatment_id} 
+                  className="input-field" 
+                  onChange={e => {
+                    const newTrId = e.target.value;
+                    const eligible = getEligibleTherapistsForTreatment(newTrId);
+                    let newThId = recurData.therapist_id;
+                    if (!eligible.some(s => s.id === newThId)) {
+                      newThId = isTherapistRole ? (eligible.some(s => s.id === activeUser.staff_id) ? activeUser.staff_id : '') : (eligible[0]?.id || '');
+                    }
+                    setRecurData({...recurData, treatment_id: newTrId, therapist_id: newThId});
+                  }}
+                >
+                  <option value="">Tedavi...</option>
+                  {treatments.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
                 </select>
+              </FormField>
+              <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
+                {isTherapistRole ? (
+                  <div className="input-field bg-gray-50 flex items-center justify-between text-gray-700">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeUser?.color || '#059669' }} />
+                      <span className="truncate font-semibold">{activeUser?.full_name}</span>
+                    </div>
+                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">Terapist</span>
+                  </div>
+                ) : (
+                  <select 
+                    required={staff.length > 1} 
+                    value={recurData.therapist_id} 
+                    className="input-field" 
+                    onChange={e => setRecurData({...recurData, therapist_id: e.target.value})}
+                  >
+                    <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist...'}</option>
+                    {getEligibleTherapistsForTreatment(recurData.treatment_id).map(s => (
+                      <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>
+                    ))}
+                  </select>
+                )}
               </FormField>
             </div>
             <div className="grid grid-cols-3 gap-3">
@@ -1051,7 +1220,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                   </tr>
                 </thead>
                 <tbody className="divide-y-2 divide-gray-200">
-                  {HOURS.map((hour) => (
+                  {dynamicHours.map((hour) => (
                     <tr key={hour}>
                       <td className="px-2 py-1.5 text-[12px] font-bold text-gray-400 border-r-2 border-gray-200 bg-gray-50/40 text-center align-top pt-3">{hour}</td>
                       {weekDays.map((day, di) => {
@@ -1059,6 +1228,35 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                         const isToday = dateStr === today;
                         const cellSessions = sessionMap[dateStr]?.[hour] || [];
                         const cellId = `cell|${dateStr}|${hour}`;
+                        const dayKey = SHORT_DAYS[di];
+                        const isBreak = isBreakSlot(hour, clinicSchedule);
+                        const isDayWorking = isDayWorkingHour(dayKey, hour, clinicSchedule);
+
+                        if (isBreak && cellSessions.length === 0) {
+                          return (
+                            <td
+                              key={di}
+                              className="border-r-2 border-gray-200 last:border-r-0 align-middle text-center bg-amber-50/70 p-2 select-none border-dashed"
+                            >
+                              <div className="flex flex-col items-center justify-center py-2 text-amber-800/80">
+                                <span className="text-[11px] font-bold">☕ Mola</span>
+                                <span className="text-[9px] text-amber-600/70 font-medium">Öğle Arası</span>
+                              </div>
+                            </td>
+                          );
+                        }
+
+                        if (!isDayWorking && cellSessions.length === 0) {
+                          return (
+                            <td
+                              key={di}
+                              className="border-r-2 border-gray-200 last:border-r-0 align-middle text-center bg-gray-100/60 p-2 select-none"
+                            >
+                              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Kapalı</span>
+                            </td>
+                          );
+                        }
+
                         return (
                           <DroppableCell
                             key={di}

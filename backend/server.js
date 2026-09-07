@@ -355,13 +355,23 @@ app.get('/api/treatments', async (req, res) => {
 app.post('/api/treatments', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
   const clinicId = req.body.clinic_id || getClinicId(req);
-  const { name, price, duration_minutes } = req.body;
+  const { name, price, duration_minutes, assigned_staff_ids } = req.body;
   if (!name || !price) return res.status(400).json({ error: "Ad ve Fiyat zorunludur." });
 
   try {
-    const { data, error } = await supabase.from('treatments').insert([{
+    const payload = {
       clinic_id: clinicId, name, price, duration_minutes: duration_minutes || 60
-    }]).select();
+    };
+    if (assigned_staff_ids !== undefined) {
+      payload.assigned_staff_ids = assigned_staff_ids;
+    }
+    let { data, error } = await supabase.from('treatments').insert([payload]).select();
+    if (error && error.message?.includes('assigned_staff_ids')) {
+      delete payload.assigned_staff_ids;
+      const retry = await supabase.from('treatments').insert([payload]).select();
+      data = retry.data;
+      error = retry.error;
+    }
     if (error) throw error;
     res.status(201).json(data[0]);
   } catch (err) {
@@ -371,13 +381,27 @@ app.post('/api/treatments', async (req, res) => {
 
 app.put('/api/treatments/:id', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
-  const { name, price, duration_minutes } = req.body;
+  const { name, price, duration_minutes, assigned_staff_ids } = req.body;
   try {
-    const { data, error } = await supabase
+    const payload = { name, price, duration_minutes };
+    if (assigned_staff_ids !== undefined) {
+      payload.assigned_staff_ids = assigned_staff_ids;
+    }
+    let { data, error } = await supabase
       .from('treatments')
-      .update({ name, price, duration_minutes })
+      .update(payload)
       .eq('id', req.params.id)
       .select();
+    if (error && error.message?.includes('assigned_staff_ids')) {
+      delete payload.assigned_staff_ids;
+      const retry = await supabase
+        .from('treatments')
+        .update(payload)
+        .eq('id', req.params.id)
+        .select();
+      data = retry.data;
+      error = retry.error;
+    }
     if (error) throw error;
     res.json(data[0]);
   } catch (err) {
