@@ -38,7 +38,6 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
         price: Number(formData.price || 0),
         duration_minutes: Number(formData.duration_minutes || 60),
         assigned_staff_ids: formData.assigned_staff_ids || [],
-        clinic_id: clinic?.id,
       };
 
       if (editItem) {
@@ -49,10 +48,13 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
           .eq('id', editItem.id)
           .select();
 
-        // Eğer assigned_staff_ids kolonu veritabanında yoksa hatayı yakala
-        if (error && error.message?.includes('assigned_staff_ids')) {
-          const cleanPayload = { ...payload };
-          delete cleanPayload.assigned_staff_ids;
+        // Eğer veritabanında henüz assigned_staff_ids veya clinic_id kolonu yoksa
+        if (error && (error.message?.includes('assigned_staff_ids') || error.message?.includes('clinic_id'))) {
+          const cleanPayload = {
+            name: payload.name,
+            price: payload.price,
+            duration_minutes: payload.duration_minutes,
+          };
           const retry = await supabase.from('treatments').update(cleanPayload).eq('id', editItem.id).select();
           data = retry.data;
           error = retry.error;
@@ -75,9 +77,12 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
           .insert([payload])
           .select();
 
-        if (error && error.message?.includes('assigned_staff_ids')) {
-          const cleanPayload = { ...payload };
-          delete cleanPayload.assigned_staff_ids;
+        if (error && (error.message?.includes('assigned_staff_ids') || error.message?.includes('clinic_id'))) {
+          const cleanPayload = {
+            name: payload.name,
+            price: payload.price,
+            duration_minutes: payload.duration_minutes,
+          };
           const retry = await supabase.from('treatments').insert([cleanPayload]).select();
           data = retry.data;
           error = retry.error;
