@@ -1,10 +1,12 @@
 {
   "name": "rezervasyon-app",
   "version": "1.0.0",
+  "type": "module",
   "description": "Root package for running both frontend and backend concurrently",
   "scripts": {
     "dev": "npx concurrently \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
     "build": "npm --prefix frontend run build",
+    "test": "node scripts/test-runner.js",
     "install:all": "npm --prefix backend install && npm --prefix frontend install"
   }
 }

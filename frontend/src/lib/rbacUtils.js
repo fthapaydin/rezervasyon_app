@@ -135,3 +135,12 @@ export async function syncTreatmentStaffToClinic(clinic, treatmentId, assignedSt
     console.warn('syncTreatmentStaffToClinic warning:', err);
   }
 }
+
+// Get treatments assigned to a specific staff member
+export function getStaffAssignedTreatments(staffId, treatments = [], clinic = null) {
+  if (!staffId || !Array.isArray(treatments)) return [];
+  return treatments.filter(t => {
+    const assignedStaff = getTreatmentAssignedStaff(t, clinic);
+    return assignedStaff.includes(staffId);
+  });
+}

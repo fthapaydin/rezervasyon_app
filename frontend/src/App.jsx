@@ -345,7 +345,7 @@ function App() {
                 {activeTab === 'dashboard'  && <Dashboard clinic={clinic} patients={patients} sessions={sessions} payments={payments} requests={requests} onPatientClick={openPatientDetail} onNavigateToRequests={() => setActiveTab('requests')} setActiveTab={setActiveTab} />}
                 {activeTab === 'patients'   && <Patients clinic={clinic} patients={patients} sessions={sessions} staff={staff} treatments={treatments} selectedPatientId={selectedPatientId} setSelectedPatientId={setSelectedPatientId} refresh={fetchData} />}
                 {activeTab === 'treatments' && <Treatments clinic={clinic} treatments={treatments} staff={staff} refresh={fetchData} />}
-                {activeTab === 'staff'      && <Staff clinic={clinic} staff={staff} refresh={fetchData} />}
+                {activeTab === 'staff'      && <Staff clinic={clinic} staff={staff} treatments={treatments} refresh={fetchData} />}
                 {activeTab === 'sessions'   && <Sessions clinic={clinic} staff={staff} sessions={sessions} requests={requests} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} activeUser={activeUser} />}
                 {activeTab === 'payments'   && <Payments clinic={clinic} payments={payments} sessions={sessions} patients={patients} refresh={fetchData} />}
                 {activeTab === 'reports'    && <Reports clinic={clinic} patients={patients} sessions={sessions} payments={payments} treatments={treatments} staff={staff} activeUser={activeUser} />}

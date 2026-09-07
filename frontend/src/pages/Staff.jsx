@@ -4,12 +4,13 @@ import { supabase } from '../lib/supabase';
 import { API_URL } from '../lib/api';
 import { 
   Users, Plus, X, Pencil, Trash2, ShieldCheck, Stethoscope, UserCheck, Phone, Mail, 
-  CheckCircle2, KeyRound, Layers, Check, Copy, Shield, Lock
+  CheckCircle2, KeyRound, Layers, Check, Copy, Shield, Lock, Activity
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { 
-  ALL_TABS, getDefaultTabsForRole, getStaffPassword, getStaffAllowedTabs, syncStaffMetaToClinic 
+  ALL_TABS, getDefaultTabsForRole, getStaffPassword, getStaffAllowedTabs, syncStaffMetaToClinic,
+  getTreatmentAssignedStaff, syncTreatmentStaffToClinic, getStaffAssignedTreatments
 } from '../lib/rbacUtils';
 
 const ROLE_MAP = {
@@ -28,7 +29,7 @@ const COLOR_PRESETS = [
   '#4b5563', // Gray
 ];
 
-export default function Staff({ clinic, staff = [], refresh }) {
+export default function Staff({ clinic, staff = [], treatments = [], refresh }) {
   const { toast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -48,6 +49,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
     email: '',
     password: '123456',
     allowed_tabs: getDefaultTabsForRole('therapist'),
+    assigned_treatment_ids: [],
   });
 
   const openAdd = () => {
@@ -62,6 +64,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
       email: '',
       password: '123456',
       allowed_tabs: getDefaultTabsForRole('therapist'),
+      assigned_treatment_ids: treatments.map(t => t.id),
     });
     setShowModal(true);
   };
@@ -71,6 +74,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
     setSelectedStaff(member);
     const pass = getStaffPassword(member, clinic);
     const tabs = getStaffAllowedTabs(member, clinic);
+    const assignedTreats = getStaffAssignedTreatments(member.id, treatments, clinic).map(t => t.id);
     setFormData({
       full_name: member.full_name || '',
       role: member.role || 'therapist',
@@ -80,8 +84,19 @@ export default function Staff({ clinic, staff = [], refresh }) {
       email: member.email || '',
       password: pass,
       allowed_tabs: tabs,
+      assigned_treatment_ids: assignedTreats,
     });
     setShowModal(true);
+  };
+
+  const toggleTreatment = (treatmentId) => {
+    setFormData(prev => {
+      const current = prev.assigned_treatment_ids || [];
+      const next = current.includes(treatmentId)
+        ? current.filter(id => id !== treatmentId)
+        : [...current, treatmentId];
+      return { ...prev, assigned_treatment_ids: next };
+    });
   };
 
   const handleRoleChange = (newRole) => {
@@ -114,10 +129,11 @@ export default function Staff({ clinic, staff = [], refresh }) {
     setSubmitting(true);
     try {
       let targetStaffId = selectedStaff?.id;
+      const { assigned_treatment_ids, ...cleanFormData } = formData;
 
       if (modalMode === 'add') {
         const payload = {
-          ...formData,
+          ...cleanFormData,
           clinic_id: clinic?.id,
           is_active: true,
         };
@@ -155,7 +171,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
 
         toast.success(`"${formData.full_name}" ekibe eklendi.`, 'Personel Kaydedildi');
       } else {
-        const payload = { ...formData };
+        const payload = { ...cleanFormData };
         let { error } = await supabase
           .from('staff')
           .update(payload)
@@ -188,6 +204,26 @@ export default function Staff({ clinic, staff = [], refresh }) {
         toast.success(`"${formData.full_name}" bilgileri güncellendi.`, 'Personel Güncellendi');
       }
 
+      // Tedavi Atamalarını Senkronize Et (Terapist veya Yönetici ise)
+      if (targetStaffId && (formData.role === 'therapist' || formData.role === 'admin')) {
+        const selectedTreatIds = formData.assigned_treatment_ids || [];
+        for (const tr of treatments) {
+          const currentStaff = getTreatmentAssignedStaff(tr, clinic);
+          const shouldHave = selectedTreatIds.includes(tr.id);
+          const doesHave = currentStaff.includes(targetStaffId);
+
+          if (shouldHave && !doesHave) {
+            const updatedStaff = [...currentStaff, targetStaffId];
+            await supabase.from('treatments').update({ assigned_staff_ids: updatedStaff }).eq('id', tr.id);
+            await syncTreatmentStaffToClinic(clinic, tr.id, updatedStaff);
+          } else if (!shouldHave && doesHave) {
+            const updatedStaff = currentStaff.filter(id => id !== targetStaffId);
+            await supabase.from('treatments').update({ assigned_staff_ids: updatedStaff }).eq('id', tr.id);
+            await syncTreatmentStaffToClinic(clinic, tr.id, updatedStaff);
+          }
+        }
+      }
+
       setShowModal(false);
       refresh();
     } catch (err) {
@@ -205,6 +241,17 @@ export default function Staff({ clinic, staff = [], refresh }) {
       if (error) {
         await axios.delete(`${API_URL}/staff/${staffToDelete.id}`);
       }
+
+      // Tedavi atamalarından da temizle
+      for (const tr of treatments) {
+        const currentStaff = getTreatmentAssignedStaff(tr, clinic);
+        if (currentStaff.includes(staffToDelete.id)) {
+          const updatedStaff = currentStaff.filter(id => id !== staffToDelete.id);
+          await supabase.from('treatments').update({ assigned_staff_ids: updatedStaff }).eq('id', tr.id);
+          await syncTreatmentStaffToClinic(clinic, tr.id, updatedStaff);
+        }
+      }
+
       toast.success(`"${staffToDelete.full_name}" başarıyla silindi.`, 'Personel Silindi');
       setShowDeleteModal(false);
       setStaffToDelete(null);
@@ -263,6 +310,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
             const RoleIcon = roleInfo.icon;
             const staffPass = getStaffPassword(member, clinic);
             const staffTabs = getStaffAllowedTabs(member, clinic);
+            const memberTreatments = getStaffAssignedTreatments(member.id, treatments, clinic);
 
             return (
               <div
@@ -320,7 +368,7 @@ export default function Staff({ clinic, staff = [], refresh }) {
                   </div>
 
                   {/* Allowed Tabs Summary */}
-                  <div className="mb-3 py-2 px-3 rounded-xl bg-gray-50/80 border border-gray-100 flex items-center justify-between text-[11px]">
+                  <div className="mb-2.5 py-2 px-3 rounded-xl bg-gray-50/80 border border-gray-100 flex items-center justify-between text-[11px]">
                     <span className="text-gray-500 font-medium flex items-center gap-1.5">
                       <Layers size={13} className="text-slate-500" />
                       <span>Erişim İzinleri:</span>
@@ -329,6 +377,47 @@ export default function Staff({ clinic, staff = [], refresh }) {
                       {member.role === 'admin' ? 'Tam Yetki (9/9)' : `${staffTabs.length} Sekme`}
                     </span>
                   </div>
+
+                  {/* Uyguladığı Tedaviler / Branşlar */}
+                  {(member.role === 'therapist' || member.role === 'admin') && (
+                    <div className="mb-3 py-2 px-3 rounded-xl bg-gray-50/80 border border-gray-100 flex flex-col gap-1 text-[11px]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500 font-medium flex items-center gap-1.5">
+                          <Activity size={13} className="text-emerald-600" />
+                          <span>Atanan Tedaviler:</span>
+                        </span>
+                        <span className="font-bold text-slate-700">
+                          {memberTreatments.length > 0 ? (
+                            `${memberTreatments.length} Tedavi`
+                          ) : (
+                            <span className="text-amber-600 font-normal">Atama Yok</span>
+                          )}
+                        </span>
+                      </div>
+                      {memberTreatments.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {memberTreatments.slice(0, 3).map((t) => (
+                            <span
+                              key={t.id}
+                              className="px-1.5 py-0.5 bg-white border border-gray-200 text-gray-700 rounded-md text-[10px] font-medium truncate max-w-[120px]"
+                              title={t.name}
+                            >
+                              {t.name}
+                            </span>
+                          ))}
+                          {memberTreatments.length > 3 && (
+                            <span className="px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded-md text-[10px] font-bold">
+                              +{memberTreatments.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-gray-400 mt-0.5">
+                          Düzenle ile tedavi atayabilirsiniz
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Contact Info & Password */}
                   <div className="space-y-2 pt-3 border-t border-gray-100 text-[12px] text-gray-500">
@@ -494,6 +583,78 @@ export default function Staff({ clinic, staff = [], refresh }) {
                   ))}
                 </div>
               </div>
+
+              {/* Uyguladığı Tedaviler & Branşlar (Fizyoterapist veya Yönetici ise) */}
+              {(formData.role === 'therapist' || formData.role === 'admin') && (
+                <div className="pt-3 border-t border-gray-100 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-[12px] font-bold text-gray-800 flex items-center gap-1.5">
+                        <Activity size={14} className="text-emerald-600" />
+                        <span>Uyguladığı Tedaviler &amp; Branşlar</span>
+                      </label>
+                      <p className="text-[11px] text-gray-400">
+                        Bu uzmanın verebileceği tedavileri seçin. Randevu alınırken sadece atandığı tedavilerde listelenir.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, assigned_treatment_ids: treatments.map(t => t.id) })}
+                        className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline cursor-pointer"
+                      >
+                        Tümü ({treatments.length})
+                      </button>
+                      <span className="text-gray-300">•</span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, assigned_treatment_ids: [] })}
+                        className="text-[11px] font-semibold text-gray-500 hover:text-gray-700 hover:underline cursor-pointer"
+                      >
+                        Temizle
+                      </button>
+                    </div>
+                  </div>
+
+                  {treatments.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                      Henüz klinik tedavisi tanımlanmamış. Tedavi &amp; Hizmetler sekmesinden tedavi ekleyebilirsiniz.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {treatments.map((tr) => {
+                        const isChecked = formData.assigned_treatment_ids?.includes(tr.id);
+                        return (
+                          <label
+                            key={tr.id}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                              isChecked
+                                ? 'border-emerald-300 bg-emerald-50/50 text-emerald-950 font-medium shadow-2xs'
+                                : 'border-gray-200 hover:border-gray-300 bg-gray-50/30 text-gray-600'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <input
+                                type="checkbox"
+                                className="rounded text-emerald-600 focus:ring-emerald-500"
+                                checked={isChecked}
+                                onChange={() => toggleTreatment(tr.id)}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[12px] font-bold leading-tight truncate">{tr.name}</div>
+                                <div className="text-[10px] text-gray-400 mt-0.5">{tr.duration_minutes || 60} dk</div>
+                              </div>
+                            </div>
+                            <span className="text-[11px] font-semibold text-slate-700 ml-2 shrink-0">
+                              {tr.price ? `${tr.price} ₺` : 'Ücretsiz'}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* RBAC Allowed Tabs Selection */}
               <div className="pt-3 border-t border-gray-100 space-y-2.5">
