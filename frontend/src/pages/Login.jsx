@@ -92,11 +92,21 @@ export default function Login({ onLogin }) {
       }
 
       // 2. Supabase staff (Personel) tablosundan kullanıcıyı sorgula
-      const { data: staffMember } = await supabase
+      let staffQuery = supabase
         .from('staff')
-        .select('*, clinic:clinics(*)')
-        .eq('email', cleanEmail)
-        .maybeSingle();
+        .select('*, clinic:clinics(*)');
+
+      if (cleanEmail.includes('@fizyotim.com')) {
+        const altEmail = cleanEmail.replace('@fizyotim.com', '@fizyopanel.com');
+        staffQuery = staffQuery.or(`email.eq.${cleanEmail},email.eq.${altEmail}`);
+      } else if (cleanEmail.includes('@fizyopanel.com')) {
+        const altEmail = cleanEmail.replace('@fizyopanel.com', '@fizyotim.com');
+        staffQuery = staffQuery.or(`email.eq.${cleanEmail},email.eq.${altEmail}`);
+      } else {
+        staffQuery = staffQuery.eq('email', cleanEmail);
+      }
+
+      const { data: staffMember } = await staffQuery.maybeSingle();
 
       if (staffMember && staffMember.clinic) {
         const validPassword = getStaffPassword(staffMember, staffMember.clinic);
