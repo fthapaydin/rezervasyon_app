@@ -1,10 +1,36 @@
-import { ArrowUpRight, MessageCircle, Users, Calendar, Wallet, CreditCard } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowUpRight, MessageCircle, Users, Calendar, Wallet, CreditCard, Eye, EyeOff } from 'lucide-react';
 import { sendWhatsAppReminder } from '../lib/reminder';
 import EmptyState from '../components/ui/EmptyState';
 import { getSessionLocation } from '../lib/sessionLocationUtils';
 import { LocationBadge } from '../components/common/LocationSelector';
 
 export default function Dashboard({ patients, sessions, payments, onPatientClick, setActiveTab, requests = [], onNavigateToRequests }) {
+  const [hideFinancials, setHideFinancials] = useState(() => {
+    return localStorage.getItem('fizyo_hide_financials') === 'true';
+  });
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setHideFinancials(localStorage.getItem('fizyo_hide_financials') === 'true');
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('fizyo_hide_financials_changed', handleStorage);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('fizyo_hide_financials_changed', handleStorage);
+    };
+  }, []);
+
+  const toggleHideFinancials = () => {
+    setHideFinancials(prev => {
+      const next = !prev;
+      localStorage.setItem('fizyo_hide_financials', String(next));
+      window.dispatchEvent(new Event('fizyo_hide_financials_changed'));
+      return next;
+    });
+  };
+
   const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
   const pending = sessions.filter(s => s.status === 'bekliyor');
   const completed = sessions.filter(s => s.status === 'tamamlandi');
@@ -31,15 +57,17 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
     },
     { 
       label: 'Toplam Tahsilat',    
-      value: `${totalRevenue.toLocaleString('tr-TR')} ₺`, 
+      value: hideFinancials ? '•••• ₺' : `${totalRevenue.toLocaleString('tr-TR')} ₺`, 
       desc: 'Kasa toplam nakit & kart',
-      icon: Wallet
+      icon: Wallet,
+      isFinancial: true
     },
     { 
       label: 'Kalan Alacak',   
-      value: `${totalDebt.toLocaleString('tr-TR')} ₺`, 
+      value: hideFinancials ? '•••• ₺' : `${totalDebt.toLocaleString('tr-TR')} ₺`, 
       desc: 'Takip edilen açık bakiye',
-      icon: CreditCard
+      icon: CreditCard,
+      isFinancial: true
     },
   ];
 
@@ -85,11 +113,25 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
                   {s.label}
                 </span>
-                <div className="w-7 h-7 rounded-lg bg-slate-100/70 text-slate-500 flex items-center justify-center">
-                  <Icon size={14} strokeWidth={2} />
+                <div className="flex items-center gap-1.5">
+                  {s.isFinancial && (
+                    <button
+                      type="button"
+                      onClick={toggleHideFinancials}
+                      title={hideFinancials ? "Tutarları Göster" : "Tutarları Gizle"}
+                      className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
+                      {hideFinancials ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  )}
+                  <div className="w-7 h-7 rounded-lg bg-slate-100/70 text-slate-500 flex items-center justify-center">
+                    <Icon size={14} strokeWidth={2} />
+                  </div>
                 </div>
               </div>
-              <p className="text-2xl font-bold text-slate-900 tracking-tight">{s.value}</p>
+              <p className={`text-2xl font-bold text-slate-900 tracking-tight ${hideFinancials && s.isFinancial ? 'font-mono tracking-wider' : ''}`}>
+                {s.value}
+              </p>
               <p className="text-[11px] text-slate-500 mt-1">{s.desc}</p>
             </div>
           );
@@ -177,10 +219,22 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
         <div className="lg:col-span-2 space-y-4">
           {/* Revenue Card (Tek Renk Slate-900) */}
           <div className="bg-slate-900 rounded-xl p-5 text-white border border-slate-800 shadow-2xs">
-            <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-400 block mb-1">
-              Klinik Ciro Durumu
-            </span>
-            <p className="text-3xl font-bold tracking-tight text-white">{totalRevenue.toLocaleString('tr-TR')} ₺</p>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-400 block">
+                Klinik Ciro Durumu
+              </span>
+              <button
+                type="button"
+                onClick={toggleHideFinancials}
+                title={hideFinancials ? "Tutarları Göster" : "Tutarları Gizle"}
+                className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                {hideFinancials ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+            <p className={`text-3xl font-bold tracking-tight text-white ${hideFinancials ? 'font-mono tracking-wider' : ''}`}>
+              {hideFinancials ? '•••• ₺' : `${totalRevenue.toLocaleString('tr-TR')} ₺`}
+            </p>
             <p className="text-[11px] text-slate-400 mt-1.5">
               Kayıtlı {payments.length} adet tahsilat işlemi üzerinden hesaplandı.
             </p>

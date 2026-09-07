@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
-import { Plus, X, CheckCircle, FileText, AlertCircle, Filter, Sparkles, Layers, MessageSquare, FileDown, Share2 } from 'lucide-react';
+import { Plus, X, CheckCircle, FileText, AlertCircle, Filter, Sparkles, Layers, MessageSquare, FileDown, Share2, Eye, EyeOff } from 'lucide-react';
 import { generatePaymentReceipt, formatPhoneForWhatsApp, createReceiptWhatsAppMessage } from '../lib/pdfGenerator';
 import ReceiptModal from '../components/common/ReceiptModal';
 import { useToast } from '../components/ui/Toast';
@@ -15,6 +15,31 @@ export default function Payments({ clinic, payments, sessions, patients, staff =
   const [formData, setFormData] = useState({ patient_id: '', session_id: '', amount: '', payment_method: 'Nakit', installments: 1 });
   const [submitting, setSubmitting] = useState(false);
   const [selectedReceiptPayment, setSelectedReceiptPayment] = useState(null);
+
+  const [hideFinancials, setHideFinancials] = useState(() => {
+    return localStorage.getItem('fizyo_hide_financials') === 'true';
+  });
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setHideFinancials(localStorage.getItem('fizyo_hide_financials') === 'true');
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('fizyo_hide_financials_changed', handleStorage);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('fizyo_hide_financials_changed', handleStorage);
+    };
+  }, []);
+
+  const toggleHideFinancials = () => {
+    setHideFinancials(prev => {
+      const next = !prev;
+      localStorage.setItem('fizyo_hide_financials', String(next));
+      window.dispatchEvent(new Event('fizyo_hide_financials_changed'));
+      return next;
+    });
+  };
 
   const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
 
@@ -196,13 +221,27 @@ export default function Payments({ clinic, payments, sessions, patients, staff =
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4 sm:gap-6">
           <div>
-            <p className="text-[12px] text-gray-400 font-medium">Toplam Tahsilat</p>
-            <p className="text-xl font-bold text-gray-900">{totalRevenue.toLocaleString('tr-TR')} ₺</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[12px] text-gray-400 font-medium">Toplam Tahsilat</p>
+              <button
+                type="button"
+                onClick={toggleHideFinancials}
+                title={hideFinancials ? "Tutarları Göster" : "Tutarları Gizle"}
+                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                {hideFinancials ? <EyeOff size={13} /> : <Eye size={13} />}
+              </button>
+            </div>
+            <p className={`text-xl font-bold text-gray-900 ${hideFinancials ? 'font-mono tracking-wider' : ''}`}>
+              {hideFinancials ? '•••• ₺' : `${totalRevenue.toLocaleString('tr-TR')} ₺`}
+            </p>
           </div>
           <div className="hidden sm:block w-px h-8 bg-gray-200"></div>
           <div>
             <p className="text-[12px] text-gray-400 font-medium">Toplam Alacak (Kalan)</p>
-            <p className="text-xl font-bold text-red-500">{totalDebt.toLocaleString('tr-TR')} ₺</p>
+            <p className={`text-xl font-bold text-red-500 ${hideFinancials ? 'font-mono tracking-wider' : ''}`}>
+              {hideFinancials ? '•••• ₺' : `${totalDebt.toLocaleString('tr-TR')} ₺`}
+            </p>
           </div>
         </div>
 
