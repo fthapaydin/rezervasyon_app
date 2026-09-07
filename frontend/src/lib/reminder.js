@@ -35,15 +35,3 @@ export function sendWhatsAppReminder(session) {
   window.open(url, '_blank');
   return true;
 }
-
-export function sendSmsReminder(session) {
-  const phone = formatPhoneNumber(session?.patient?.phone);
-  if (!phone) {
-    console.warn('Hastaya ait geçerli bir telefon numarası bulunamadı.');
-    return false;
-  }
-  const text = generateReminderText(session);
-  const url = `sms:${phone}?body=${encodeURIComponent(text)}`;
-  window.open(url, '_blank');
-  return true;
-}

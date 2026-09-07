@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { API_URL } from '../lib/api';
 import { 
   Users, Plus, X, Pencil, Trash2, ShieldCheck, Stethoscope, UserCheck, Phone, Mail, 
-  CheckCircle2, KeyRound, Layers, Check, Copy, Shield, Lock, Activity
+  CheckCircle2, KeyRound, Layers, Check, Copy, Shield, Lock, Activity, Eye, EyeOff
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import ConfirmModal from '../components/ui/ConfirmModal';
@@ -39,6 +39,8 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [copiedPassId, setCopiedPassId] = useState(null);
+  const [showModalPassword, setShowModalPassword] = useState(false);
+  const [visiblePassIds, setVisiblePassIds] = useState({});
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -437,7 +439,15 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
                     )}
                     <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
                       <span className="flex items-center gap-1 font-mono">
-                        <KeyRound size={12} className="text-slate-400" /> Şifre: <strong className="text-slate-700">{staffPass}</strong>
+                        <KeyRound size={12} className="text-slate-400" /> Şifre: <strong className="text-slate-700">{visiblePassIds[member.id] ? staffPass : '••••••'}</strong>
+                        <button
+                          type="button"
+                          onClick={() => setVisiblePassIds(prev => ({ ...prev, [member.id]: !prev[member.id] }))}
+                          className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer ml-0.5"
+                          title={visiblePassIds[member.id] ? "Şifreyi Gizle" : "Şifreyi Göster"}
+                        >
+                          {visiblePassIds[member.id] ? <EyeOff size={12} /> : <Eye size={12} />}
+                        </button>
                       </span>
                       <button
                         type="button"
@@ -541,14 +551,24 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
 
                   <div>
                     <label className="block text-[12px] font-semibold text-gray-600 mb-1">Başlangıç Şifresi *</label>
-                    <input
-                      required
-                      type="text"
-                      placeholder="123456"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="input-field bg-white font-mono"
-                    />
+                    <div className="relative">
+                      <input
+                        required
+                        type={showModalPassword ? "text" : "password"}
+                        placeholder="123456"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        className="input-field bg-white font-mono pr-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowModalPassword(!showModalPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                        title={showModalPassword ? "Şifreyi Gizle" : "Şifreyi Göster"}
+                      >
+                        {showModalPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
 

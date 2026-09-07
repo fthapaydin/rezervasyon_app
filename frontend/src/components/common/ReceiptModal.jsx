@@ -342,7 +342,7 @@ export default function ReceiptModal({
                   <span className="font-bold text-[13px] text-slate-900 block">
                     {copied ? 'Kopyalandı!' : 'Makbuz Metnini Kopyala'}
                   </span>
-                  <p className="text-[11px] text-slate-500 truncate">SMS veya diğer mesajlar için hazır metin</p>
+                  <p className="text-[11px] text-slate-500 truncate">WhatsApp veya mesajlaşma için hazır metin</p>
                 </div>
               </button>
             </div>

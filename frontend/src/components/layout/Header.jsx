@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { 
   RefreshCw, Link2, Check, QrCode, Megaphone, Bell, Volume2, 
-  ArrowRight, ExternalLink, KeyRound, User, LogOut, ChevronDown, Lock, X, ShieldCheck, Stethoscope, UserCheck, Activity
+  ArrowRight, ExternalLink, KeyRound, User, LogOut, ChevronDown, Lock, X, ShieldCheck, Stethoscope, UserCheck, Activity, Eye, EyeOff
 } from 'lucide-react';
 import { MobileMenuButton } from './Sidebar';
 import QRCodeModal from '../QRCodeModal';
@@ -33,6 +33,8 @@ export default function Header({
 
   // Şifre Değiştir Formu State
   const [passData, setPassData] = useState({ newPassword: '', confirmPassword: '' });
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passSubmitting, setPassSubmitting] = useState(false);
 
   const dropdownRef = useRef(null);
@@ -336,26 +338,46 @@ export default function Header({
 
               <div>
                 <label className="block text-[12px] font-semibold text-gray-600 mb-1">Yeni Şifre</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="En az 4 karakter"
-                  value={passData.newPassword}
-                  onChange={e => setPassData({ ...passData, newPassword: e.target.value })}
-                  className="input-field"
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    required
+                    placeholder="En az 4 karakter"
+                    value={passData.newPassword}
+                    onChange={e => setPassData({ ...passData, newPassword: e.target.value })}
+                    className="input-field pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                    title={showNewPassword ? "Şifreyi Gizle" : "Şifreyi Göster"}
+                  >
+                    {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label className="block text-[12px] font-semibold text-gray-600 mb-1">Yeni Şifre (Tekrar)</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Şifreyi tekrar yazın"
-                  value={passData.confirmPassword}
-                  onChange={e => setPassData({ ...passData, confirmPassword: e.target.value })}
-                  className="input-field"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    placeholder="Şifreyi tekrar yazın"
+                    value={passData.confirmPassword}
+                    onChange={e => setPassData({ ...passData, confirmPassword: e.target.value })}
+                    className="input-field pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                    title={showConfirmPassword ? "Şifreyi Gizle" : "Şifreyi Göster"}
+                  >
+                    {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">

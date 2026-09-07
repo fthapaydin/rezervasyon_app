@@ -5,7 +5,7 @@ import { TURKEY_CITIES } from '../lib/turkeyCities';
 import { API_URL } from '../lib/api';
 import { 
   Settings as SettingsIcon, Building2, Palette, Clock, MessageSquare, Save, CheckCircle2, MapPin,
-  Coffee, Calendar, Copy, Sparkles, Check
+  Coffee, Calendar, Copy, Sparkles, Check, Eye, EyeOff, Lock, KeyRound
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import { ALL_DAYS, DAY_FULL_NAMES, TIME_OPTIONS, getClinicSchedule } from '../lib/scheduleUtils';
@@ -41,6 +41,40 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Şifre Değiştirme Durumları
+  const [passData, setPassData] = useState({ current: '', newPass: '', confirm: '' });
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [passLoading, setPassLoading] = useState(false);
+
+  const handlePasswordUpdate = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!passData.newPass || passData.newPass.length < 4) {
+      toast.warning('Yeni şifre en az 4 karakterden oluşmalıdır.', 'Geçersiz Şifre');
+      return;
+    }
+    if (passData.newPass !== passData.confirm) {
+      toast.warning('Girdiğiniz şifreler birbiriyle uyuşmuyor.', 'Şifre Uyuşmazlığı');
+      return;
+    }
+    setPassLoading(true);
+    try {
+      if (clinic?.id) {
+        const { error: upErr } = await supabase.from('clinics').update({ password: passData.newPass }).eq('id', clinic.id);
+        if (upErr) throw upErr;
+        axios.put(`${API_URL}/clinics/${clinic.id}`, { password: passData.newPass }).catch(() => {});
+      }
+      toast.success('Klinik yönetici şifreniz başarıyla güncellendi.', 'Şifre Değiştirildi');
+      setPassData({ current: '', newPass: '', confirm: '' });
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Şifre güncellenirken bir hata oluştu.', 'Hata');
+    } finally {
+      setPassLoading(false);
+    }
+  };
 
   const selectedCityObj = TURKEY_CITIES.find((c) => c.name === formData.city) || TURKEY_CITIES[0];
 
@@ -598,100 +632,102 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         )}
       </div>
 
-      {/* 6. Güvenlik & Şifre / 2FA */}
+      {/* 6. Güvenlik & Şifre */}
       <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-6">
         <div className="flex items-center gap-2.5 pb-4 border-b border-gray-100">
           <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <span className="text-base font-bold">🔒</span>
+            <Lock size={16} />
           </div>
           <div>
             <h3 className="text-[15px] font-bold text-gray-900">Güvenlik &amp; Giriş Bilgileri</h3>
-            <p className="text-[12px] text-gray-400">Panel giriş şifresi ve iki faktörlü kimlik doğrulama ayarları</p>
+            <p className="text-[12px] text-gray-400">Panel giriş şifrenizi ve hesap erişim güvenliğinizi yönetin</p>
           </div>
         </div>
 
         {/* Password Change Sub-section */}
-        <div className="space-y-4">
-          <h4 className="text-[13px] font-bold text-gray-800">Panel Giriş Şifresini Değiştir</h4>
+        <form onSubmit={handlePasswordUpdate} className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[13px] font-bold text-gray-800">Panel Giriş Şifresini Değiştir</h4>
+            <span className="text-[11px] text-slate-400 font-medium">Göz simgesiyle şifrenizi görebilirsiniz</span>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <div>
               <label className="block text-[11px] font-semibold text-gray-600 mb-1">Mevcut Şifre</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                className="input-field"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-gray-600 mb-1">Yeni Şifre</label>
-              <input
-                type="password"
-                placeholder="Yeni güçlü şifre"
-                className="input-field"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-gray-600 mb-1">Yeni Şifre (Tekrar)</label>
-              <input
-                type="password"
-                placeholder="Yeni şifre tekrarı"
-                className="input-field"
-              />
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => toast.success('Şifreniz başarıyla güncellendi!', 'Şifre Değiştirildi')}
-            className="h-9 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-semibold transition-all cursor-pointer shadow-2xs"
-          >
-            Şifreyi Güncelle
-          </button>
-        </div>
-
-        {/* 2FA Sub-section */}
-        <div className="pt-4 border-t border-gray-100">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <h4 className="text-[13px] font-bold text-gray-800 flex items-center gap-1.5">
-                <span>İki Faktörlü Doğrulama (2FA)</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">Önerilen</span>
-              </h4>
-              <p className="text-[12px] text-gray-500">
-                Giriş yaparken SMS veya Google Authenticator uygulaması ile ek güvenlik kodu isteyin.
-              </p>
-            </div>
-
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                defaultChecked={true}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
-          </div>
-
-          <div className="mt-4 p-3.5 rounded-xl bg-slate-50 border border-gray-200/80 flex items-center justify-between text-[12px]">
-            <div className="flex items-center gap-3">
-              <span className="text-xl">📱</span>
-              <div>
-                <p className="font-bold text-gray-800">Doğrulama Yöntemi: SMS &amp; Mobil Bildirim</p>
-                <p className="text-[11px] text-gray-500">Kayıtlı yönetici telefonuna ({formData.phone || '05XXXXXXXXX'}) tek kullanımlık SMS kodu gönderilir.</p>
+              <div className="relative">
+                <input
+                  type={showCurrentPass ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={passData.current}
+                  onChange={(e) => setPassData({ ...passData, current: e.target.value })}
+                  className="input-field pr-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPass(!showCurrentPass)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                  title={showCurrentPass ? "Şifreyi Gizle" : "Şifreyi Göster"}
+                >
+                  {showCurrentPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => toast.info('Doğrulama yöntemi SMS olarak aktiftir.', 'Güvenlik Bilgisi')}
-              className="text-blue-600 font-bold text-[12px] hover:underline cursor-pointer"
-            >
-              Yapılandır
-            </button>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 mb-1">Yeni Şifre</label>
+              <div className="relative">
+                <input
+                  type={showNewPass ? 'text' : 'password'}
+                  placeholder="Yeni güçlü şifre"
+                  value={passData.newPass}
+                  onChange={(e) => setPassData({ ...passData, newPass: e.target.value })}
+                  className="input-field pr-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPass(!showNewPass)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                  title={showNewPass ? "Şifreyi Gizle" : "Şifreyi Göster"}
+                >
+                  {showNewPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 mb-1">Yeni Şifre (Tekrar)</label>
+              <div className="relative">
+                <input
+                  type={showConfirmPass ? 'text' : 'password'}
+                  placeholder="Yeni şifre tekrarı"
+                  value={passData.confirm}
+                  onChange={(e) => setPassData({ ...passData, confirm: e.target.value })}
+                  className="input-field pr-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPass(!showConfirmPass)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                  title={showConfirmPass ? "Şifreyi Gizle" : "Şifreyi Göster"}
+                >
+                  {showConfirmPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+
+          <button
+            type="submit"
+            disabled={passLoading}
+            className="h-9 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-semibold transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+          >
+            {passLoading ? 'Güncelleniyor...' : 'Şifreyi Güncelle'}
+          </button>
+        </form>
 
         {/* Security Logs info */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
-          <span>Son Başarılı Giriş: <strong>Bugün, 14:30</strong> (Chrome / Windows)</span>
+          <span>Oturum: <strong>{clinic?.email || 'Yönetici'}</strong></span>
           <span className="text-emerald-600 font-semibold flex items-center gap-1">
             <CheckCircle2 size={12} /> Oturum Güvenli
           </span>
