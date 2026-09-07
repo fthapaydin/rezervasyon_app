@@ -1,6 +1,36 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { getSessionLocation, getSessionLocationMeta } from './sessionLocationUtils';
+import * as jsPDFModule from 'jspdf';
+import * as autoTableModule from 'jspdf-autotable';
+import { getSessionLocation, getSessionLocationMeta } from './sessionLocationUtils.js';
+
+// jsPDF nesnesini hem ESM hem CJS ortamlarında güvenle başlatıcı
+export function createJsPdfDoc(options = { orientation: 'portrait', unit: 'mm', format: 'a4' }) {
+  const JsPdfClass = 
+    (typeof jsPDFModule === 'function' ? jsPDFModule : null) ||
+    (typeof jsPDFModule?.jsPDF === 'function' ? jsPDFModule.jsPDF : null) ||
+    (typeof jsPDFModule?.default === 'function' ? jsPDFModule.default : null) ||
+    (typeof jsPDFModule?.default?.jsPDF === 'function' ? jsPDFModule.default.jsPDF : null) ||
+    (typeof window !== 'undefined' && typeof window.jspdf?.jsPDF === 'function' ? window.jspdf.jsPDF : null) ||
+    jsPDFModule;
+
+  return new JsPdfClass(options);
+}
+
+// autoTable eklentisini güvenle çalıştırıcı
+export function runAutoTable(doc, options) {
+  const fn = 
+    (typeof autoTableModule === 'function' ? autoTableModule : null) ||
+    (typeof autoTableModule?.default === 'function' ? autoTableModule.default : null) ||
+    (typeof autoTableModule?.autoTable === 'function' ? autoTableModule.autoTable : null) ||
+    (typeof doc.autoTable === 'function' ? doc.autoTable.bind(doc) : null);
+
+  if (fn) {
+    if (typeof doc.autoTable === 'function' && fn === doc.autoTable.bind(doc)) {
+      return fn(options);
+    }
+    return fn(doc, options);
+  }
+  console.warn('autoTable eklentisi bulunamadı.');
+}
 
 // --- Türkçe Karakter Güvenli Dönüştürücü (PDF standard font kerning & mojibake düzeltici) ---
 export function toPdfText(str) {
@@ -115,16 +145,17 @@ ${clinic?.phone ? `Telefon: ${clinic.phone}\n` : ''}${clinic?.email ? `E-posta: 
 // 1. ÖDEME MAKBUZU PDF (Profesyonel Kurumsal Tasarım)
 // ─────────────────────────────────────────────────────────────
 export function generatePaymentReceipt(payment, clinic = null) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const doc = createJsPdfDoc({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   const patient = payment.patient || {};
   const session = payment.session || {};
   const therapist = session.therapist || {};
   
-  const receiptId = payment.id ? payment.id.slice(0, 8).toUpperCase() : Math.random().toString(36).substring(2, 10).toUpperCase();
+  const receiptId = payment.id ? String(payment.id).slice(0, 8).toUpperCase() : Math.random().toString(36).substring(2, 10).toUpperCase();
   const receiptNo = `#MAK-2026-${receiptId}`;
   
-  const payDate = payment.payment_date ? new Date(payment.payment_date) : new Date();
+  let payDate = payment.payment_date ? new Date(payment.payment_date) : new Date();
+  if (isNaN(payDate.getTime())) payDate = new Date();
   const dateStr = payDate.toLocaleDateString('tr-TR');
   const timeStr = payDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
   
@@ -135,6 +166,7 @@ export function generatePaymentReceipt(payment, clinic = null) {
     : (clinicOwner || 'Klinik Sorumlu Uzmani');
   
   const treatmentName = session.treatment?.name || 'Fizyoterapi ve Rehabilitasyon Seansi';
+  const locationMeta = getSessionLocationMeta(getSessionLocation(session));
   const sessionDateStr = session.session_date ? new Date(session.session_date).toLocaleDateString('tr-TR') : dateStr;
   const sessionTimeStr = session.session_time ? session.session_time.substring(0, 5) : '';
   const amountNum = Number(payment.amount || 0);
@@ -257,7 +289,7 @@ export function generatePaymentReceipt(payment, clinic = null) {
   doc.text(toPdfText(`Odeme Yolu: ${payment.payment_method || 'Nakit'} (${payment.installments > 1 ? `${payment.installments} Taksit` : 'Pesin'})`), 113, cardY + 31);
 
   // --- Hizmet & Tahsilat Kalemleri Tablosu ---
-  autoTable(doc, {
+  runAutoTable(doc, {
     startY: 93,
     head: [['#', 'Hizmet / Seans Aciklamasi', 'Uygulayan Uzman', 'Odeme Yontemi', 'Taksit', 'Tutar (TL)']],
     body: [
@@ -296,7 +328,7 @@ export function generatePaymentReceipt(payment, clinic = null) {
   });
 
   // --- Toplam ve Özet Kartı ---
-  const endY = doc.lastAutoTable.finalY + 6;
+  const endY = (doc.lastAutoTable?.finalY || 135) + 6;
 
   // Sağ Toplam Vurgu Kutusu
   doc.setFillColor(236, 253, 245);
@@ -389,7 +421,7 @@ export function generatePaymentReceipt(payment, clinic = null) {
 // 2. SEANS RAPORU PDF (Kurumsal Klinik & Doktor Bilgileriyle)
 // ─────────────────────────────────────────────────────────────
 export function generateSessionReport(patient, patientSessions, clinic = null) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const doc = createJsPdfDoc({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   const clinicName = clinic?.name || 'Fizyotim Saglik & Rehabilitasyon Klinigi';
   const clinicOwner = clinic?.owner_name || '';
@@ -443,7 +475,7 @@ export function generateSessionReport(patient, patientSessions, clinic = null) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(30, 41, 59);
-  doc.text(toPdfText(`Hasta: ${patient.full_name}`), 19, 49);
+  doc.text(toPdfText(patient.full_name || 'Hasta'), 19, 49);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
@@ -453,8 +485,8 @@ export function generateSessionReport(patient, patientSessions, clinic = null) {
     doc.text(toPdfText(`Tani / Sikayet: ${patient.complaint}`), 19, 61);
   }
 
-  const completed = patientSessions.filter(s => s.status === 'tamamlandi').length;
-  const totalPlanned = patient.total_sessions || patientSessions.length || 10;
+  const completed = (patientSessions || []).filter(s => s.status === 'tamamlandi').length;
+  const totalPlanned = patient.total_sessions || (patientSessions || []).length || 10;
   
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
@@ -462,10 +494,10 @@ export function generateSessionReport(patient, patientSessions, clinic = null) {
   doc.text(toPdfText(`Seans Durumu: ${completed} / ${totalPlanned} Tamamlandi`), 190, 49, { align: 'right' });
 
   // Seans Tablosu
-  autoTable(doc, {
+  runAutoTable(doc, {
     startY: 71,
     head: [['#', 'Tarih', 'Saat', 'Tedavi / Hizmet', 'Yer', 'Uygulayan Uzman', 'Durum']],
-    body: patientSessions.map((s, i) => {
+    body: (patientSessions || []).map((s, i) => {
       const docName = s.therapist?.full_name 
         ? `${s.therapist.title ? s.therapist.title + ' ' : ''}${s.therapist.full_name}`
         : '-';
@@ -478,7 +510,7 @@ export function generateSessionReport(patient, patientSessions, clinic = null) {
 
       return [
         i + 1,
-        new Date(s.session_date).toLocaleDateString('tr-TR'),
+        s.session_date ? new Date(s.session_date).toLocaleDateString('tr-TR') : '-',
         s.session_time ? s.session_time.substring(0, 5) : '-',
         toPdfText(s.treatment?.name || '-'),
         toPdfText(locMeta.label),
@@ -492,11 +524,11 @@ export function generateSessionReport(patient, patientSessions, clinic = null) {
   });
 
   // Dipnot & Kayıt
-  const y = doc.lastAutoTable.finalY + 12;
+  const y = (doc.lastAutoTable?.finalY || 140) + 12;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(30, 41, 59);
-  doc.text(`Genel Ozet: Toplam ${patientSessions.length} seans planlamasindan ${completed} seans basariyla tamamlanmistir.`, 14, y);
+  doc.text(`Genel Ozet: Toplam ${(patientSessions || []).length} seans planlamasindan ${completed} seans basariyla tamamlanmistir.`, 14, y);
 
   doc.setDrawColor(226, 232, 240);
   doc.line(14, 280, 196, 280);
@@ -504,7 +536,7 @@ export function generateSessionReport(patient, patientSessions, clinic = null) {
   doc.setTextColor(148, 163, 184);
   doc.text(toPdfText(`Bu rapor ${clinicName} tarafindan saglanmistir.`), 14, 285);
 
-  const safeName = toPdfText(patient.full_name).replace(/\s+/g, '_');
+  const safeName = toPdfText(patient.full_name || 'Hasta').replace(/\s+/g, '_');
   doc.save(`${safeName}_seans_raporu.pdf`);
 }
 
@@ -512,7 +544,7 @@ export function generateSessionReport(patient, patientSessions, clinic = null) {
 // 3. HASTA GENEL ÖZET & HESAP RAPORU PDF
 // ─────────────────────────────────────────────────────────────
 export function generatePatientSummary(patient, patientSessions, patientPayments, clinic = null) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const doc = createJsPdfDoc({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   const clinicName = clinic?.name || 'Fizyotim Saglik & Rehabilitasyon Klinigi';
   const clinicOwner = clinic?.owner_name || '';
@@ -546,26 +578,25 @@ export function generatePatientSummary(patient, patientSessions, patientPayments
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(5, 150, 105);
-  doc.text('HASTA KART & TEDAVI OZETI', 196, 20, { align: 'right' });
+  doc.text('HASTA HESAP VE TEDAVI OZETI', 196, 20, { align: 'right' });
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
-  doc.text(toPdfText(`Tarih: ${dateStr}`), 196, 26, { align: 'right' });
+  doc.text(toPdfText(`Rapor Tarihi: ${dateStr}`), 196, 26, { align: 'right' });
 
   // Çizgi
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.4);
   doc.line(14, 38, 196, 38);
 
-  // Finansal & Seans Hesaplama
-  const completed = patientSessions.filter(s => s.status === 'tamamlandi').length;
-  const totalPlanned = patient.total_sessions || 10;
-  const totalPaid = patientPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
-  const totalDebt = patientSessions.reduce((s, ses) => s + Number(ses.treatment?.price || 0), 0);
-  const balance = totalDebt - totalPaid;
+  // Özet İstatistik Kutuları (3 Kutu)
+  const completed = (patientSessions || []).filter(s => s.status === 'tamamlandi').length;
+  const totalPlanned = patient.total_sessions || (patientSessions || []).length || 10;
+  const totalCost = (patientSessions || []).reduce((sum, s) => sum + Number(s.treatment?.price || 0), 0);
+  const totalPaid = (patientPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const balance = totalCost - totalPaid;
 
-  // 3 KPI Kartı Yan Yana (x=14, 76, 138)
   // 1. Seans Durumu
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
@@ -573,7 +604,7 @@ export function generatePatientSummary(patient, patientSessions, patientPayments
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
-  doc.text('SEANS TAMAMLANMA', 18, 49);
+  doc.text('SEANS SURECI', 18, 49);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(30, 41, 59);
@@ -623,15 +654,15 @@ export function generatePatientSummary(patient, patientSessions, patientPayments
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(30, 41, 59);
-  doc.text(toPdfText(`Hasta: ${patient.full_name}   |   Tel: ${patient.phone || '-'}   |   E-posta: ${patient.email || '-'}`), 14, 73);
+  doc.text(toPdfText(`Hasta: ${patient.full_name || 'Hasta'}   |   Tel: ${patient.phone || '-'}   |   E-posta: ${patient.email || '-'}`), 14, 73);
 
   // Seanslar Tablosu
-  autoTable(doc, {
+  runAutoTable(doc, {
     startY: 78,
     head: [['#', 'Seans Tarihi', 'Tedavi / Hizmet', 'Ucret (TL)', 'Durum']],
-    body: patientSessions.map((s, i) => [
+    body: (patientSessions || []).map((s, i) => [
       i + 1,
-      new Date(s.session_date).toLocaleDateString('tr-TR'),
+      s.session_date ? new Date(s.session_date).toLocaleDateString('tr-TR') : '-',
       toPdfText(s.treatment?.name || '-'),
       `${Number(s.treatment?.price || 0).toLocaleString('tr-TR')} TL`,
       s.status === 'tamamlandi' ? 'Tamamlandi' : s.status === 'ertelendi' ? 'Ertelendi' : s.status === 'iptal' ? 'Iptal' : 'Bekliyor'
@@ -642,19 +673,19 @@ export function generatePatientSummary(patient, patientSessions, patientPayments
   });
 
   // Ödemeler Tablosu (Varsa)
-  if (patientPayments.length > 0) {
-    const payStartY = doc.lastAutoTable.finalY + 8;
+  if (patientPayments && patientPayments.length > 0) {
+    const payStartY = (doc.lastAutoTable?.finalY || 160) + 8;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(15, 23, 42);
     doc.text('Tahsilat ve Odeme Gecmisi', 14, payStartY - 2);
 
-    autoTable(doc, {
+    runAutoTable(doc, {
       startY: payStartY,
       head: [['#', 'Odeme Tarihi', 'Yontem', 'Taksit', 'Tahsil Edilen Tutar']],
       body: patientPayments.map((p, i) => [
         i + 1,
-        new Date(p.payment_date).toLocaleDateString('tr-TR'),
+        p.payment_date ? new Date(p.payment_date).toLocaleDateString('tr-TR') : '-',
         toPdfText(p.payment_method || 'Nakit'),
         p.installments > 1 ? `${p.installments} Taksit` : 'Pesin',
         `${Number(p.amount || 0).toLocaleString('tr-TR')} TL`
@@ -672,6 +703,6 @@ export function generatePatientSummary(patient, patientSessions, patientPayments
   doc.setTextColor(148, 163, 184);
   doc.text(toPdfText(`Bu hesap ozeti ${clinicName} tarafindan hazirlanmistir.`), 14, 285);
 
-  const safeName = toPdfText(patient.full_name).replace(/\s+/g, '_');
+  const safeName = toPdfText(patient.full_name || 'Hasta').replace(/\s+/g, '_');
   doc.save(`${safeName}_hesap_ozeti.pdf`);
 }
