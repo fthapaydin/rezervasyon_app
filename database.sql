@@ -219,8 +219,24 @@ CREATE TABLE IF NOT EXISTS superadmins (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- demo_requests tablosuna durum kolonu ekle
-ALTER TABLE demo_requests ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'bekliyor'; -- 'bekliyor' | 'arandi' | 'onaylandi' | 'reddedildi'
+-- 12. DEMO TALEPLERİ TABLOSU
+CREATE TABLE IF NOT EXISTS demo_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  full_name VARCHAR NOT NULL,
+  clinic_name VARCHAR NOT NULL,
+  phone VARCHAR NOT NULL,
+  email VARCHAR,
+  city VARCHAR,
+  plan VARCHAR DEFAULT '14-gun-deneme',
+  notes TEXT,
+  status VARCHAR DEFAULT 'bekliyor', -- 'bekliyor' | 'iletisime_gecildi' | 'demo_acildi' | 'iptal'
+  admin_notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE demo_requests DISABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public all demo_requests" ON demo_requests;
+CREATE POLICY "Allow public all demo_requests" ON demo_requests FOR ALL USING (true) WITH CHECK (true);
 
 -- Varsayılan Platform Superadmin Hesabı
 INSERT INTO superadmins (email, password, full_name, role)

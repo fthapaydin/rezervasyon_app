@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import { getStaffPassword, getStaffAllowedTabs } from '../lib/rbacUtils';
+import { saveNewDemoRequest } from '../lib/demoRequestsUtils';
 
 export default function Login({ onLogin }) {
   // Login State
@@ -188,17 +189,7 @@ export default function Login({ onLogin }) {
     e.preventDefault();
     setDemoSubmitting(true);
     try {
-      await supabase.from('demo_requests').insert([{
-        full_name: demoForm.full_name,
-        clinic_name: demoForm.clinic_name,
-        phone: demoForm.phone,
-        email: demoForm.email || null,
-        city: demoForm.city || null,
-        plan: demoForm.plan,
-        notes: demoForm.notes || null,
-        created_at: new Date().toISOString()
-      }]).catch(() => {});
-
+      await saveNewDemoRequest(supabase, demoForm);
       setDemoSuccess(true);
     } catch {
       setDemoSuccess(true);
