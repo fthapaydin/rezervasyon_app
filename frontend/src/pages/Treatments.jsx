@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { supabase } from '../lib/supabase';
 import { Plus, X, Clock, Wallet, Pencil, Trash2, Activity, Users, CheckCircle2 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import ConfirmModal from '../components/ui/ConfirmModal';
@@ -27,21 +28,80 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.name.trim()) return;
+
     setSubmitting(true);
     try {
       let savedTreatmentId = editItem?.id;
+      const payload = {
+        name: formData.name.trim(),
+        price: Number(formData.price || 0),
+        duration_minutes: Number(formData.duration_minutes || 60),
+        assigned_staff_ids: formData.assigned_staff_ids || [],
+        clinic_id: clinic?.id,
+      };
+
       if (editItem) {
-        await axios.put(`${API_URL}/treatments/${editItem.id}`, formData);
+        // 1. Doğrudan Supabase ile güncelle
+        let { data, error } = await supabase
+          .from('treatments')
+          .update(payload)
+          .eq('id', editItem.id)
+          .select();
+
+        // Eğer assigned_staff_ids kolonu veritabanında yoksa hatayı yakala
+        if (error && error.message?.includes('assigned_staff_ids')) {
+          const cleanPayload = { ...payload };
+          delete cleanPayload.assigned_staff_ids;
+          const retry = await supabase.from('treatments').update(cleanPayload).eq('id', editItem.id).select();
+          data = retry.data;
+          error = retry.error;
+        }
+
+        if (error) {
+          // Backend API fallback
+          try {
+            await axios.put(`${API_URL}/treatments/${editItem.id}`, formData);
+          } catch (apiErr) {
+            throw new Error(apiErr.response?.data?.error || error.message);
+          }
+        }
+
         toast.success(`"${formData.name}" tedavisi güncellendi.`, 'Tedavi Güncellendi');
       } else {
-        const res = await axios.post(`${API_URL}/treatments`, {
-          ...formData,
-          clinic_id: clinic?.id,
-        });
-        savedTreatmentId = res.data?.id;
+        // 1. Doğrudan Supabase ile ekle
+        let { data, error } = await supabase
+          .from('treatments')
+          .insert([payload])
+          .select();
+
+        if (error && error.message?.includes('assigned_staff_ids')) {
+          const cleanPayload = { ...payload };
+          delete cleanPayload.assigned_staff_ids;
+          const retry = await supabase.from('treatments').insert([cleanPayload]).select();
+          data = retry.data;
+          error = retry.error;
+        }
+
+        if (error) {
+          // Backend API fallback
+          try {
+            const res = await axios.post(`${API_URL}/treatments`, {
+              ...formData,
+              clinic_id: clinic?.id,
+            });
+            savedTreatmentId = res.data?.id;
+          } catch (apiErr) {
+            throw new Error(apiErr.response?.data?.error || error.message);
+          }
+        } else if (data?.[0]) {
+          savedTreatmentId = data[0].id;
+        }
+
         toast.success(`"${formData.name}" tedavisi eklendi.`, 'Tedavi Eklendi');
       }
 
+      // Her durumda yedek JSONB senkronizasyonunu da yap
       if (savedTreatmentId) {
         await syncTreatmentStaffToClinic(clinic, savedTreatmentId, formData.assigned_staff_ids || []);
       }
@@ -51,7 +111,7 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
       setFormData({ name: '', price: '', duration_minutes: 60, assigned_staff_ids: [] });
       refresh();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'İşlem sırasında hata oluştu', 'Hata');
+      toast.error(err.message || err.response?.data?.error || 'İşlem sırasında hata oluştu', 'Hata');
     } finally {
       setSubmitting(false);
     }
@@ -73,13 +133,21 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
     if (!itemToDelete) return;
     setDeleting(true);
     try {
-      await axios.delete(`${API_URL}/treatments/${itemToDelete.id}`);
+      const { error } = await supabase
+        .from('treatments')
+        .delete()
+        .eq('id', itemToDelete.id);
+
+      if (error) {
+        await axios.delete(`${API_URL}/treatments/${itemToDelete.id}`);
+      }
+
       toast.success(`"${itemToDelete.name}" tedavisi silindi.`, 'Tedavi Silindi');
       setShowDeleteModal(false);
       setItemToDelete(null);
       refresh();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Silme sırasında hata oluştu.', 'Hata');
+      toast.error(err.message || err.response?.data?.error || 'Silme sırasında hata oluştu.', 'Hata');
     } finally {
       setDeleting(false);
     }
