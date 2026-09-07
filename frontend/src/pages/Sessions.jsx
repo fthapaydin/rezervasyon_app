@@ -19,6 +19,8 @@ import ConfirmModal from '../components/ui/ConfirmModal';
 import { API_URL } from '../lib/api';
 import { getClinicSchedule, isBreakSlot, isDayWorkingHour } from '../lib/scheduleUtils';
 import { getTreatmentAssignedStaff } from '../lib/rbacUtils';
+import { getSessionLocation, cleanSessionNotes, encodeSessionNotes } from '../lib/sessionLocationUtils';
+import LocationSelector, { LocationBadge } from '../components/common/LocationSelector';
 
 const DAY_NAMES = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 const SHORT_DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -172,8 +174,8 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   }, [staff, treatments, clinic]);
 
   const [modalMode, setModalMode] = useState(null);
-  const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', therapist_id: '', session_date: '', session_time: '', notes: '' });
-  const [recurData, setRecurData] = useState({ patient_id: '', treatment_id: '', therapist_id: '', session_time: '', start_date: '', repeat_type: 'weekly', repeat_count: 8 });
+  const [formData, setFormData] = useState({ patient_id: '', treatment_id: '', therapist_id: '', session_date: '', session_time: '', notes: '', location_type: 'klinik' });
+  const [recurData, setRecurData] = useState({ patient_id: '', treatment_id: '', therapist_id: '', session_time: '', start_date: '', repeat_type: 'weekly', repeat_count: 8, location_type: 'klinik' });
   const [submitting, setSubmitting] = useState(false);
   const [weekStart, setWeekStart] = useState(getMonday(new Date()));
   const [editSession, setEditSession] = useState(null);
@@ -191,8 +193,12 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   const [sessionToCopy, setSessionToCopy] = useState(null);
   const [copySessionDate, setCopySessionDate] = useState('');
   const [copySessionTime, setCopySessionTime] = useState('');
+  const [copySessionLocation, setCopySessionLocation] = useState('klinik');
   const [showCopySessionModal, setShowCopySessionModal] = useState(false);
   const [copyingSingle, setCopyingSingle] = useState(false);
+
+  // Hizmet Yeri Filtresi (Tümü | Klinikte | Evde | Uzaktan)
+  const [selectedLocationFilter, setSelectedLocationFilter] = useState('all');
 
   // Randevu Durum Menüsü & Geçmiş Tarih İzni
   const [activeStatusDropdown, setActiveStatusDropdown] = useState(null);
@@ -213,6 +219,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
     setSessionToCopy(s);
     setCopySessionDate(targetDateStr);
     setCopySessionTime(targetTimeStr);
+    setCopySessionLocation(getSessionLocation(s));
     setShowCopySessionModal(true);
   };
 
@@ -222,14 +229,21 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   const today = formatDate(new Date());
 
   const filteredSessions = useMemo(() => {
-    if (selectedTherapistId === 'all') return sessions;
-    return sessions.filter(s => (s.therapist_id === selectedTherapistId || s.therapist?.id === selectedTherapistId));
-  }, [sessions, selectedTherapistId]);
+    let list = sessions;
+    if (selectedTherapistId !== 'all') {
+      list = list.filter(s => (s.therapist_id === selectedTherapistId || s.therapist?.id === selectedTherapistId));
+    }
+    if (selectedLocationFilter !== 'all') {
+      list = list.filter(s => getSessionLocation(s) === selectedLocationFilter);
+    }
+    return list;
+  }, [sessions, selectedTherapistId, selectedLocationFilter]);
 
   const filteredRequests = useMemo(() => {
+    if (selectedLocationFilter !== 'all' && selectedLocationFilter !== 'klinik') return [];
     if (selectedTherapistId === 'all') return requests;
     return requests.filter(r => (r.therapist_id === selectedTherapistId || r.therapist?.id === selectedTherapistId));
-  }, [requests, selectedTherapistId]);
+  }, [requests, selectedTherapistId, selectedLocationFilter]);
 
   const sessionMap = useMemo(() => {
     const map = {};
@@ -343,7 +357,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
         therapist_id: formData.therapist_id || null,
         session_date: formData.session_date,
         session_time: formData.session_time,
-        notes: formData.notes || null,
+        notes: encodeSessionNotes(formData.notes, formData.location_type),
         status: 'bekliyor'
       };
       

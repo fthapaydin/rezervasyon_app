@@ -1,8 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-
 const supabaseUrl = 'https://diznruaymwfvxmgbtyie.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpem5ydWF5bXdmdnhtZ2J0eWllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0MTUwMTgsImV4cCI6MjEwMjk5MTAxOH0.PiN8cL6tqrvfRFd95FQxVNoPBfzYrRDC-TEoApmBfKc';
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 const announcement = {
   title: '🚀 Fizyotim v2.6 Yayında: WhatsApp Makbuz Paylaşımı, Toplu Ödeme ve Branş Yönetimi!',
@@ -36,13 +33,24 @@ const announcement = {
   is_active: true
 };
 
-async function main() {
-  const { data, error } = await supabase.from('announcements').insert([announcement]).select();
-  if (error) {
-    console.error('Hata:', error);
+async function publish() {
+  const res = await fetch(`${supabaseUrl}/rest/v1/announcements`, {
+    method: 'POST',
+    headers: {
+      'apikey': supabaseKey,
+      'Authorization': `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(announcement)
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    console.error('Hata:', data);
     process.exit(1);
   }
-  console.log('BAŞARIYLA YAYINLANDI ID:', data[0]?.id);
+  console.log('DUYURU BAŞARIYLA YAYINLANDI ID:', data[0]?.id);
 }
 
-main();
+publish();
