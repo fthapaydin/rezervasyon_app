@@ -5,7 +5,8 @@ import {
   Sparkles, CheckCircle2, XCircle, AlertCircle, Clock, 
   Phone, Mail, MapPin, Key, Plus, RefreshCw, Trash2, 
   ExternalLink, Search, Filter, LogOut, ArrowRight, 
-  Send, MessageSquare, Check, X, ShieldAlert, ArrowUpRight
+  Send, MessageSquare, Check, X, ShieldAlert, ArrowUpRight,
+  Eye, EyeOff
 } from 'lucide-react';
 import { API_URL } from '../lib/api';
 
@@ -23,6 +24,7 @@ export default function SuperAdmin() {
 
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
 
@@ -52,10 +54,12 @@ export default function SuperAdmin() {
     district: 'Kadıköy',
     theme_color: '#059669'
   });
+  const [showNewClinicPassword, setShowNewClinicPassword] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
 
   // Password Reset Modal
   const [resetModal, setResetModal] = useState({ open: false, clinicId: null, clinicName: '', newPassword: '' });
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
   // Convert Success Banner
   const [conversionResult, setConversionResult] = useState(null);
@@ -328,15 +332,23 @@ export default function SuperAdmin() {
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">Yönetici Şifresi</label>
               <div className="relative">
-                <Key size={16} className="absolute left-3.5 top-3 text-slate-500" />
+                <Key size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
-                  type="password"
+                  type={showLoginPassword ? 'text' : 'password'}
                   required
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950/60 border border-slate-700/70 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950/60 border border-slate-700/70 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer p-0.5"
+                  title={showLoginPassword ? "Şifreyi Gizle" : "Şifreyi Göster"}
+                >
+                  {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
@@ -1080,14 +1092,24 @@ export default function SuperAdmin() {
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-300 mb-1">Giriş Şifresi *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newClinicForm.password}
-                    onChange={(e) => setNewClinicForm({...newClinicForm, password: e.target.value})}
-                    placeholder="fizyo123"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showNewClinicPassword ? "text" : "password"}
+                      required
+                      value={newClinicForm.password}
+                      onChange={(e) => setNewClinicForm({...newClinicForm, password: e.target.value})}
+                      placeholder="fizyo123"
+                      className="w-full px-3 pr-9 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewClinicPassword(!showNewClinicPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer p-0.5"
+                      title={showNewClinicPassword ? "Şifreyi Gizle" : "Şifreyi Göster"}
+                    >
+                      {showNewClinicPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1180,15 +1202,25 @@ export default function SuperAdmin() {
 
               <div>
                 <label className="block font-semibold text-slate-300 mb-1">Yeni Şifre</label>
-                <input
-                  type="text"
-                  required
-                  minLength={4}
-                  value={resetModal.newPassword}
-                  onChange={(e) => setResetModal({...resetModal, newPassword: e.target.value})}
-                  placeholder="Yeni şifreyi giriniz..."
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500 font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type={showResetPassword ? "text" : "password"}
+                    required
+                    minLength={4}
+                    value={resetModal.newPassword}
+                    onChange={(e) => setResetModal({...resetModal, newPassword: e.target.value})}
+                    placeholder="Yeni şifreyi giriniz..."
+                    className="w-full px-3.5 pr-9 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPassword(!showResetPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer p-0.5"
+                    title={showResetPassword ? "Şifreyi Gizle" : "Şifreyi Göster"}
+                  >
+                    {showResetPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">

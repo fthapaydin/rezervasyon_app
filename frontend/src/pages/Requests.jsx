@@ -6,6 +6,9 @@ import {
   CheckCircle, XCircle, Clock, Calendar, Phone, Stethoscope, MessageSquare, X, Send, UserCheck, Check 
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
+import { 
+  getSessionLocation, cleanSessionNotes, encodeSessionNotes, getSessionLocationMeta, SESSION_LOCATIONS 
+} from '../lib/sessionLocationUtils';
 
 const STATUS_MAP = {
   bekliyor:    { label: 'Bekliyor',    cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
@@ -29,6 +32,7 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
   const [rejectModal, setRejectModal] = useState(null);
   const [approveModal, setApproveModal] = useState(null);
   const [selectedTherapistId, setSelectedTherapistId] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('klinik');
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(null);
 
@@ -38,6 +42,7 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
   const openApproveModal = (req) => {
     setApproveModal(req);
     setSelectedTherapistId(req.therapist_id || staff[0]?.id || '');
+    setSelectedLocation(getSessionLocation(req.notes));
   };
 
   const handleApproveConfirm = async () => {
@@ -49,6 +54,7 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
     setProcessing(approveModal.id);
 
     const therapistId = selectedTherapistId || (staff.length === 1 ? staff[0].id : null);
+    const finalNotes = encodeSessionNotes(approveModal.notes, selectedLocation);
 
     try {
       // 1. Talebi onayla (doğrudan Supabase)
@@ -68,7 +74,7 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
           therapist_id: therapistId,
           session_date: approveModal.requested_date,
           session_time: approveModal.requested_time,
-          notes: approveModal.notes || null,
+          notes: finalNotes || null,
           status: 'bekliyor'
         }]);
 
@@ -186,11 +192,19 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
               <div key={req.id} className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-bold text-slate-900 text-[14px]">{req.patient?.full_name}</h4>
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${statusInfo.cls}`}>
                         {statusInfo.label}
                       </span>
+                      {(() => {
+                        const locMeta = getSessionLocationMeta(getSessionLocation(req.notes));
+                        return (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${locMeta.badgeClass}`}>
+                            {locMeta.icon} {locMeta.label}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px] text-slate-600">
@@ -212,9 +226,9 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
                       )}
                     </div>
 
-                    {req.notes && (
+                    {cleanSessionNotes(req.notes) && (
                       <p className="text-[12px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                        <span className="font-semibold text-slate-800">Hasta Notu:</span> {req.notes}
+                        <span className="font-semibold text-slate-800">Hasta Notu:</span> {cleanSessionNotes(req.notes)}
                       </p>
                     )}
                   </div>
@@ -264,6 +278,32 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
                 <p className="font-bold">{approveModal.patient?.full_name}</p>
                 <p>{formatDate(approveModal.requested_date)} saat {approveModal.requested_time?.substring(0, 5)}</p>
                 <p className="font-semibold mt-1">{approveModal.treatment?.name}</p>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">
+                  Hizmet Yeri (Klinikte / Evde / Uzaktan)
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {SESSION_LOCATIONS.map((loc) => {
+                    const isSel = selectedLocation === loc.id;
+                    return (
+                      <button
+                        key={loc.id}
+                        type="button"
+                        onClick={() => setSelectedLocation(loc.id)}
+                        className={`py-2 px-2 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                          isSel
+                            ? 'bg-slate-900 border-slate-900 text-white shadow-xs font-semibold'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="text-base">{loc.icon}</span>
+                        <span className="text-[12px] leading-none">{loc.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div>

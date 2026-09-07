@@ -47,6 +47,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [showWhatsappToken, setShowWhatsappToken] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
 
   const handlePasswordUpdate = async (e) => {
@@ -604,13 +605,23 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[12px] font-semibold text-gray-600 mb-1">Meta WhatsApp API Token</label>
-                <input
-                  type="password"
-                  placeholder="EAAG..."
-                  value={formData.whatsapp_api_key}
-                  onChange={(e) => setFormData({ ...formData, whatsapp_api_key: e.target.value })}
-                  className="input-field font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type={showWhatsappToken ? 'text' : 'password'}
+                    placeholder="EAAG..."
+                    value={formData.whatsapp_api_key}
+                    onChange={(e) => setFormData({ ...formData, whatsapp_api_key: e.target.value })}
+                    className="input-field font-mono pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowWhatsappToken(!showWhatsappToken)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                    title={showWhatsappToken ? "Tokenı Gizle" : "Tokenı Göster"}
+                  >
+                    {showWhatsappToken ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
               </div>
 
               <div>
