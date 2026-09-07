@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getSessionLocation, getSessionLocationMeta } from './sessionLocationUtils';
 
 // --- Türkçe Karakter Güvenli Dönüştürücü (PDF standard font kerning & mojibake düzeltici) ---
 export function toPdfText(str) {
@@ -42,6 +43,7 @@ export function createReceiptWhatsAppMessage(payment, clinic) {
     ? `${therapist.title ? therapist.title + ' ' : ''}${therapist.full_name}`
     : (clinic?.owner_name || 'Klinik Uzmanı');
   const treatmentName = session.treatment?.name || 'Seans / Tedavi Hizmeti';
+  const locationMeta = getSessionLocationMeta(getSessionLocation(session));
   
   const receiptId = payment.id ? payment.id.slice(0, 8).toUpperCase() : '00000000';
   const payDate = payment.payment_date ? new Date(payment.payment_date) : new Date();
@@ -56,7 +58,7 @@ export function createReceiptWhatsAppMessage(payment, clinic) {
 📄 *Makbuz No:* #MAK-${receiptId}
 📅 *Tarih:* ${dateStr} - ${timeStr}
 🩺 *Uygulayan Uzman:* ${doctorName}
-🏷️ *Hizmet:* ${treatmentName}
+🏷️ *Hizmet:* ${treatmentName} (${locationMeta.label})
 💳 *Ödeme Yöntemi:* ${payment.payment_method || 'Nakit'} (${payment.installments > 1 ? `${payment.installments} Taksit` : 'Peşin'})
 💰 *Tahsil Edilen Tutar:* ${amountStr} ₺
 
@@ -78,6 +80,7 @@ export function createReceiptEmailDraft(payment, clinic) {
     ? `${therapist.title ? therapist.title + ' ' : ''}${therapist.full_name}`
     : (clinic?.owner_name || 'Klinik Uzmanı');
   const treatmentName = session.treatment?.name || 'Seans / Tedavi Hizmeti';
+  const locationMeta = getSessionLocationMeta(getSessionLocation(session));
   
   const receiptId = payment.id ? payment.id.slice(0, 8).toUpperCase() : '00000000';
   const payDate = payment.payment_date ? new Date(payment.payment_date) : new Date();
@@ -95,7 +98,7 @@ ${clinicName} bünyesinde gerçekleştirilen seansınız için ödeme tahsilatı
 • Makbuz No: #MAK-${receiptId}
 • İşlem Tarihi: ${dateStr} ${timeStr}
 • Uygulayan Uzman: ${doctorName}
-• Alınan Hizmet: ${treatmentName}
+• Alınan Hizmet: ${treatmentName} (${locationMeta.label})
 • Ödeme Yöntemi: ${payment.payment_method || 'Nakit'} (${payment.installments > 1 ? `${payment.installments} Taksit` : 'Peşin'})
 • Tahsil Edilen Tutar: ${amountStr} TL
 --------------------------------------------------
@@ -249,7 +252,7 @@ export function generatePaymentReceipt(payment, clinic = null) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
-  doc.text(toPdfText(`Hizmet: ${treatmentName}`), 113, cardY + 20);
+  doc.text(toPdfText(`Hizmet: ${treatmentName} (${locationMeta.label})`), 113, cardY + 20);
   doc.text(toPdfText(`Seans Tarihi: ${sessionDateStr} ${sessionTimeStr}`.trim()), 113, cardY + 25.5);
   doc.text(toPdfText(`Odeme Yolu: ${payment.payment_method || 'Nakit'} (${payment.installments > 1 ? `${payment.installments} Taksit` : 'Pesin'})`), 113, cardY + 31);
 
@@ -260,7 +263,7 @@ export function generatePaymentReceipt(payment, clinic = null) {
     body: [
       [
         '1',
-        toPdfText(treatmentName),
+        toPdfText(`${treatmentName} (${locationMeta.label})`),
         toPdfText(doctorName),
         toPdfText(payment.payment_method || 'Nakit'),
         payment.installments > 1 ? `${payment.installments} Taksit` : 'Pesin',
@@ -461,11 +464,12 @@ export function generateSessionReport(patient, patientSessions, clinic = null) {
   // Seans Tablosu
   autoTable(doc, {
     startY: 71,
-    head: [['#', 'Tarih', 'Saat', 'Tedavi / Hizmet', 'Uygulayan Uzman', 'Durum']],
+    head: [['#', 'Tarih', 'Saat', 'Tedavi / Hizmet', 'Yer', 'Uygulayan Uzman', 'Durum']],
     body: patientSessions.map((s, i) => {
       const docName = s.therapist?.full_name 
         ? `${s.therapist.title ? s.therapist.title + ' ' : ''}${s.therapist.full_name}`
         : '-';
+      const locMeta = getSessionLocationMeta(getSessionLocation(s));
       const statusLabel = s.status === 'tamamlandi' ? 'Tamamlandi' 
         : s.status === 'ertelendi' ? 'Ertelendi' 
         : s.status === 'iptal' ? 'Iptal' 
@@ -477,6 +481,7 @@ export function generateSessionReport(patient, patientSessions, clinic = null) {
         new Date(s.session_date).toLocaleDateString('tr-TR'),
         s.session_time ? s.session_time.substring(0, 5) : '-',
         toPdfText(s.treatment?.name || '-'),
+        toPdfText(locMeta.label),
         toPdfText(docName),
         statusLabel
       ];

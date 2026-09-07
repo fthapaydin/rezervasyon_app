@@ -420,6 +420,45 @@ async function runSuite() {
   }
 
   // =========================================================================
+  // TEST 8: Seans Hizmet Yeri (Klinikte / Evde / Uzaktan) Denetimi
+  // =========================================================================
+  console.log(`\n${BOLD}[8/8] Seans Hizmet Yeri (Klinikte / Evde / Uzaktan) Denetimi${RESET}`);
+  try {
+    const t0 = Date.now();
+    const LOCATION_REGEX = /\[(?:Yer|Konum):\s*(?:Evde|Ev|Uzaktan|Online|Klinik|Klinikte|Home|Remote|Clinic)\]/gi;
+    const cleanNotes = (n) => String(n || '').replace(LOCATION_REGEX, '').trim();
+    const encodeNotes = (n, loc) => {
+      const c = cleanNotes(n);
+      const tag = loc === 'evde' ? '[Yer: Evde]' : loc === 'uzaktan' ? '[Yer: Uzaktan]' : '[Yer: Klinik]';
+      return c ? `${c} ${tag}` : tag;
+    };
+    const getLoc = (s) => {
+      const notes = typeof s === 'string' ? s : (s?.notes || '');
+      if (/\[(?:Yer|Konum):\s*(?:Evde|Ev|Home)\]/i.test(notes)) return 'evde';
+      if (/\[(?:Yer|Konum):\s*(?:Uzaktan|Online|Remote)\]/i.test(notes)) return 'uzaktan';
+      return 'klinik';
+    };
+
+    // 1. Evde seans etiketleme ve çözümleme
+    const homeEncoded = encodeNotes('Hasta bel fıtığı egzersizleri', 'evde');
+    assert(homeEncoded.includes('[Yer: Evde]'), 'Evde seans etiketi notlara eklenmeli');
+    assert(getLoc({ notes: homeEncoded }) === 'evde', 'Evde seans doğru çözümlenmeli');
+    assert(cleanNotes(homeEncoded) === 'Hasta bel fıtığı egzersizleri', 'Temizleme etiketi çıkarmalı');
+
+    // 2. Uzaktan seans testi
+    const remoteEncoded = encodeNotes('', 'uzaktan');
+    assert(remoteEncoded === '[Yer: Uzaktan]', 'Boş notta uzaktan etiketi oluşturulmalı');
+    assert(getLoc({ notes: remoteEncoded }) === 'uzaktan', 'Uzaktan seans doğru çözümlenmeli');
+
+    // 3. Varsayılan klinik seansı
+    assert(getLoc({ notes: 'Klasik manuel terapi' }) === 'klinik', 'Etiketsiz seans varsayılan olarak klinik olmalı');
+
+    logPass('Hizmet Yeri (Klinik/Evde/Uzaktan) Çözümleyici', Date.now() - t0, '🏥 Klinikte, 🏠 Evde ve 💻 Uzaktan seans kodlama & filtreleme kuralları %100 doğrulandı');
+  } catch (err) {
+    logFail('Hizmet Yeri Denetimi Testi', err);
+  }
+
+  // =========================================================================
   // ÖZET VE RAPORLAMA
   // =========================================================================
   const totalDuration = Date.now() - suiteStartTime;

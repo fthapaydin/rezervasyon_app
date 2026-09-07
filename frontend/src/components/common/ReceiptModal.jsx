@@ -23,6 +23,8 @@ import {
   createReceiptEmailDraft 
 } from '../../lib/pdfGenerator';
 import { useToast } from '../ui/Toast';
+import { getSessionLocation } from '../../lib/sessionLocationUtils';
+import { LocationBadge } from './LocationSelector';
 
 export default function ReceiptModal({ 
   isOpen, 
@@ -215,6 +217,10 @@ export default function ReceiptModal({
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">Hizmet:</span>
                     <span className="font-medium text-slate-700 truncate max-w-[170px]" title={treatmentName}>{treatmentName}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Hizmet Yeri:</span>
+                    <LocationBadge location={getSessionLocation(resolvedSession)} size="small" />
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">Yöntem:</span>

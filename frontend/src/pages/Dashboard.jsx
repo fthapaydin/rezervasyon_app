@@ -1,6 +1,8 @@
 import { ArrowUpRight, MessageCircle, Users, Calendar, Wallet, CreditCard } from 'lucide-react';
 import { sendWhatsAppReminder } from '../lib/reminder';
 import EmptyState from '../components/ui/EmptyState';
+import { getSessionLocation } from '../lib/sessionLocationUtils';
+import { LocationBadge } from '../components/common/LocationSelector';
 
 export default function Dashboard({ patients, sessions, payments, onPatientClick, setActiveTab, requests = [], onNavigateToRequests }) {
   const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
@@ -133,12 +135,15 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
                           >
                             {s.patient?.full_name || 'İsimsiz Hasta'}
                           </button>
-                          <p className="text-[11px] text-slate-400 truncate">
-                            {s.treatment?.name || 'Fizyoterapi Seansı'}
-                            {s.therapist?.full_name && (
-                              <span className="text-slate-400"> • {s.therapist.full_name}</span>
-                            )}
-                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[11px] text-slate-500 truncate max-w-[140px] sm:max-w-[200px]">
+                              {s.treatment?.name || 'Fizyoterapi Seansı'}
+                              {s.therapist?.full_name && (
+                                <span className="text-slate-400"> • {s.therapist.full_name}</span>
+                              )}
+                            </span>
+                            <LocationBadge location={getSessionLocation(s)} size="small" />
+                          </div>
                         </div>
                       </div>
 

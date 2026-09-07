@@ -5,10 +5,10 @@ import { generateSessionReport, generatePatientSummary } from '../lib/pdfGenerat
 import { sendWhatsAppReminder } from '../lib/reminder';
 import { useToast } from '../components/ui/Toast';
 import ConfirmModal from '../components/ui/ConfirmModal';
-import EmptyState from '../components/ui/EmptyState';
 import { supabase } from '../lib/supabase';
-
 import { API_URL } from '../lib/api';
+import { getSessionLocation, cleanSessionNotes, encodeSessionNotes } from '../lib/sessionLocationUtils';
+import LocationSelector, { LocationBadge } from '../components/common/LocationSelector';
 
 export default function Patients({ clinic, patients, sessions, staff = [], treatments = [], selectedPatientId, setSelectedPatientId, refresh }) {
   if (selectedPatientId) {
@@ -279,6 +279,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
   const [copyTime, setCopyTime] = useState('');
   const [copyTherapistId, setCopyTherapistId] = useState('');
   const [copyTreatmentId, setCopyTreatmentId] = useState('');
+  const [copyLocation, setCopyLocation] = useState('klinik');
   const [copyNotes, setCopyNotes] = useState('');
   const [copying, setCopying] = useState(false);
 
@@ -335,7 +336,8 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
     setCopyTime(targetTime);
     setCopyTherapistId(session.therapist_id || session.therapist?.id || (staffList[0]?.id || ''));
     setCopyTreatmentId(session.treatment_id || session.treatment?.id || (treatmentList[0]?.id || ''));
-    setCopyNotes(session.notes || '');
+    setCopyLocation(getSessionLocation(session));
+    setCopyNotes(cleanSessionNotes(session.notes || ''));
   };
 
   const setQuickWeeks = (weeks) => {
@@ -389,7 +391,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
           session_date: copyDate,
           session_time: copyTime,
           status: 'bekliyor',
-          notes: copyNotes || null
+          notes: encodeSessionNotes(copyNotes, copyLocation)
         }]);
 
       if (insertErr) throw insertErr;
@@ -858,6 +860,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 <th className="text-left px-5 py-3">Tarih &amp; Gün</th>
                 <th className="text-left px-5 py-3">Saat</th>
                 <th className="text-left px-5 py-3">Tedavi</th>
+                <th className="text-left px-5 py-3">Hizmet Yeri</th>
                 <th className="text-left px-5 py-3">Terapist</th>
                 <th className="text-left px-5 py-3">Durum</th>
                 <th className="text-right px-5 py-3">İşlemler</th>
@@ -866,7 +869,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
             <tbody className="divide-y divide-slate-100 text-[13px]">
               {sessions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center text-slate-400">
+                  <td colSpan={8} className="px-5 py-8 text-center text-slate-400">
                     Bu hastaya ait seans kaydı bulunmuyor.
                   </td>
                 </tr>
@@ -882,6 +885,9 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                     </td>
                     <td className="px-5 py-3.5 text-slate-700 font-medium">
                       {s.treatment?.name || 'Genel Seans'}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <LocationBadge location={getSessionLocation(s)} />
                     </td>
                     <td className="px-5 py-3.5 text-slate-600 text-[12px]">
                       {s.therapist ? (
@@ -1093,6 +1099,13 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                   </select>
                 </div>
               </div>
+
+              {/* Hizmet Yeri */}
+              <LocationSelector 
+                value={copyLocation} 
+                onChange={setCopyLocation} 
+                compact={true} 
+              />
 
               {/* Notlar */}
               <div>

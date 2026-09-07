@@ -386,7 +386,8 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       session_date: session.session_date,
       session_time: session.session_time?.substring(0, 5),
       status: session.status || 'bekliyor',
-      notes: session.notes || ''
+      notes: cleanSessionNotes(session.notes || ''),
+      location_type: getSessionLocation(session)
     });
     setModalMode('edit');
   };
@@ -448,7 +449,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
         session_date: formData.session_date,
         session_time: formData.session_time,
         status: formData.status || 'bekliyor',
-        notes: formData.notes || null,
+        notes: encodeSessionNotes(formData.notes, formData.location_type),
       };
 
       const { error } = await supabase
@@ -513,7 +514,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
           session_date: formatDate(cur),
           session_time: recurData.session_time,
           status: 'bekliyor',
-          notes: `Tekrarlayan Seans (${i + 1}/${count})`
+          notes: encodeSessionNotes(`Tekrarlayan Seans (${i + 1}/${count})`, recurData.location_type)
         });
         cur = addDays(cur, stepDays);
       }
@@ -739,7 +740,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
         therapist_id: sessionToCopy.therapist_id || null,
         session_date: copySessionDate,
         session_time: copySessionTime,
-        notes: sessionToCopy.notes || null,
+        notes: encodeSessionNotes(cleanSessionNotes(sessionToCopy.notes || ''), copySessionLocation),
         status: 'bekliyor'
       }]);
 
@@ -988,6 +989,18 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
               )}
             </div>
           )}
+          <select 
+            value={selectedLocationFilter} 
+            onChange={(e) => setSelectedLocationFilter(e.target.value)} 
+            className="h-8 px-2.5 rounded-lg border border-gray-200 bg-white text-[12px] font-semibold text-gray-700 outline-none cursor-pointer hover:border-gray-300"
+            title="Hizmet yerine göre filtrele"
+          >
+            <option value="all">Tüm Yerler</option>
+            <option value="klinik">🏥 Klinikte</option>
+            <option value="evde">🏠 Evde</option>
+            <option value="uzaktan">💻 Uzaktan</option>
+          </select>
+
           <div className="flex bg-slate-100 p-0.5 rounded-lg text-[12px] font-medium text-slate-600">
             <button onClick={() => setViewMode('calendar')} className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-all cursor-pointer ${viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'hover:text-slate-900'}`}>
               <Calendar size={13} className={viewMode === 'calendar' ? 'text-slate-900' : 'text-slate-500'} />
@@ -1096,6 +1109,10 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
               />
               <span>Geçmişe dönük randevu girişi yapıyorum</span>
             </label>
+            <LocationSelector 
+              value={formData.location_type} 
+              onChange={loc => setFormData({...formData, location_type: loc})} 
+            />
             <FormField label="Not"><input type="text" placeholder="Opsiyonel..." value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} /></FormField>
             <ModalActions onCancel={() => setModalMode(null)} submitLabel={submitting ? 'Kaydediliyor...' : 'Randevuyu Kaydet'} submitting={submitting} />
           </form>
@@ -1157,6 +1174,10 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
               <FormField label="Saat *"><input required type="time" value={recurData.session_time} className="input-field" onChange={e => setRecurData({...recurData, session_time: e.target.value})} /></FormField>
               <FormField label="Seans Sayısı *"><input required type="number" min="2" max="30" value={recurData.repeat_count} className="input-field" onChange={e => setRecurData({...recurData, repeat_count: parseInt(e.target.value, 10) || 8})} /></FormField>
             </div>
+            <LocationSelector 
+              value={recurData.location_type} 
+              onChange={loc => setRecurData({...recurData, location_type: loc})} 
+            />
             <ModalActions onCancel={() => setModalMode(null)} submitLabel={submitting ? 'Oluşturuluyor...' : 'Paketi Oluştur'} submitting={submitting} color="blue" />
           </form>
         </ModalShell>
@@ -1192,6 +1213,10 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                 </select>
               </FormField>
             </div>
+            <LocationSelector 
+              value={formData.location_type} 
+              onChange={loc => setFormData({...formData, location_type: loc})} 
+            />
             <FormField label="Not"><input type="text" value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} /></FormField>
             <ModalActions onCancel={() => setModalMode(null)} submitLabel={submitting ? 'Kaydediliyor...' : 'Kaydet'} submitting={submitting} color="blue" />
           </form>
@@ -1326,7 +1351,10 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                                         {!isReq && sn && <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-black/5 shrink-0">{sn.current}/{sn.total}</span>}
                                         {isReq && <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-amber-200/70 text-amber-800 shrink-0 uppercase">Talep</span>}
                                       </div>
-                                      <div className="text-[10px] opacity-60 truncate font-medium">{s.treatment?.name}</div>
+                                      <div className="flex items-center justify-between gap-1 text-[10px] text-gray-500 font-medium">
+                                        <span className="truncate">{s.treatment?.name}</span>
+                                        {!isReq && <LocationBadge location={getSessionLocation(s)} size="small" />}
+                                      </div>
                                       {s.therapist && (
                                         <div className="flex items-center gap-1 mt-0.5">
                                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.therapist.color || '#059669' }} />
@@ -1465,12 +1493,12 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
             <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                  <th className="text-left px-4 py-3">Hasta</th><th className="text-left px-4 py-3">Tedavi</th><th className="text-left px-4 py-3">Fizyoterapist</th><th className="text-left px-4 py-3">Tarih &amp; Saat</th><th className="text-left px-4 py-3">Durum</th><th className="text-right px-4 py-3">İşlem</th>
+                  <th className="text-left px-4 py-3">Hasta</th><th className="text-left px-4 py-3">Tedavi</th><th className="text-left px-4 py-3">Hizmet Yeri</th><th className="text-left px-4 py-3">Fizyoterapist</th><th className="text-left px-4 py-3">Tarih &amp; Saat</th><th className="text-left px-4 py-3">Durum</th><th className="text-right px-4 py-3">İşlem</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-[13px]">
                 {filteredSessions.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Seans kaydı bulunamadı.</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Seans kaydı bulunamadı.</td></tr>
                 ) : filteredSessions.map((s) => {
                   const isDone = s.status === 'tamamlandi';
                   const isFuture = isSessionInFuture(s.session_date, s.session_time);
@@ -1478,6 +1506,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                     <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-4 py-3 font-semibold text-gray-900">{s.patient?.full_name}</td>
                       <td className="px-4 py-3 text-gray-600">{s.treatment?.name}</td>
+                      <td className="px-4 py-3"><LocationBadge location={getSessionLocation(s)} /></td>
                       <td className="px-4 py-3">{s.therapist ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-100 text-[11px] font-semibold text-gray-800"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.therapist.color || '#059669' }} />{s.therapist.full_name}</span> : <span className="text-gray-400 text-[12px]">-</span>}</td>
                       <td className="px-4 py-3 text-gray-700 font-mono text-[12px]">{s.session_date} {s.session_time?.substring(0, 5)}</td>
                       <td className="px-4 py-3">
@@ -1740,6 +1769,12 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                 className="input-field font-mono font-semibold"
               />
             </div>
+
+            <LocationSelector 
+              value={copySessionLocation} 
+              onChange={setCopySessionLocation} 
+              compact={true} 
+            />
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
               <button
