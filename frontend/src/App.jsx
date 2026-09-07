@@ -211,7 +211,7 @@ function App() {
         supabase.from('treatments').select('*').order('created_at', { ascending: true }),
         supabase.from('staff').select('*').order('created_at', { ascending: true }),
         supabase.from('sessions').select('*, patient:patients(id, full_name, phone, total_sessions), treatment:treatments(name, price), therapist:staff(id, full_name, role, title, color)').order('session_date', { ascending: true }),
-        supabase.from('payments').select('*, patient:patients(full_name), session:sessions(session_date, treatment:treatments(name))').order('payment_date', { ascending: false }),
+        supabase.from('payments').select('*, patient:patients(id, full_name, phone, email), session:sessions(id, session_date, session_time, treatment:treatments(name, price), therapist:staff(id, full_name, role, title, color))').order('payment_date', { ascending: false }),
         supabase.from('session_requests').select('*, patient:patients(id, full_name, phone), treatment:treatments(name, price), therapist:staff(id, full_name, role, title, color)').order('created_at', { ascending: false }),
       ]);
 
@@ -347,7 +347,7 @@ function App() {
                 {activeTab === 'treatments' && <Treatments clinic={clinic} treatments={treatments} staff={staff} refresh={fetchData} />}
                 {activeTab === 'staff'      && <Staff clinic={clinic} staff={staff} treatments={treatments} refresh={fetchData} />}
                 {activeTab === 'sessions'   && <Sessions clinic={clinic} staff={staff} sessions={sessions} requests={requests} patients={patients} treatments={treatments} refresh={fetchData} onPatientClick={openPatientDetail} activeUser={activeUser} />}
-                {activeTab === 'payments'   && <Payments clinic={clinic} payments={payments} sessions={sessions} patients={patients} refresh={fetchData} />}
+                {activeTab === 'payments'   && <Payments clinic={clinic} payments={payments} sessions={sessions} patients={patients} staff={staff} refresh={fetchData} />}
                 {activeTab === 'reports'    && <Reports clinic={clinic} patients={patients} sessions={sessions} payments={payments} treatments={treatments} staff={staff} activeUser={activeUser} />}
                 {activeTab === 'requests'   && <Requests clinic={clinic} staff={staff} requests={requests} refresh={fetchData} />}
                 {activeTab === 'settings'   && <Settings clinic={clinic} onClinicUpdated={handleClinicUpdated} onOpenAnnouncements={() => setShowAnnouncementsModal(true)} />}

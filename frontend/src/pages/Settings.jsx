@@ -156,6 +156,38 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
 
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl space-y-6">
+      {/* Üst Başlık & Hızlı Kaydet Çubuğu (Her Zaman Görünür - Sticky Top) */}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-sm rounded-2xl p-4 sm:px-6 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+            <SettingsIcon size={20} />
+          </div>
+          <div>
+            <h2 className="text-[16px] font-bold text-slate-900 leading-tight">Klinik Ayarları</h2>
+            <p className="text-[12px] text-slate-500">Klinik profili, mesai programı, mola ve bildirim tercihleri</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+          {savedSuccess && (
+            <div className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold text-[12px] bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 animate-in fade-in">
+              <CheckCircle2 size={15} className="text-emerald-600" />
+              <span>Kaydedildi!</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="h-10 sm:h-11 px-5 sm:px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-[13px] font-bold flex items-center gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
+            title="Değişiklikleri anında kaydet"
+          >
+            <Save size={16} />
+            <span>{saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}</span>
+          </button>
+        </div>
+      </div>
+
       {/* 1. Klinik Bilgileri & Marka */}
       <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-5">
         <div className="flex items-center gap-2.5 pb-4 border-b border-gray-100">
@@ -731,11 +763,11 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         </div>
       </div>
 
-      {/* Save Button */}
-      <div className="flex items-center justify-between pt-2">
+      {/* Alt Kaydet Butonu (Sayfa Sonu) */}
+      <div className="flex items-center justify-between pt-3 pb-8 border-t border-slate-200/70">
         {savedSuccess ? (
-          <div className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold text-[13px]">
-            <CheckCircle2 size={16} />
+          <div className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold text-[13px] bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+            <CheckCircle2 size={16} className="text-emerald-600" />
             <span>Ayarlar başarıyla güncellendi!</span>
           </div>
         ) : <div />}
@@ -743,7 +775,8 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         <button
           type="submit"
           disabled={saving}
-          className="h-11 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-semibold flex items-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+          className="h-11 px-7 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-[13px] font-bold flex items-center gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
+          title="Tüm ayarları kaydet"
         >
           <Save size={16} />
           <span>{saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}</span>

@@ -12,7 +12,7 @@ import { API_URL } from '../lib/api';
 
 export default function Patients({ clinic, patients, sessions, staff = [], treatments = [], selectedPatientId, setSelectedPatientId, refresh }) {
   if (selectedPatientId) {
-    return <PatientDetail id={selectedPatientId} onBack={() => setSelectedPatientId(null)} refresh={refresh} allPatients={patients} staff={staff} treatments={treatments} />;
+    return <PatientDetail id={selectedPatientId} onBack={() => setSelectedPatientId(null)} refresh={refresh} allPatients={patients} staff={staff} treatments={treatments} clinic={clinic} />;
   }
 
   return <PatientList clinic={clinic} patients={patients} sessions={sessions} onSelect={setSelectedPatientId} refresh={refresh} />;
@@ -263,7 +263,7 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
 }
 
 // ─── Patient Detail ────────────────────────────────────
-function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], treatments = [] }) {
+function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], treatments = [], clinic = null }) {
   const { toast } = useToast();
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -582,14 +582,14 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
             <span>Hastayı Sil</span>
           </button>
           <button 
-            onClick={() => generateSessionReport(patient, sessions)}
+            onClick={() => generateSessionReport(patient, sessions, clinic)}
             className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
           >
             <FileText size={13} className="text-slate-500" />
             <span>Seans Raporu PDF</span>
           </button>
           <button 
-            onClick={() => generatePatientSummary(patient, sessions, payments)}
+            onClick={() => generatePatientSummary(patient, sessions, payments, clinic)}
             className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
           >
             <Printer size={13} className="text-slate-500" />

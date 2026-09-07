@@ -1,18 +1,20 @@
 import { useState, useMemo } from 'react';
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
-import { Plus, X, CheckCircle, FileText, AlertCircle, Filter, Sparkles, Layers } from 'lucide-react';
-import { generatePaymentReceipt } from '../lib/pdfGenerator';
+import { Plus, X, CheckCircle, FileText, AlertCircle, Filter, Sparkles, Layers, MessageSquare, FileDown, Share2 } from 'lucide-react';
+import { generatePaymentReceipt, formatPhoneForWhatsApp, createReceiptWhatsAppMessage } from '../lib/pdfGenerator';
+import ReceiptModal from '../components/common/ReceiptModal';
 import { useToast } from '../components/ui/Toast';
 
 import { API_URL } from '../lib/api';
 
-export default function Payments({ clinic, payments, sessions, patients, refresh }) {
+export default function Payments({ clinic, payments, sessions, patients, staff = [], refresh }) {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'debtors'
   const [formData, setFormData] = useState({ patient_id: '', session_id: '', amount: '', payment_method: 'Nakit', installments: 1 });
   const [submitting, setSubmitting] = useState(false);
+  const [selectedReceiptPayment, setSelectedReceiptPayment] = useState(null);
 
   const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
 
@@ -36,6 +38,56 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
     const sPaid = payments.filter(p => p.session_id === s.id).reduce((sum, p) => sum + Number(p.amount || 0), 0);
     return Number(s.treatment?.price || 0) - sPaid > 0;
   });
+
+  const resolvePaymentDetails = (p) => {
+    const pPatient = p.patient?.phone 
+      ? p.patient 
+      : (patients.find(pt => pt.id === p.patient_id) || p.patient || {});
+    const pSession = p.session?.session_date 
+      ? p.session 
+      : (sessions.find(s => s.id === p.session_id) || p.session || {});
+    const pTherapist = pSession?.therapist?.full_name 
+      ? pSession.therapist 
+      : (staff.find(st => st.id === pSession?.therapist_id) || {
+          full_name: clinic?.owner_name || 'Klinik Yetkilisi',
+          title: 'Uzman / Hekim'
+        });
+    return {
+      ...p,
+      patient: pPatient,
+      session: {
+        ...pSession,
+        therapist: pTherapist
+      }
+    };
+  };
+
+  const handleQuickWhatsApp = (p, e) => {
+    e.stopPropagation();
+    const fullP = resolvePaymentDetails(p);
+    const cleanPhone = formatPhoneForWhatsApp(fullP.patient?.phone);
+    if (!cleanPhone) {
+      setSelectedReceiptPayment(fullP);
+      toast.warning('Hastanın telefon numarası eksik. Lütfen açılan panelden numarayı giriniz.');
+      return;
+    }
+    const msg = createReceiptWhatsAppMessage(fullP, clinic);
+    const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
+    toast.success(`${fullP.patient?.full_name || 'Hastaya'} WhatsApp makbuzu açıldı!`);
+  };
+
+  const handleQuickPdf = (p, e) => {
+    e.stopPropagation();
+    const fullP = resolvePaymentDetails(p);
+    try {
+      generatePaymentReceipt(fullP, clinic);
+      toast.success('Kurumsal PDF makbuzu indirildi.');
+    } catch (err) {
+      console.error('PDF indirme hatası:', err);
+      toast.error('PDF oluşturulurken hata oluştu.');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -340,7 +392,7 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
                   <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Hizmet</th>
                   <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Yöntem</th>
                   <th className="text-right px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tutar</th>
-                  <th className="text-right px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Makbuz</th>
+                  <th className="text-right px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Makbuz & Paylaş</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -364,13 +416,33 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
                       <span className="text-[14px] font-bold text-gray-900">{Number(p.amount).toLocaleString('tr-TR')} ₺</span>
                     </td>
                     <td className="px-5 py-3.5 text-right">
-                      <button 
-                        onClick={() => generatePaymentReceipt(p)}
-                        title="PDF Makbuz İndir"
-                        className="h-8 px-2.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-600 text-[12px] font-medium inline-flex items-center gap-1 transition-colors"
-                      >
-                        <FileText size={13} className="text-emerald-600" /> Makbuz
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button 
+                          type="button"
+                          onClick={(e) => handleQuickWhatsApp(p, e)}
+                          title="WhatsApp ile Makbuz Gönder"
+                          className="h-8 w-8 rounded-lg bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-white transition-all flex items-center justify-center cursor-pointer border border-[#25D366]/20 shadow-2xs"
+                        >
+                          <MessageSquare size={13} />
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={(e) => handleQuickPdf(p, e)}
+                          title="Kurumsal PDF Makbuzu İndir"
+                          className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-slate-900 text-slate-600 hover:text-white transition-all flex items-center justify-center cursor-pointer border border-slate-200 shadow-2xs"
+                        >
+                          <FileDown size={13} />
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setSelectedReceiptPayment(p)}
+                          title="Makbuz Detayı & Paylaşım Paneli"
+                          className="h-8 px-2.5 rounded-lg border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-600 text-emerald-800 hover:text-white text-[12px] font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                        >
+                          <FileText size={13} />
+                          <span>Makbuz & Paylaş</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -465,6 +537,17 @@ export default function Payments({ clinic, payments, sessions, patients, refresh
           </div>
         </div>
       )}
+
+      {/* Makbuz & Paylaşım Modalı */}
+      <ReceiptModal
+        isOpen={Boolean(selectedReceiptPayment)}
+        onClose={() => setSelectedReceiptPayment(null)}
+        payment={selectedReceiptPayment}
+        clinic={clinic}
+        patients={patients}
+        sessions={sessions}
+        staff={staff}
+      />
     </div>
   );
 }
