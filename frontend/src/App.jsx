@@ -41,7 +41,6 @@ const pageMeta = {
 
 function App() {
   const { toast } = useToast();
-  const { isDark, toggle: toggleDark } = useDarkMode();
   const [clinic, setClinic] = useState(() => {
     try {
       const saved = localStorage.getItem('fizyo_clinic');
@@ -50,6 +49,7 @@ function App() {
       return null;
     }
   });
+  const { isDark, toggle: toggleDark } = useDarkMode(Boolean(clinic));
 
   const [activeUser, setActiveUser] = useState(() => {
     try {

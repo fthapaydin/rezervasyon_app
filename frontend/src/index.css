@@ -295,3 +295,115 @@ body.dark {
   background-color: rgba(16, 185, 129, 0.3) !important;
   color: #a7f3d0 !important;
 }
+
+/* ========================================================
+   LANDING & AUTH SAYFASI KORUMASI (Light Mod Güvencesi)
+   Dışa açık SaaS tanıtım ve giriş sayfası her zaman yüksek
+   kontrastlı, aydınlık, ferah ve profesyonel kalır.
+   ======================================================== */
+.landing-page-root {
+  background-color: #fafbfc !important;
+  color: #0f172a !important;
+}
+
+.landing-page-root header {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(226, 232, 240, 0.8) !important;
+  color: #0f172a !important;
+}
+
+.landing-page-root h1,
+.landing-page-root h2,
+.landing-page-root h3,
+.landing-page-root .text-slate-900 {
+  color: #0f172a !important;
+}
+
+.landing-page-root .text-slate-800 {
+  color: #1e293b !important;
+}
+
+.landing-page-root .text-slate-700 {
+  color: #334155 !important;
+}
+
+.landing-page-root .text-slate-600 {
+  color: #475569 !important;
+}
+
+.landing-page-root .text-slate-500 {
+  color: #64748b !important;
+}
+
+.landing-page-root .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+.landing-page-root .bg-white {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+.landing-page-root .bg-slate-50,
+.landing-page-root .bg-slate-50\/50,
+.landing-page-root .bg-slate-100 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+.landing-page-root .border-slate-200,
+.landing-page-root .border-slate-200\/70,
+.landing-page-root .border-slate-200\/80 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Landing Sayfası UI Mockup Koyu Kartı */
+.landing-page-root .bg-slate-900 {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.landing-page-root .bg-slate-900 .text-white {
+  color: #ffffff !important;
+}
+
+/* Modal ve Form Inputları */
+.landing-page-root input,
+.landing-page-root select,
+.landing-page-root textarea {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.landing-page-root input::placeholder,
+.landing-page-root textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Landing Footer Koruması (Koyu Kurumsal Lacivert) */
+.landing-page-root footer {
+  background-color: #020617 !important;
+  color: #94a3b8 !important;
+}
+
+.landing-page-root footer .text-white {
+  color: #ffffff !important;
+}
+
+.landing-page-root footer .text-slate-200 {
+  color: #e2e8f0 !important;
+}
+
+.landing-page-root footer .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+
+.landing-page-root footer .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+.landing-page-root footer .text-slate-500 {
+  color: #64748b !important;
+}

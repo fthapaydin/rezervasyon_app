@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
 import { API_URL } from '../lib/api';
@@ -13,6 +13,12 @@ import { getStaffPassword, getStaffAllowedTabs } from '../lib/rbacUtils';
 import { saveNewDemoRequest } from '../lib/demoRequestsUtils';
 
 export default function Login({ onLogin }) {
+  // Landing / Giriş sayfası her zaman tertemiz aydınlık modda açılır (dark mode zorlamasını kaldırır)
+  useEffect(() => {
+    document.documentElement.classList.remove('dark');
+    document.body.classList.remove('dark');
+  }, []);
+
   // Login State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -199,7 +205,7 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafbfc] text-slate-900 font-[Inter] antialiased flex flex-col justify-between selection:bg-emerald-600 selection:text-white">
+    <div className="landing-page-root min-h-screen bg-[#fafbfc] text-slate-900 font-[Inter] antialiased flex flex-col justify-between selection:bg-emerald-600 selection:text-white">
 
       {/* ─── 1. NAVBAR (CLEAN, MINIMAL ENTERPRISE HEADER) ─────────── */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
