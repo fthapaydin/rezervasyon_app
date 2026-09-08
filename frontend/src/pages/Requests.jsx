@@ -7,8 +7,9 @@ import {
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import { 
-  getSessionLocation, cleanSessionNotes, encodeSessionNotes, getSessionLocationMeta, SESSION_LOCATIONS 
+  getSessionLocation, cleanSessionNotes, encodeSessionNotes, getSessionLocationMeta 
 } from '../lib/sessionLocationUtils';
+import LocationSelector, { LocationBadge } from '../components/common/LocationSelector';
 
 const STATUS_MAP = {
   bekliyor:    { label: 'Bekliyor',    cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
@@ -280,31 +281,11 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
                 <p className="font-semibold mt-1">{approveModal.treatment?.name}</p>
               </div>
 
-              <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">
-                  Hizmet Yeri (Klinikte / Evde / Uzaktan)
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {SESSION_LOCATIONS.map((loc) => {
-                    const isSel = selectedLocation === loc.id;
-                    return (
-                      <button
-                        key={loc.id}
-                        type="button"
-                        onClick={() => setSelectedLocation(loc.id)}
-                        className={`py-2 px-2 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center gap-1 ${
-                          isSel
-                            ? 'bg-slate-900 border-slate-900 text-white shadow-xs font-semibold'
-                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className="text-base">{loc.icon}</span>
-                        <span className="text-[12px] leading-none">{loc.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <LocationSelector 
+                value={selectedLocation} 
+                onChange={setSelectedLocation} 
+                clinic={clinic} 
+              />
 
               <div>
                 <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">

@@ -1,91 +1,60 @@
-import { SESSION_LOCATIONS } from '../../lib/sessionLocationUtils';
+import { getClinicLocations, getSessionLocationMeta } from '../../lib/sessionLocationUtils';
 
-export default function LocationSelector({ value = 'klinik', onChange, showDescription = true, compact = false }) {
+export default function LocationSelector({ value = 'klinik', onChange, clinic = null, locations = null }) {
   const current = value || 'klinik';
+  const availableLocations = locations || getClinicLocations(clinic);
 
   return (
     <div className="space-y-1.5">
-      <label className="block text-[12px] font-semibold text-slate-700">
-        Seans Hizmet Yeri <span className="text-slate-400 font-normal">(Klinik / Evde / Uzaktan)</span>
-      </label>
+      <div className="flex items-center justify-between">
+        <label className="block text-[12px] font-semibold text-slate-700">
+          Seans Hizmet Yeri
+        </label>
+        <span className="text-[11px] text-slate-400">
+          {availableLocations.length} seçenek
+        </span>
+      </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        {SESSION_LOCATIONS.map((loc) => {
-          const isSelected = current === loc.id;
+      <div className={`grid gap-2 ${availableLocations.length <= 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}>
+        {availableLocations.map((loc) => {
+          const isSelected = current === loc.id || current === loc.label;
           return (
             <button
               key={loc.id}
               type="button"
               onClick={() => onChange?.(loc.id)}
-              className={`p-2 sm:p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+              className={`h-10 px-3 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center text-[12px] font-semibold select-none ${
                 isSelected
-                  ? loc.id === 'evde'
-                    ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-2xs font-bold ring-1 ring-amber-500'
-                    : loc.id === 'uzaktan'
-                    ? 'bg-indigo-50 border-indigo-500 text-indigo-900 shadow-2xs font-bold ring-1 ring-indigo-500'
-                    : 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-2xs font-bold ring-1 ring-emerald-500'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                  ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
               }`}
             >
-              <span className="text-base sm:text-lg leading-none">{loc.icon}</span>
-              <span className="text-[11px] sm:text-[12px] leading-tight truncate w-full">{loc.label}</span>
+              <span className="truncate">{loc.label}</span>
             </button>
           );
         })}
       </div>
-
-      {showDescription && !compact && (
-        <div className="text-[11px] pt-0.5">
-          {current === 'evde' && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50/80 border border-amber-200/80 text-amber-900">
-              <span className="shrink-0">🏠</span>
-              <span><strong>Evde Fizyoterapi:</strong> Randevu hastanın ikametgahında yerinde seans olarak takvime işlenir.</span>
-            </div>
-          )}
-          {current === 'uzaktan' && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50/80 border border-indigo-200/80 text-indigo-900">
-              <span className="shrink-0">💻</span>
-              <span><strong>Online / Telerehabilitasyon:</strong> Görüntülü görüşme veya uzaktan takip seansı olarak planlanır.</span>
-            </div>
-          )}
-          {current === 'klinik' && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/70 text-slate-600">
-              <span className="shrink-0">🏥</span>
-              <span><strong>Klinik İçi Seans:</strong> Seans doğrudan klinik merkezimizde fiziki olarak gerçekleştirilir.</span>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
 
 /**
- * Rozet Gösterici (Takvim ve Tablolar için)
+ * Rozet Gösterici (Takvim ve Tablolar için - İkonsuz, sade ve şık)
  */
-export function LocationBadge({ location, size = 'normal', showIconOnly = false }) {
+export function LocationBadge({ location, clinic = null, size = 'normal' }) {
   const locId = location || 'klinik';
-  const meta = SESSION_LOCATIONS.find(l => l.id === locId) || SESSION_LOCATIONS[0];
-
-  if (showIconOnly) {
-    return (
-      <span title={meta.fullLabel} className="inline-flex items-center text-xs">
-        {meta.icon}
-      </span>
-    );
-  }
-
+  const meta = getSessionLocationMeta(locId, clinic);
   const isSmall = size === 'small';
 
   return (
     <span 
-      title={meta.description}
-      className={`inline-flex items-center gap-1 rounded-md border font-semibold tracking-tight transition-all shrink-0 ${
-        isSmall ? 'text-[9px] px-1.5 py-0.2' : 'text-[10px] px-2 py-0.5'
-      } ${meta.badgeClass}`}
+      title={meta.label}
+      className={`inline-flex items-center rounded-md border font-semibold tracking-tight transition-all shrink-0 ${
+        isSmall ? 'text-[9px] px-1.5 py-0.5' : 'text-[10px] px-2 py-0.5'
+      } ${meta.badgeClass || 'bg-slate-100 text-slate-800 border-slate-300'}`}
     >
-      <span className="leading-none">{meta.icon}</span>
       <span>{meta.label}</span>
     </span>
   );
 }
+

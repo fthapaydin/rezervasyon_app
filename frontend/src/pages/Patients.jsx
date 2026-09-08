@@ -1104,7 +1104,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
               <LocationSelector 
                 value={copyLocation} 
                 onChange={setCopyLocation} 
-                compact={true} 
+                clinic={clinic}
               />
 
               {/* Notlar */}

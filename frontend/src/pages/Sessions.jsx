@@ -17,7 +17,7 @@ import { exportSessionsToExcel } from '../lib/excelExport';
 import { useToast } from '../components/ui/Toast';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { API_URL } from '../lib/api';
-import { getClinicSchedule, isBreakSlot, isDayWorkingHour } from '../lib/scheduleUtils';
+import { getClinicSchedule, isBreakSlot, isDayWorkingHour, getDynamicHours } from '../lib/scheduleUtils';
 import { getTreatmentAssignedStaff } from '../lib/rbacUtils';
 import { getSessionLocation, cleanSessionNotes, encodeSessionNotes } from '../lib/sessionLocationUtils';
 import LocationSelector, { LocationBadge } from '../components/common/LocationSelector';
@@ -140,25 +140,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
 
   const clinicSchedule = useMemo(() => getClinicSchedule(clinic), [clinic]);
 
-  const dynamicHours = useMemo(() => {
-    let minHour = 8;
-    let maxHour = 20;
-    if (clinicSchedule?.days) {
-      Object.values(clinicSchedule.days).forEach(conf => {
-        if (conf?.active) {
-          const s = parseInt(conf.start?.split(':')[0], 10);
-          const e = parseInt(conf.end?.split(':')[0], 10);
-          if (!isNaN(s) && s < minHour) minHour = s;
-          if (!isNaN(e) && e > maxHour) maxHour = e;
-        }
-      });
-    }
-    const res = [];
-    for (let h = minHour; h <= maxHour; h++) {
-      res.push(`${String(h).padStart(2, '0')}:00`);
-    }
-    return res.length > 0 ? res : HOURS;
-  }, [clinicSchedule]);
+  const dynamicHours = useMemo(() => getDynamicHours(clinicSchedule), [clinicSchedule]);
 
   // Belirli bir tedaviye atanmış veya tüm terapistleri getir
   const getEligibleTherapistsForTreatment = useCallback((treatmentId) => {
@@ -1112,6 +1094,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
             <LocationSelector 
               value={formData.location_type} 
               onChange={loc => setFormData({...formData, location_type: loc})} 
+              clinic={clinic}
             />
             <FormField label="Not"><input type="text" placeholder="Opsiyonel..." value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} /></FormField>
             <ModalActions onCancel={() => setModalMode(null)} submitLabel={submitting ? 'Kaydediliyor...' : 'Randevuyu Kaydet'} submitting={submitting} />
@@ -1177,6 +1160,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
             <LocationSelector 
               value={recurData.location_type} 
               onChange={loc => setRecurData({...recurData, location_type: loc})} 
+              clinic={clinic}
             />
             <ModalActions onCancel={() => setModalMode(null)} submitLabel={submitting ? 'Oluşturuluyor...' : 'Paketi Oluştur'} submitting={submitting} color="blue" />
           </form>
@@ -1216,6 +1200,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
             <LocationSelector 
               value={formData.location_type} 
               onChange={loc => setFormData({...formData, location_type: loc})} 
+              clinic={clinic}
             />
             <FormField label="Not"><input type="text" value={formData.notes || ''} className="input-field" onChange={e => setFormData({...formData, notes: e.target.value})} /></FormField>
             <ModalActions onCancel={() => setModalMode(null)} submitLabel={submitting ? 'Kaydediliyor...' : 'Kaydet'} submitting={submitting} color="blue" />
@@ -1275,13 +1260,8 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                           return (
                             <td
                               key={di}
-                              className="border-r-2 border-gray-200 last:border-r-0 align-middle text-center bg-amber-50/70 p-2 select-none border-dashed"
-                            >
-                              <div className="flex flex-col items-center justify-center py-2 text-amber-800/80">
-                                <span className="text-[11px] font-bold">☕ Mola</span>
-                                <span className="text-[9px] text-amber-600/70 font-medium">Öğle Arası</span>
-                              </div>
-                            </td>
+                              className="border-r-2 border-gray-200 last:border-r-0 align-middle text-center bg-gray-100/40 select-none cursor-not-allowed"
+                            />
                           );
                         }
 
@@ -1773,7 +1753,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
             <LocationSelector 
               value={copySessionLocation} 
               onChange={setCopySessionLocation} 
-              compact={true} 
+              clinic={clinic}
             />
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">

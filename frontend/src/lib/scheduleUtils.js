@@ -71,5 +71,26 @@ export function isDayWorkingHour(dayKey, hour, schedule) {
   const h = hour.substring(0, 5);
   const start = (dayConf.start || '08:00').substring(0, 5);
   const end = (dayConf.end || '20:00').substring(0, 5);
-  return h >= start && h < end;
+  return h >= start && h <= end;
+}
+
+// Kliniğin çalışma saatlerine göre dinamik saat listesi üretici
+export function getDynamicHours(clinicSchedule) {
+  let minHour = 8;
+  let maxHour = 20;
+  if (clinicSchedule?.days) {
+    Object.values(clinicSchedule.days).forEach(conf => {
+      if (conf?.active) {
+        const s = parseInt(conf.start?.split(':')[0], 10);
+        const e = parseInt(conf.end?.split(':')[0], 10);
+        if (!isNaN(s) && s < minHour) minHour = s;
+        if (!isNaN(e) && e > maxHour) maxHour = e;
+      }
+    });
+  }
+  const res = [];
+  for (let h = minHour; h <= maxHour; h++) {
+    res.push(`${String(h).padStart(2, '0')}:00`);
+  }
+  return res.length > 0 ? res : TIME_OPTIONS;
 }

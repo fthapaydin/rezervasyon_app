@@ -5,10 +5,11 @@ import { TURKEY_CITIES } from '../lib/turkeyCities';
 import { API_URL } from '../lib/api';
 import { 
   Settings as SettingsIcon, Building2, Palette, Clock, MessageSquare, Save, CheckCircle2, MapPin,
-  Coffee, Calendar, Copy, Sparkles, Check, Eye, EyeOff, Lock, KeyRound
+  Coffee, Calendar, Copy, Sparkles, Check, Eye, EyeOff, Lock, KeyRound, Plus, Trash2
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import { ALL_DAYS, DAY_FULL_NAMES, TIME_OPTIONS, getClinicSchedule } from '../lib/scheduleUtils';
+import { getClinicLocations } from '../lib/sessionLocationUtils';
 
 const THEME_COLORS = [
   { name: 'Zümrüt Yeşili', hex: '#059669', bg: 'bg-emerald-600' },
@@ -38,6 +39,33 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
     whatsapp_phone_id: clinic?.whatsapp_phone_id || '',
     auto_whatsapp_enabled: clinic?.auto_whatsapp_enabled || false,
   });
+
+  const [sessionLocations, setSessionLocations] = useState(() => {
+    const locs = getClinicLocations(clinic);
+    return locs.map(l => l.label);
+  });
+  const [newLocationInput, setNewLocationInput] = useState('');
+
+  const handleAddLocation = () => {
+    const trimmed = newLocationInput.trim();
+    if (!trimmed) return;
+    if (sessionLocations.some(l => l.toLowerCase() === trimmed.toLowerCase())) {
+      toast.warning('Bu hizmet yeri zaten listenizde mevcut.', 'Zaten Var');
+      return;
+    }
+    setSessionLocations(prev => [...prev, trimmed]);
+    setNewLocationInput('');
+    toast.success(`"${trimmed}" hizmet yeri listeye eklendi.`, 'Eklendi');
+  };
+
+  const handleRemoveLocation = (locToRemove) => {
+    if (sessionLocations.length <= 1) {
+      toast.warning('En az bir adet hizmet yeri tanımlı olmalıdır.', 'Silinemez');
+      return;
+    }
+    setSessionLocations(prev => prev.filter(l => l !== locToRemove));
+    toast.info(`"${locToRemove}" listeden kaldırıldı.`, 'Kaldırıldı');
+  };
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -150,7 +178,8 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
 
       const fullSchedule = {
         ...schedule,
-        active_days: activeDaysList
+        active_days: activeDaysList,
+        session_locations: sessionLocations
       };
 
       const payload = {
@@ -507,7 +536,81 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         </div>
       </div>
 
-      {/* 4. WhatsApp Mesaj Şablonları */}
+      {/* 4. Seans Hizmet Yerleri (Lokasyonlar) */}
+      <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <MapPin size={18} className="text-emerald-600" />
+            <div>
+              <h3 className="text-[15px] font-bold text-gray-900">Seans Hizmet Yerleri (Lokasyonlar)</h3>
+              <p className="text-[12px] text-gray-400">Kliniğinizin sunduğu seans yerlerini belirleyin, yeni lokasyon ekleyin veya çıkarın</p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+            {sessionLocations.length} Hizmet Yeri Aktif
+          </span>
+        </div>
+
+        {/* Mevcut Lokasyonlar */}
+        <div className="space-y-3">
+          <label className="block text-[12px] font-bold text-slate-700">
+            Kayıtlı Hizmet Yerleri
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+            {sessionLocations.map((loc) => (
+              <div 
+                key={loc}
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-slate-300 transition-all shadow-2xs"
+              >
+                <span className="text-[13px] font-semibold text-slate-800 truncate">{loc}</span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveLocation(loc)}
+                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                  title={`"${loc}" yerini kaldır`}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Yeni Lokasyon Ekleme */}
+        <div className="pt-3 border-t border-slate-100">
+          <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">
+            Yeni Hizmet Yeri Ekle
+          </label>
+          <div className="flex gap-2 max-w-md">
+            <input
+              type="text"
+              placeholder="Örn: VIP Salonu, Pilates Odası..."
+              value={newLocationInput}
+              onChange={(e) => setNewLocationInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddLocation();
+                }
+              }}
+              className="input-field"
+            />
+            <button
+              type="button"
+              onClick={handleAddLocation}
+              className="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-bold transition-colors cursor-pointer shrink-0 flex items-center gap-1.5"
+            >
+              <Plus size={14} />
+              <span>Ekle</span>
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1.5">
+            Burada tanımladığınız seçenekler seans ekleme pencerelerinde ve hasta randevu takviminde listelenir.
+          </p>
+        </div>
+      </div>
+
+      {/* 5. WhatsApp Mesaj Şablonları */}
       <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-5">
         <div className="flex items-center gap-2.5 pb-4 border-b border-gray-100">
           <MessageSquare size={18} className="text-emerald-600" />
