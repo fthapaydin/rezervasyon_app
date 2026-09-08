@@ -207,10 +207,15 @@ export default function Header({
           {onToggleDark && (
             <button
               onClick={onToggleDark}
-              className="h-9 w-9 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer"
+              className={`h-9 px-2.5 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer select-none ${
+                isDark 
+                  ? 'bg-amber-400/10 border-amber-400/30 text-amber-300 hover:bg-amber-400/20' 
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-2xs'
+              }`}
               title={isDark ? 'Aydınlık Moda Geç' : 'Karanlık Moda Geç'}
             >
-              {isDark ? <Sun size={14} /> : <Moon size={14} />}
+              {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-slate-600" />}
+              <span className="text-[11px] font-bold hidden xl:inline">{isDark ? 'Aydınlık' : 'Karanlık'}</span>
             </button>
           )}
 
