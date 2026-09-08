@@ -107,9 +107,12 @@ export default function AnnouncementBanner({ onOpenModal }) {
 
   if (visibleAnnouncements.length === 0) return null;
 
+  // En fazla 1 duyuru göster (üst üste bant yığılmasını önle)
+  const displayItems = visibleAnnouncements.slice(0, 1);
+
   return (
     <div className="space-y-1 z-30 font-[Inter]">
-      {visibleAnnouncements.map((item) => {
+      {displayItems.map((item) => {
         const style = TYPE_STYLES[item.type] || TYPE_STYLES.campaign;
 
         return (
