@@ -6,7 +6,7 @@ import {
   Activity, Mail, Lock, Loader2, LogIn, Building2, 
   Eye, EyeOff, Check, X, ArrowRight, ExternalLink,
   MessageSquare, Phone, ShieldCheck, Clock, CheckCircle2, Sparkles,
-  Calendar, Copy, FileText, QrCode, Wallet, CreditCard, ArrowRightLeft, Users
+  Calendar, Copy, FileText, QrCode, Wallet, CreditCard, ArrowRightLeft, Users, MapPin
 } from 'lucide-react';
 
 import { getStaffPassword, getStaffAllowedTabs } from '../lib/rbacUtils';
@@ -1056,40 +1056,185 @@ export default function Login({ onLogin }) {
         </div>
       </section>
 
-      {/* ─── 7. FOOTER ────────────────────────────────────────────── */}
-      <footer className="bg-white text-slate-500 border-t border-slate-200 py-10 text-[12px]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+      {/* ─── 7. ENHANCED CORPORATE FOOTER ─────────────────────────── */}
+      <footer className="bg-slate-950 text-slate-300 border-t border-slate-800">
+        {/* Top Trust Bar */}
+        <div className="border-b border-slate-900 bg-slate-900/60 py-4 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4 text-[12px]">
+            <div className="flex items-center gap-6 flex-wrap">
+              <span className="flex items-center gap-2 text-emerald-400 font-medium">
+                <ShieldCheck size={16} />
+                <span>KVKK &amp; Sağlık Bakanlığı Veri Güvenliği Uyumlu</span>
+              </span>
+              <span className="flex items-center gap-2 text-slate-400">
+                <CheckCircle2 size={16} className="text-teal-400" />
+                <span>256-Bit SSL Uçtan Uca Şifreli Bulut Mimarisi</span>
+              </span>
+              <span className="flex items-center gap-2 text-slate-400">
+                <Clock size={16} className="text-amber-400" />
+                <span>7/24 Kesintisiz Klinik Erişimi &amp; Otomatik Yedekleme</span>
+              </span>
+            </div>
+            <div className="text-slate-400 text-[11px] font-mono">
+              Fizyotim v2.5 Enterprise
+            </div>
+          </div>
+        </div>
+
+        {/* Main Footer Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             
-            <div>
-              <span className="text-slate-900 font-semibold">Fizyotim</span> — Klinik Yönetim &amp; Randevu Altyapısı
+            {/* 1. Fizyotim Tanıtım */}
+            <div className="space-y-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-black text-[13px] tracking-tight shadow-md shadow-emerald-950/50">
+                  FT
+                </div>
+                <div>
+                  <h4 className="text-[15px] font-bold text-white tracking-tight">Fizyotim</h4>
+                  <span className="text-[11px] text-emerald-400 font-medium">Klinik Yönetim &amp; Randevu Ekosistemi</span>
+                </div>
+              </div>
+              <p className="text-[12px] text-slate-400 leading-relaxed">
+                Fizyoterapi ve rehabilitasyon merkezlerinin seans planlama, hasta takibi, personel performans analizi ve finansal kasa yönetimini tek çatı altında toplayan akıllı klinik otomasyonu.
+              </p>
+              <div className="pt-1 text-[11px] text-slate-400">
+                FatalSoft Bilişim Teknolojileri güvencesiyle geliştirilmektedir.
+              </div>
             </div>
 
-            <div className="flex items-center gap-6">
-              <a href="https://randevu.fizyotim.com/" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900">
-                randevu.fizyotim.com
-              </a>
-              <button onClick={() => scrollToSection('features')} className="hover:text-slate-900 cursor-pointer">
-                Özellikler
-              </button>
-              <button onClick={() => scrollToSection('pricing')} className="hover:text-slate-900 cursor-pointer">
-                Fiyatlandırma
-              </button>
-              <button onClick={() => setShowLoginModal(true)} className="hover:text-slate-900 cursor-pointer font-medium text-slate-900">
-                Klinik Girişi
-              </button>
-              <a href="/superadmin" className="hover:text-emerald-600 text-slate-400 text-[11px] font-mono flex items-center gap-1 transition">
-                <ShieldCheck size={13} /> Superadmin
-              </a>
+            {/* 2. Platform Modülleri */}
+            <div className="space-y-3">
+              <h4 className="text-[13px] font-bold uppercase tracking-wider text-slate-200">
+                Temel Modüller
+              </h4>
+              <ul className="space-y-2 text-[12px] text-slate-400">
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Akıllı Seans Takvimi &amp; Sürükle-Bırak</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Hasta Takip &amp; Tedavi Geçmişi</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Personel Performans &amp; Ciro Raporu</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>WhatsApp Bildirim &amp; PDF Makbuz</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Rol Bazlı Yetkilendirme (RBAC)</span>
+                </li>
+              </ul>
             </div>
 
-            <p className="text-slate-400">
-              © 2026 FatalSoft Bilişim Teknolojileri. Tüm hakları saklıdır.
-            </p>
+            {/* 3. Hızlı Bağlantılar */}
+            <div className="space-y-3">
+              <h4 className="text-[13px] font-bold uppercase tracking-wider text-slate-200">
+                Hızlı Erişim
+              </h4>
+              <ul className="space-y-2 text-[12px] text-slate-400">
+                <li>
+                  <button onClick={() => scrollToSection('features')} className="hover:text-white transition-colors cursor-pointer">
+                    Platform Özellikleri
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollToSection('pricing')} className="hover:text-white transition-colors cursor-pointer">
+                    Fiyatlandırma &amp; Paketler
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollToSection('contact-section')} className="hover:text-emerald-400 transition-colors cursor-pointer font-medium">
+                    14 Gün Ücretsiz Demo İste
+                  </button>
+                </li>
+                <li>
+                  <a 
+                    href="https://fizyo-booking.vercel.app" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="hover:text-white transition-colors inline-flex items-center gap-1"
+                  >
+                    <span>Online Hasta Randevu Sayfası</span>
+                    <ExternalLink size={11} className="text-slate-400" />
+                  </a>
+                </li>
+                <li className="pt-1">
+                  <button 
+                    onClick={() => setShowLoginModal(true)} 
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-colors cursor-pointer shadow-sm"
+                  >
+                    Klinik Girişi Yap
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* 4. İletişim & FatalSoft */}
+            <div className="space-y-3">
+              <h4 className="text-[13px] font-bold uppercase tracking-wider text-slate-200">
+                Geliştirici &amp; Destek
+              </h4>
+              <p className="text-[12px] text-slate-400 leading-relaxed">
+                Klinik yazılımı kurulumu, özel entegrasyonlar ve kurumsal lisans talepleriniz için bize ulaşabilirsiniz.
+              </p>
+              
+              <div className="space-y-2 text-[12px] text-slate-300 pt-1">
+                <div className="font-semibold text-white">FatalSoft Bilişim Teknolojileri</div>
+                <a 
+                  href="mailto:fatalsoft.inc@gmail.com?subject=Fizyotim%20Klinik%20Yaz%C4%B1l%C4%B1m%C4%B1%20Talebi" 
+                  className="flex items-center gap-2 text-slate-300 hover:text-emerald-400 transition-colors"
+                >
+                  <Mail size={14} className="text-emerald-500 shrink-0" />
+                  <span>fatalsoft.inc@gmail.com</span>
+                </a>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Phone size={14} className="text-emerald-500 shrink-0" />
+                  <span>0555 555 55 55</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-400 text-[11px]">
+                  <MapPin size={13} className="text-emerald-500 shrink-0" />
+                  <span>Kadıköy / İstanbul</span>
+                </div>
+              </div>
+            </div>
 
           </div>
         </div>
+
+        {/* Bottom Copyright & Legal */}
+        <div className="border-t border-slate-900 py-6 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
+            <div>
+              © 2026 <strong className="text-slate-200">Fizyotim</strong>. FatalSoft Bilişim Teknolojileri iştirakidir. Tüm hakları saklıdır.
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <span className="hover:text-white cursor-pointer transition-colors">KVKK Aydınlatma Metni</span>
+              <span>•</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Gizlilik Politikası</span>
+              <span>•</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Kullanıcı Sözleşmesi</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span>Powered by <strong className="text-slate-300">FatalSoft</strong></span>
+              <span className="text-slate-700">|</span>
+              <a href="/superadmin" className="text-slate-400 hover:text-emerald-400 flex items-center gap-1 transition-colors">
+                <ShieldCheck size={12} />
+                <span>Superadmin</span>
+              </a>
+            </div>
+          </div>
+        </div>
       </footer>
+
 
       {/* ─── 8. KLİNİK GİRİŞİ MODALI (CLEAN, PROFESSIONAL) ────────── */}
       {showLoginModal && (
