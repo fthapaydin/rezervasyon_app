@@ -3,6 +3,7 @@ import axios from 'axios';
 import { supabase } from './lib/supabase';
 import { useToast } from './components/ui/Toast';
 import { playNotificationSound } from './lib/notificationSound';
+import { useDarkMode } from './lib/useDarkMode';
 
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -40,6 +41,7 @@ const pageMeta = {
 
 function App() {
   const { toast } = useToast();
+  const { isDark, toggle: toggleDark } = useDarkMode();
   const [clinic, setClinic] = useState(() => {
     try {
       const saved = localStorage.getItem('fizyo_clinic');
@@ -350,6 +352,7 @@ function App() {
         pendingCount={pendingCount}
         clinic={clinic}
         activeUser={activeUser}
+        isDark={isDark}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -364,11 +367,13 @@ function App() {
           onOpenAnnouncements={() => setShowAnnouncementsModal(true)}
           pendingCount={pendingCount}
           onNavigateToRequests={() => setActiveTab('requests')}
+          isDark={isDark}
+          onToggleDark={toggleDark}
         />
 
         <AnnouncementBanner onOpenModal={() => setShowAnnouncementsModal(true)} />
 
-        <main className="flex-1 overflow-y-auto bg-[#f8fafb]">
+        <main className={`flex-1 overflow-y-auto ${isDark ? 'bg-gray-950' : 'bg-[#f8fafb]'}`}>
           <div className="max-w-[1200px] mx-auto p-4 md:p-8">
             {loading ? (
               <div className="flex items-center justify-center h-64">

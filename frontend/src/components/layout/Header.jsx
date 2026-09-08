@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { 
   RefreshCw, Link2, Check, QrCode, Megaphone, Bell, Volume2, 
-  ArrowRight, ExternalLink, KeyRound, User, LogOut, ChevronDown, Lock, X, ShieldCheck, Stethoscope, UserCheck, Eye, EyeOff
+  ArrowRight, ExternalLink, KeyRound, User, LogOut, ChevronDown, Lock, X, ShieldCheck, Stethoscope, UserCheck, Eye, EyeOff,
+  Moon, Sun
 } from 'lucide-react';
 import { MobileMenuButton } from './Sidebar';
 import QRCodeModal from '../QRCodeModal';
@@ -20,7 +21,9 @@ export default function Header({
   onLogout, 
   onOpenAnnouncements, 
   pendingCount = 0, 
-  onNavigateToRequests 
+  onNavigateToRequests,
+  isDark = false,
+  onToggleDark
 }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -124,12 +127,12 @@ export default function Header({
 
   return (
     <>
-      <header className="h-16 bg-white border-b border-gray-200/80 px-4 md:px-8 flex items-center justify-between shrink-0 select-none">
+      <header className={`h-16 border-b px-4 md:px-8 flex items-center justify-between shrink-0 select-none transition-colors ${isDark ? 'bg-gray-900 border-gray-700/80' : 'bg-white border-gray-200/80'}`}>
         <div className="flex items-center">
           <MobileMenuButton onClick={onMenuClick} />
           <div>
-            <h1 className="text-[15px] md:text-[16px] font-black text-gray-900 tracking-tight leading-tight">{title}</h1>
-            {subtitle && <p className="text-[11px] text-gray-400 mt-0.5 hidden sm:block">{subtitle}</p>}
+            <h1 className={`text-[15px] md:text-[16px] font-black tracking-tight leading-tight ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{title}</h1>
+            {subtitle && <p className={`text-[11px] mt-0.5 hidden sm:block ${isDark ? 'text-gray-400' : 'text-gray-400'}`}>{subtitle}</p>}
           </div>
         </div>
 
@@ -198,6 +201,17 @@ export default function Header({
                 <span className="hidden md:inline">Sayfaya Git</span>
               </a>
             </>
+          )}
+
+          {/* Dark Mode Toggle */}
+          {onToggleDark && (
+            <button
+              onClick={onToggleDark}
+              className="h-9 w-9 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer"
+              title={isDark ? 'Aydınlık Moda Geç' : 'Karanlık Moda Geç'}
+            >
+              {isDark ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
           )}
 
           {/* Refresh Button */}

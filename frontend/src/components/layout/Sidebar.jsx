@@ -36,7 +36,7 @@ const NAV_GROUPS = [
   }
 ];
 
-export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobileOpen, onLogout, pendingCount = 0, clinic, activeUser }) {
+export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobileOpen, onLogout, pendingCount = 0, clinic, activeUser, isDark = false }) {
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('fizyo_sidebar_collapsed') === 'true';
@@ -66,7 +66,7 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
   const renderSidebarContent = (isCollapsed, isMobile = false) => (
     <>
       {/* ─── Top Brand Header ─── */}
-      <div className={`h-16 flex items-center border-b border-gray-100 shrink-0 bg-white transition-all ${
+      <div className={`h-16 flex items-center border-b shrink-0 transition-all ${isDark ? 'border-gray-700/80 bg-gray-900' : 'border-gray-100 bg-white'} ${
         isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
       }`}>
         {!isCollapsed ? (
@@ -287,7 +287,7 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
   return (
     <>
       {/* Desktop collapsible sidebar */}
-      <aside className={`hidden md:flex min-h-screen bg-white border-r border-gray-200/80 flex-col shrink-0 select-none z-30 transition-all duration-200 ease-in-out ${
+      <aside className={`hidden md:flex min-h-screen border-r flex-col shrink-0 select-none z-30 transition-all duration-200 ease-in-out ${isDark ? 'bg-gray-900 border-gray-700/80' : 'bg-white border-gray-200/80'} ${
         collapsed ? 'w-[70px] overflow-visible' : 'w-[240px] overflow-hidden'
       }`}>
         {renderSidebarContent(collapsed, false)}
@@ -297,7 +297,7 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-2xs" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-[270px] bg-white flex flex-col shadow-2xl animate-in slide-in-from-left duration-200">
+          <aside className={`absolute left-0 top-0 bottom-0 w-[270px] flex flex-col shadow-2xl animate-in slide-in-from-left duration-200 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
             {renderSidebarContent(false, true)}
           </aside>
         </div>

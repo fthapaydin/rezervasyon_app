@@ -10,12 +10,26 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
+  /* Dark Mode Body */
+  body.dark {
+    @apply bg-gray-950 text-gray-100;
+    color-scheme: dark;
+  }
+
   * {
     @apply border-gray-200;
   }
 
+  .dark * {
+    @apply border-gray-700;
+  }
+
   ::selection {
     @apply bg-emerald-500/20 text-emerald-950;
+  }
+
+  .dark ::selection {
+    @apply bg-emerald-500/30 text-emerald-200;
   }
 
   /* Custom Slim Scrollbar */
@@ -33,8 +47,16 @@
     border-radius: 9999px;
   }
 
+  .dark ::-webkit-scrollbar-thumb {
+    background: #475569;
+  }
+
   ::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
   }
 
   input, select, textarea {
@@ -45,5 +67,10 @@
 @layer components {
   .input-field {
     @apply w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-white text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-emerald-500 focus:ring-3 focus:ring-emerald-100 transition-all;
+  }
+
+  /* Dark mode input override */
+  .dark .input-field {
+    @apply border-gray-700 bg-gray-800 text-gray-100 placeholder:text-gray-500 focus:border-emerald-500 focus:ring-emerald-900/30;
   }
 }

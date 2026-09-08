@@ -83,20 +83,18 @@ export function createReceiptWhatsAppMessage(payment, clinic) {
 
   return `Sayın *${patientName}*,
 
-*${clinicName}* bünyesinde gerçekleştirilen seansınız için ödeme tahsilatınız başarıyla alınmıştır.
+*${clinicName}* bünyesinde gerceklestirilen seansınız icin odeme tahsilatınız basarıyla alınmıstır.
 
-📄 *Makbuz No:* #MAK-${receiptId}
-📅 *Tarih:* ${dateStr} - ${timeStr}
-🩺 *Uygulayan Uzman:* ${doctorName}
-🏷️ *Hizmet:* ${treatmentName} (${locationMeta.label})
-💳 *Ödeme Yöntemi:* ${payment.payment_method || 'Nakit'} (${payment.installments > 1 ? `${payment.installments} Taksit` : 'Peşin'})
-💰 *Tahsil Edilen Tutar:* ${amountStr} ₺
+*Makbuz No:* #MAK-${receiptId}
+*Tarih:* ${dateStr} - ${timeStr}
+*Uygulayan Uzman:* ${doctorName}
+*Hizmet:* ${treatmentName} (${locationMeta.label})
+*Odeme Yontemi:* ${payment.payment_method || 'Nakit'} (${payment.installments > 1 ? `${payment.installments} Taksit` : 'Pesin'})
+*Tahsil Edilen Tutar:* ${amountStr} TL
 
-Bizi tercih ettiğiniz için teşekkür eder, sağlıklı günler dileriz.
+Bizi tercih ettiginiz icin tesekkur eder, saglikli gunler dileriz.
 
-*${clinicName}*
-${clinic?.phone ? `📞 İletişim: ${clinic.phone}` : ''}
-${clinic?.address ? `📍 Adres: ${clinic.address}` : ''}`;
+*${clinicName}*${clinic?.phone ? `\nIletisim: ${clinic.phone}` : ''}${clinic?.address ? `\nAdres: ${clinic.address}` : ''}`;
 }
 
 // --- Makbuz İçin E-Posta Taslağı Oluşturucu ---
