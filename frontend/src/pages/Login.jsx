@@ -1200,13 +1200,9 @@ export default function Login({ onLogin }) {
                   <Mail size={14} className="text-emerald-500 shrink-0" />
                   <span>fatalsoft.inc@gmail.com</span>
                 </a>
-                <div className="flex items-center gap-2 text-slate-300">
-                  <Phone size={14} className="text-emerald-500 shrink-0" />
-                  <span>0555 555 55 55</span>
-                </div>
                 <div className="flex items-center gap-2 text-slate-400 text-[11px]">
                   <MapPin size={13} className="text-emerald-500 shrink-0" />
-                  <span>Kadıköy / İstanbul</span>
+                  <span>Kocaeli / Gebze</span>
                 </div>
               </div>
             </div>
