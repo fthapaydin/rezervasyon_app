@@ -331,52 +331,115 @@ export default function Login({ onLogin }) {
             </div>
           </div>
 
-          {/* ─── Hero UI Mockup Showcase (Clean Slate) ─── */}
+          {/* ─── Hero UI Mockup Showcase (Clean Enterprise Slate) ─── */}
           <div className="max-w-4xl mx-auto rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden">
-            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-slate-800">
+            <div className="bg-slate-900 text-white px-4 py-3.5 sm:px-6 sm:py-4 flex items-center justify-between border-b border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="flex gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-700 inline-block" />
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-700 inline-block" />
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-700 inline-block" />
                 </div>
-                <span className="text-[11px] font-mono text-slate-400">app.fizyotim.com / dashboard</span>
+                <span className="text-[12px] font-mono text-slate-400">app.fizyotim.com / panel / takvim</span>
               </div>
-              <span className="text-[11px] font-mono text-emerald-400">sistem aktif</span>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[11px] font-mono text-slate-300 font-medium">Klinik Aktif</span>
+              </div>
             </div>
 
-            <div className="p-5 sm:p-6 bg-slate-50/50 space-y-4">
+            {/* Dashboard Subheader Navigation Mockup */}
+            <div className="bg-slate-50 border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between overflow-x-auto text-[12px] font-medium text-slate-600 gap-4">
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                <span className="px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-900 font-semibold shadow-2xs">
+                  Haftalık Takvim
+                </span>
+                <span className="px-2.5 py-1 rounded-md hover:text-slate-900 cursor-default">
+                  Talepler <span className="ml-1 px-1.5 py-0.2 rounded-full bg-slate-200 text-[10px] font-bold text-slate-800">2</span>
+                </span>
+                <span className="px-2.5 py-1 rounded-md hover:text-slate-900 cursor-default">Hastalar (142)</span>
+                <span className="px-2.5 py-1 rounded-md hover:text-slate-900 cursor-default">Kasa &amp; Makbuzlar</span>
+                <span className="px-2.5 py-1 rounded-md hover:text-slate-900 cursor-default">Raporlar &amp; Excel</span>
+              </div>
+              <span className="text-[11px] font-mono text-slate-400 shrink-0 hidden md:inline">08:00 – 20:00 Mesai</span>
+            </div>
+
+            <div className="p-5 sm:p-6 bg-white space-y-4">
+              {/* Top Stats Cards (All Uniform Clean Border) */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[11px] text-slate-500 block">Bugünkü Seanslar</span>
-                  <span className="text-xl font-bold text-slate-900">8 Seans</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">6 Onaylandı</span>
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[11px] font-medium text-slate-500 block">Bugünkü Seanslar</span>
+                  <span className="text-xl font-bold text-slate-900 tracking-tight">8 Seans</span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">6 Onaylı • 2 Bekleyen</span>
                 </div>
-                <div className="p-3.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[11px] text-slate-500 block">Bekleyen Online Talep</span>
-                  <span className="text-xl font-bold text-slate-900">2 Yeni</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">randevu.fizyotim.com</span>
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[11px] font-medium text-slate-500 block">Online Portal Talebi</span>
+                  <span className="text-xl font-bold text-slate-900 tracking-tight">2 Yeni Talep</span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">randevu.fizyotim.com</span>
                 </div>
-                <div className="p-3.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[11px] text-slate-500 block">Kayıtlı Hasta</span>
-                  <span className="text-xl font-bold text-slate-900">142</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">KVKK korumalı</span>
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[11px] font-medium text-slate-500 block">Aktif Terapist Kadrosu</span>
+                  <span className="text-xl font-bold text-slate-900 tracking-tight">3 Uzman</span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">RBAC Yetkili</span>
                 </div>
-                <div className="p-3.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[11px] text-slate-500 block">WhatsApp Durumu</span>
-                  <span className="text-xl font-bold text-slate-900">Aktif</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">Otomatik şablon</span>
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[11px] font-medium text-slate-500 block">Otomatik WhatsApp</span>
+                  <span className="text-xl font-bold text-slate-900 tracking-tight">Aktif</span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">Tek tıkla bildirim</span>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[12px]">
-                <div>
-                  <h4 className="font-semibold text-slate-900">Ahmet Yılmaz — Manuel Terapi</h4>
-                  <p className="text-slate-500">Bugün 14:30 • Fzt. Mehmet Demir • Salon 1</p>
+              {/* Live Session Timeline Samples */}
+              <div className="space-y-2 pt-1">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-[12px]">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono font-bold text-slate-900 text-[13px] w-14 shrink-0">14:00</span>
+                    <div>
+                      <span className="font-semibold text-slate-900">Ahmet Yılmaz</span>
+                      <span className="text-slate-400 mx-1.5">•</span>
+                      <span className="text-slate-600">Manuel Terapi</span>
+                      <span className="text-slate-400 mx-1.5">•</span>
+                      <span className="text-slate-500">Fzt. Mehmet Demir</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-200/70 text-slate-700">
+                      Klinikte
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      WhatsApp Onaylandı
+                    </span>
+                  </div>
                 </div>
-                <span className="text-slate-500 bg-slate-100 px-2.5 py-1 rounded text-[11px] font-medium self-start sm:self-auto">
-                  WhatsApp Bildirimi İletildi
-                </span>
+
+                <div className="p-2.5 rounded-xl bg-slate-100/60 border border-dashed border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono font-bold text-slate-400 w-14 shrink-0">12:30</span>
+                    <span className="font-medium">12:30 – 13:30 Öğle Molası (Dinamik Randevu Koruması Kilitli)</span>
+                  </div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Otomatik Kilit</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-[12px]">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono font-bold text-slate-900 text-[13px] w-14 shrink-0">15:30</span>
+                    <div>
+                      <span className="font-semibold text-slate-900">Zeynep Kaya</span>
+                      <span className="text-slate-400 mx-1.5">•</span>
+                      <span className="text-slate-600">Klinik Pilates</span>
+                      <span className="text-slate-400 mx-1.5">•</span>
+                      <span className="text-slate-500">Fzt. Elif Ak</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-200/70 text-slate-700">
+                      Evde Terapi
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                      PDF Seans Kartı Hazır
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -384,192 +447,134 @@ export default function Login({ onLogin }) {
         </div>
       </section>
 
-      {/* ─── 3. FEATURES SECTION (CLEAN NUMBERED CARDS) ───────────── */}
-      <section id="features" className="py-16 sm:py-24 bg-white border-b border-slate-200/80 scroll-mt-20">
+      {/* ─── 3. FEATURES SECTION (3 STRUCTURED PILLARS) ───────────── */}
+      <section id="features" className="py-20 sm:py-28 bg-white border-b border-slate-200/80 scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div className="max-w-2xl mb-14">
-            <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-2 block">
-              Temel Özellikler
+          <div className="max-w-3xl mb-16">
+            <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-2 block">
+              Kurumsal Fonksiyonlar
             </span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-3">
-              Bir kliniğin ihtiyaç duyduğu tüm araçlar tek altyapıda.
+            <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight mb-3">
+              Bir kliniğin tüm operasyonel ihtiyaçları tek çatı altında.
             </h2>
-            <p className="text-[14px] text-slate-600 leading-relaxed font-normal">
-              Farklı yazılımlar ve kağıt randevu defterleri yerine tek merkezden yönetilen sade yönetim sistemi.
+            <p className="text-[15px] text-slate-600 leading-relaxed font-normal">
+              Farklı yazılımlar ve kağıt randevu defterleri yerine tek merkezden yönetilen sade, ciddi ve modern klinik altyapısı.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            
-            {/* 01 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">01</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <Clock size={15} strokeWidth={2} />
-                </div>
-              </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Dinamik Takvim &amp; Mola Koruması</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Kliniğinizin mesai saatlerini (açılış-kapanış) ve seans sürelerini esnekçe belirleyin. Öğle molası ve ara dinlenme saatlerinde randevu kilitlenmesiyle çakışmaları sıfıra indirin.
-              </p>
+          {/* Group 1: Takvim & Randevu Mimarisi */}
+          <div className="mb-14">
+            <div className="flex items-center gap-3 mb-6 pb-3 border-b border-slate-200">
+              <span className="text-[12px] font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded">01</span>
+              <h3 className="text-lg font-bold text-slate-900 tracking-tight">Randevu &amp; Dinamik Takvim Mimarisi</h3>
             </div>
 
-            {/* 02 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">02</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <Copy size={15} strokeWidth={2} />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">Dinamik Takvim &amp; Mola Koruması</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  Açılış-kapanış saatlerini ve seans sürelerini belirleyin. Öğle molası saatlerinde randevu kilitlenmesiyle çakışmaları sıfırlayın.
+                </p>
               </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Haftalık &amp; Tekil Seans Kopyalama</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Her hafta randevuları tek tek girmekle vakit kaybetmeyin. Düzenli tedavi seanslarını haftaya aynı gün ve saate tek tıkla kopyalayın veya dilediğiniz tarihe taşıyın.
-              </p>
+
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">Haftalık &amp; Tekil Seans Kopyalama</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  Düzenli seansları haftaya aynı gün ve saate tek tıkla kopyalayın veya şablon seans oluşturup dilediğiniz tarihe çoğaltın.
+                </p>
+              </div>
+
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">Seans Hizmet Yeri Ayrımı</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  Her randevuyu "Klinikte", "Evde Terapi" veya "Uzaktan" etiketleriyle takip edin. Hizmet yerine göre ajanda filtreleyin.
+                </p>
+              </div>
+
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">7/24 Canlı Online Hasta Portalı</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  randevu.fizyotim.com adresinde kliniğinize ait canlı takvimle hastalarınızdan gece-gündüz randevu talebi toplayın.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Group 2: Hasta Takibi, Finans & Raporlama */}
+          <div className="mb-14">
+            <div className="flex items-center gap-3 mb-6 pb-3 border-b border-slate-200">
+              <span className="text-[12px] font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded">02</span>
+              <h3 className="text-lg font-bold text-slate-900 tracking-tight">Hasta Takibi, Finans &amp; Resmî Raporlama</h3>
             </div>
 
-            {/* 03 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">03</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <FileText size={15} strokeWidth={2} />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">Resmî Tahsilat Makbuzu</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  Benzersiz makbuz numaralı, kaşe/imza alanlı ve logolu resmî ödeme fişleri üretin. WhatsApp'tan anında hastayla paylaşın.
+                </p>
               </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Dinamik Kurumsal PDF Raporlama</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Kliniğinizin logosu ve antetiyle anında profesyonel hasta seans geçmişi dökümleri üretin. Hastaya ve kurumlara teslim edilecek resmi tedavi özetleri tek tıkla hazır.
-              </p>
+
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">Kurumsal Antetli PDF Dökümü</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  Kliniğinizin antetiyle anında profesyonel seans geçmişi raporları oluşturun. Resmî kurumlara ve hastaya sunuma hazır.
+                </p>
+              </div>
+
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">Kasa, Parçalı Finans &amp; FIFO</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  Nakit, kredi kartı ve havale tahsilatlarını kaydedin. Toplu ödemelerde borçları seanslara otomatik FIFO mantığıyla dağıtın.
+                </p>
+              </div>
+
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">Personel Performans &amp; Excel</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  Terapist bazlı seans adedi ve ciro analitiği yapın. Tek tıkla Türkçe karakter destekli Excel/CSV raporu indirin.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Group 3: Ekip, Güvenlik & İletişim */}
+          <div>
+            <div className="flex items-center gap-3 mb-6 pb-3 border-b border-slate-200">
+              <span className="text-[12px] font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded">03</span>
+              <h3 className="text-lg font-bold text-slate-900 tracking-tight">Klinik Operasyonları, Güvenlik &amp; İletişim</h3>
             </div>
 
-            {/* 04 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">04</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <CreditCard size={15} strokeWidth={2} />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">Ekip Yönetimi &amp; Rol Yetkileri (RBAC)</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  Klinik Sahibi, Terapist ve Sekreter rolleriyle menü ve veri yetkilendirmesi tanımlayın. Her terapistin seans rengini özelleştirin.
+                </p>
               </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Resmî Tahsilat &amp; Ödeme Makbuzu</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Nakit, kredi kartı ve havale tahsilatları için benzersiz makbuz numaralı, kaşe/imza alanlı ve kurumsal logolu resmi ödeme fişleri oluşturup WhatsApp'tan anında paylaşın.
-              </p>
-            </div>
 
-            {/* 05 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">05</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <Users size={15} strokeWidth={2} />
-                </div>
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">Temiz WhatsApp Bildirimleri</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  Randevu onayları ve hatırlatmaları emojisiz, kurumsal ve temiz metinlerle doğrudan hastanın WhatsApp hattına iletin.
+                </p>
               </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Ekip Yönetimi &amp; Rol Yetkileri (RBAC)</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Klinik Sahibi (Admin), Terapist ve Sekreter rolleriyle çalışanlarınıza özel menü kısıtlamaları getirin. Terapist bazlı renk kodlaması ve tedavi uzmanlık eşleştirmesi yapın.
-              </p>
-            </div>
 
-            {/* 06 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">06</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <Activity size={15} strokeWidth={2} />
-                </div>
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">Danışma QR Masa Standı</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  Bekleme salonu ve danışma masası için kliniğinizin logosuyla baskıya hazır QR standı oluşturup anında çıktı alın.
+                </p>
               </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Gelişmiş Personel &amp; Ciro Analitiği</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Terapist bazlı tamamlanan seans sayıları, toplam seans süresi ve ciro hakediş analizlerini görüntüleyin. Tek tıkla Türkçe karakter destekli Excel/CSV raporu dışa aktarın.
-              </p>
-            </div>
 
-            {/* 07 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">07</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <Building2 size={15} strokeWidth={2} />
-                </div>
+              <div className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs">
+                <h4 className="text-[14px] font-bold text-slate-900 mb-1.5">KVKK Koruma &amp; Kota Kontrolü</h4>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  Mükerrer telefon engelleme, haftalık seans kotası ve hasta adı gizlilik maskelemesiyle veri mahremiyetini güvenceye alın.
+                </p>
               </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Seans Hizmet Yeri Seçenekleri</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Randevularınızı "Klinikte", "Evde Terapi" veya "Uzaktan/Online Danışmanlık" hizmet yerlerine göre etiketleyin. Lokasyon bazlı filtreleme ve programlama yapın.
-              </p>
             </div>
-
-            {/* 08 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">08</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <MessageSquare size={15} strokeWidth={2} />
-                </div>
-              </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Akıllı WhatsApp Bildirimleri</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Randevu onaylandığında veya seans saati yaklaştığında şablon mesajları, klinik konumunu ve tahsilat makbuzunu hastanızın WhatsApp hattına doğrudan tek tıkla iletin.
-              </p>
-            </div>
-
-            {/* 09 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">09</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <Wallet size={15} strokeWidth={2} />
-                </div>
-              </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Kasa, Tahsilat &amp; Parçalı Finans Takibi</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Nakit, kredi kartı ve havale ödemelerini kaydedin. Kalan seans borçlarını, parçalı tahsilatları ve kliniğinizin net nakit akışını anlık takip edin.
-              </p>
-            </div>
-
-            {/* 10 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">10</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <QrCode size={15} strokeWidth={2} />
-                </div>
-              </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Danışma QR Masa Standı</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Bekleme salonu ve danışma masası için kliniğinizin logosuyla baskıya hazır QR standı oluşturun. Hastalar okutup anında onaylı randevu talebi açsın.
-              </p>
-            </div>
-
-            {/* 11 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">11</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <ExternalLink size={15} strokeWidth={2} />
-                </div>
-              </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">7/24 Canlı Online Randevu Portalı</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                randevu.fizyotim.com üzerinde kliniğinize ait canlı takvim sayfasıyla hastalarınızdan gece-gündüz 7/24 randevu talebi toplayın ve tek tıkla onaylayın.
-              </p>
-            </div>
-
-            {/* 12 */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono font-bold text-slate-400">12</span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <ShieldCheck size={15} strokeWidth={2} />
-                </div>
-              </div>
-              <h3 className="text-[15px] font-bold text-slate-900 mb-2">Doğrulama &amp; KVKK Güvenliği</h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
-                Mükerrer telefon engelleme, haftalık 2 seans randevu kotası ve hasta adı/tedavi maskelemesi ile hasta verilerinizi ve sağlık mahremiyetini güvence altına alın.
-              </p>
-            </div>
-
           </div>
 
         </div>
