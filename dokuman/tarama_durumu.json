@@ -1,0 +1,1508 @@
+{
+  "updatedAt": "2026-11-04T13:36:34.283Z",
+  "totalUniqueEmails": 167,
+  "completedCount": 226,
+  "completedKeys": [
+    "Kocaeli|Darıca",
+    "Kocaeli|Gebze",
+    "Kocaeli|İzmit",
+    "Kocaeli|Çayırova",
+    "Kocaeli|Başiskele",
+    "Kocaeli|Körfez",
+    "Kocaeli|Gölcük",
+    "Kocaeli|Kartepe",
+    "Kocaeli|Derince",
+    "Kocaeli|Dilovası",
+    "Kocaeli|Kandıra",
+    "Kocaeli|Karamürsel",
+    "İstanbul|Kadıköy",
+    "İstanbul|Şişli",
+    "İstanbul|Beşiktaş",
+    "İstanbul|Ataşehir",
+    "İstanbul|Bakırköy",
+    "İstanbul|Üsküdar",
+    "İstanbul|Maltepe",
+    "İstanbul|Pendik",
+    "İstanbul|Kartal",
+    "İstanbul|Beylikdüzü",
+    "İstanbul|Bahçelievler",
+    "İstanbul|Ümraniye",
+    "İstanbul|Sarıyer",
+    "İstanbul|Fatih",
+    "İstanbul|Adalar",
+    "İstanbul|Arnavutköy",
+    "İstanbul|Avcılar",
+    "İstanbul|Bağcılar",
+    "İstanbul|Başakşehir",
+    "İstanbul|Bayrampaşa",
+    "İstanbul|Beykoz",
+    "İstanbul|Beyoğlu",
+    "İstanbul|Büyükçekmece",
+    "İstanbul|Çatalca",
+    "İstanbul|Çekmeköy",
+    "İstanbul|Esenler",
+    "İstanbul|Esenyurt",
+    "İstanbul|Eyüpsultan",
+    "İstanbul|Gaziosmanpaşa",
+    "İstanbul|Güngören",
+    "İstanbul|Kağıthane",
+    "İstanbul|Küçükçekmece",
+    "İstanbul|Sancaktepe",
+    "İstanbul|Silivri",
+    "İstanbul|Sultanbeyli",
+    "İstanbul|Sultangazi",
+    "İstanbul|Şile",
+    "İstanbul|Tuzla",
+    "İstanbul|Zeytinburnu",
+    "Ankara|Çankaya",
+    "Ankara|Yenimahalle",
+    "Ankara|Keçiören",
+    "Ankara|Etimesgut",
+    "Ankara|Gölbaşı",
+    "Ankara|Mamak",
+    "Ankara|Sincan",
+    "Ankara|Akyurt",
+    "Ankara|Altındağ",
+    "Ankara|Ayaş",
+    "Ankara|Bala",
+    "Ankara|Beypazarı",
+    "Ankara|Çamlıdere",
+    "Ankara|Çubuk",
+    "İzmir|Balçova",
+    "İzmir|Bayraklı",
+    "İzmir|Bornova",
+    "İzmir|Buca",
+    "İzmir|Çiğli",
+    "İzmir|Gaziemir",
+    "İzmir|Karabağlar",
+    "İzmir|Karşıyaka",
+    "İzmir|Konak",
+    "İzmir|Menemen",
+    "İzmir|Narlıdere",
+    "İzmir|Torbalı",
+    "Bursa|Gemlik",
+    "Bursa|İnegöl",
+    "Bursa|Mudanya",
+    "Bursa|Nilüfer",
+    "Bursa|Osmangazi",
+    "Bursa|Yenişehir",
+    "Bursa|Yıldırım",
+    "Antalya|Alanya",
+    "Antalya|Kepez",
+    "Antalya|Konyaaltı",
+    "Antalya|Manavgat",
+    "Antalya|Muratpaşa",
+    "Antalya|Serik",
+    "Adana|Ceyhan",
+    "Adana|Çukurova",
+    "Adana|Sarıçam",
+    "Adana|Seyhan",
+    "Adana|Yüreğir",
+    "Konya|Ereğli",
+    "Konya|Karatay",
+    "Konya|Meram",
+    "Konya|Selçuklu",
+    "Gaziantep|Şahinbey",
+    "Gaziantep|Şehitkamil",
+    "Mersin|Akdeniz",
+    "Mersin|Erdemli",
+    "Mersin|Mezitli",
+    "Mersin|Tarsus",
+    "Mersin|Toroslar",
+    "Mersin|Yenişehir",
+    "Kayseri|Kocasinan",
+    "Kayseri|Melikgazi",
+    "Kayseri|Talas",
+    "Eskişehir|Odunpazarı",
+    "Eskişehir|Tepebaşı",
+    "Samsun|Atakum",
+    "Samsun|Bafra",
+    "Samsun|Canik",
+    "Samsun|İlkadım",
+    "Denizli|Merkezefendi",
+    "Denizli|Pamukkale",
+    "Sakarya|Adapazarı",
+    "Sakarya|Erenler",
+    "Sakarya|Serdivan",
+    "Tekirdağ|Çerkezköy",
+    "Tekirdağ|Çorlu",
+    "Tekirdağ|Kapaklı",
+    "Tekirdağ|Süleymanpaşa",
+    "Muğla|Bodrum",
+    "Muğla|Fethiye",
+    "Muğla|Marmaris",
+    "Muğla|Menteşe",
+    "Muğla|Milas",
+    "Aydın|Efeler",
+    "Aydın|Kuşadası",
+    "Aydın|Nazilli",
+    "Aydın|Söke",
+    "Balıkesir|Altıeylül",
+    "Balıkesir|Ayvalık",
+    "Balıkesir|Bandırma",
+    "Balıkesir|Edremit",
+    "Balıkesir|Karesi",
+    "Manisa|Akhisar",
+    "Manisa|Salihli",
+    "Manisa|Şehzadeler",
+    "Manisa|Turgutlu",
+    "Manisa|Yunusemre",
+    "Hatay|Antakya",
+    "Hatay|Defne",
+    "Hatay|Dörtyol",
+    "Hatay|İskenderun",
+    "Trabzon|Akçaabat",
+    "Trabzon|Ortahisar",
+    "Diyarbakır|Bağlar",
+    "Diyarbakır|Kayapınar",
+    "Diyarbakır|Yenişehir",
+    "Adıyaman|Gölbaşı",
+    "Adıyaman|Merkez",
+    "Afyonkarahisar|Merkez",
+    "Ağrı|Merkez",
+    "Aksaray|Merkez",
+    "Amasya|Merkez",
+    "Ardahan|Merkez",
+    "Artvin|Merkez",
+    "Bartın|Merkez",
+    "Batman|Merkez",
+    "Bayburt|Merkez",
+    "Bilecik|Merkez",
+    "Bingöl|Merkez",
+    "Bitlis|Merkez",
+    "Bolu|Merkez",
+    "Burdur|Merkez",
+    "Çanakkale|Merkez",
+    "Çankırı|Merkez",
+    "Çorum|Merkez",
+    "Düzce|Merkez",
+    "Edirne|Merkez",
+    "Elazığ|Merkez",
+    "Erzincan|Merkez",
+    "Erzurum|Palandöken",
+    "Erzurum|Yakutiye",
+    "Giresun|Merkez",
+    "Gümüşhane|Merkez",
+    "Hakkari|Merkez",
+    "Iğdır|Merkez",
+    "Isparta|Merkez",
+    "Kahramanmaraş|Dulkadiroğlu",
+    "Kahramanmaraş|Onikişubat",
+    "Karabük|Merkez",
+    "Karaman|Merkez",
+    "Kars|Merkez",
+    "Kastamonu|Merkez",
+    "Kırıkkale|Merkez",
+    "Kırklareli|Merkez",
+    "Kırşehir|Merkez",
+    "Kilis|Merkez",
+    "Kütahya|Merkez",
+    "Malatya|Battalgazi",
+    "Malatya|Yeşilyurt",
+    "Muş|Merkez",
+    "Nevşehir|Merkez",
+    "Niğde|Merkez",
+    "Osmaniye|Merkez",
+    "Rize|Merkez",
+    "Siirt|Merkez",
+    "Sinop|Merkez",
+    "Sivas|Merkez",
+    "Şanlıurfa|Eyyübiye",
+    "Şanlıurfa|Haliliye",
+    "Şanlıurfa|Karaköprü",
+    "Şırnak|Merkez",
+    "Tokat|Merkez",
+    "Tokat|Yeşilyurt",
+    "Tunceli|Merkez",
+    "Uşak|Merkez",
+    "Van|Edremit",
+    "Van|İpekyolu",
+    "Van|Tuşba",
+    "Yalova|Merkez",
+    "Yozgat|Merkez",
+    "Zonguldak|Ereğli",
+    "Zonguldak|Merkez",
+    "Ankara|Elmadağ",
+    "Ankara|Evren",
+    "Ankara|Güdül",
+    "Ankara|Haymana",
+    "Ankara|Kahramankazan",
+    "Ankara|Kalecik",
+    "Ankara|Kızılcahamam"
+  ],
+  "visitedHosts": [
+    "fiziktedavimerkezleri.com",
+    "dilgem.com.tr",
+    "ozelfizyoterapist.net",
+    "skolyozrehberi.com.tr",
+    "fizyoterapistimibul.com",
+    "valid.tr",
+    "fizyopedia.com",
+    "fiziktedavimerkezi.com.tr",
+    "daricaozelhayattipmerkezi.com",
+    "bakimevleri.com",
+    "kocaelifiziktedavi.com",
+    "izmitozelegitim.com",
+    "fizyoterapiizmit.com",
+    "onfizy.com",
+    "izmitfizyoterapi.com",
+    "firmarehberim.com",
+    "fztsadiyeatasoy.com",
+    "fztabdullahokur.com",
+    "ucuztaxi.com",
+    "trhastane.com",
+    "romatem.com",
+    "cayirovatipmerkezi.com",
+    "hastaneveri.com",
+    "kocaelievdefiziktedavi.com",
+    "doktorumveben.com",
+    "fztdulger.com",
+    "tabela360.com",
+    "infobel.com",
+    "kocaelifizyoterapi.com",
+    "playstudyo.fit",
+    "yorum.com",
+    "listelese.com",
+    "doktorbilgisi.com",
+    "uzmanfiziktedavi.com",
+    "com.com.tr",
+    "ibrahimbabayigit.net",
+    "kadikoyfizyoterapi.com.tr",
+    "fedfizyoterapi.com",
+    "ahmetyildirim.com",
+    "sislifiziktedavi.com",
+    "besiktasfiziktedavi.com",
+    "ilcemde.com",
+    "hastane.com.tr",
+    "atasehirfizyoterapi.net",
+    "atasehirfizyoterapi.com.tr",
+    "atasehirfiziktedavi.com",
+    "ahmetburakbayir.com",
+    "hastadostu.com",
+    "fizyoterapistim.net",
+    "fizyoterapistyusuf.com",
+    "istanbulfizyoterapimerkez.com",
+    "fztsutaskoparan.com",
+    "fizyonatural.com",
+    "uzmanadresi.com",
+    "yerler.tr",
+    "primer.ist",
+    "fztselvanurtoraman.com.tr",
+    "fizik-tedavi.org",
+    "fizyorom.com",
+    "rehber.meditopia.com",
+    "fethullahtopdas.com",
+    "refizyoterapi.com",
+    "fizyoterapi216.com",
+    "xn--fizyoterapistmervegk-mbc.com.tr",
+    "hastanelerim.com",
+    "mentofiziktedavi.com",
+    "maltepefizyoterapi.com",
+    "gtos.com.tr",
+    "maltepefizyoterapist.com.tr",
+    "kartal-fiziktedavi.com.tr",
+    "nerede360.com",
+    "pendikfizik.neleryapiyoruz.com",
+    "rehabilitasyon.com",
+    "aktayfizyoterapi.com",
+    "aktayfizyoterapi.com.tr",
+    "lumaklinik.com",
+    "profizyoterapi.com",
+    "doktorasistan.com",
+    "istanbulyatilifiziktedavi.com.tr",
+    "harmonyfiziktedavi.com",
+    "fizyogelsin.com",
+    "fizyohomeistanbul.com",
+    "bisaglik.tr",
+    "uzmanburda.com",
+    "ustaradar.com",
+    "istanbulfiziktedavi.com",
+    "istanbulfiziktedavi.org",
+    "arnavutkoyfizyoterapi.com",
+    "avrupahospital.com",
+    "arnavutkoyozelegitimverehabilitasyonmerkezi.com",
+    "fizyomia.com",
+    "fiziktedavi.ai",
+    "avcilarfiziktedavi.com",
+    "fizyodesa.com",
+    "zavis.ai",
+    "senemelmali.com",
+    "fztveyselekinci.com",
+    "fztmehmetkuzudisli.com",
+    "drfizyo.com",
+    "mytherapytr.com",
+    "insanfiziktedavi.com.tr",
+    "whichclinic.net",
+    "ehlinibul.com",
+    "hizmetgo.app",
+    "palmerandstill.com",
+    "evdefiziktedavim.com.tr",
+    "fiziktedavievde.com.tr",
+    "esenyurtfizyoterapi.com",
+    "morsayfa.com",
+    "tuzlali.net",
+    "mestassistance.com",
+    "fiziktedavim.net",
+    "ilceler.org",
+    "fizyosen.com",
+    "fztsalimaslan.com",
+    "medifer.istanbul",
+    "iletisimadresleri.com.tr",
+    "ankarafizyoterapist.net",
+    "tikla.com.tr",
+    "local.gen.tr",
+    "eminellerfizyoterapi.com",
+    "sirketx.com",
+    "fizyoterapisthandeyigityilmaz.com",
+    "fizyoterapistesraceylan.com",
+    "sonerhira.com.tr",
+    "ankarafizyoterapi.com",
+    "uzmango.com",
+    "bestofankara.com",
+    "ankarapilates.com",
+    "fizyopol.com",
+    "firmadetay.net",
+    "birolbalaban.com",
+    "fizitek.com.tr",
+    "silafiziktedavi.com",
+    "fizyozade.com",
+    "beypazariozelegitim.com",
+    "urofiz.com",
+    "fizyogunes.com",
+    "balcovafiziktedavi.com",
+    "meliskocabiyikoglu.com",
+    "fiziktedavibalcova.com",
+    "ihaledunyasi.net",
+    "medikalakademi.com.tr",
+    "fztgizemkara.com",
+    "fizyoterapistbatuhanucak.com",
+    "fztferhatgoksoy.com",
+    "fztaslicankilicfztnazlicantuna.com",
+    "fizyoterapistbeyzagulez.com",
+    "haritane.com",
+    "borfiz.com.tr",
+    "fztemircankoc.com",
+    "medifiz.com",
+    "humabilibay.com",
+    "bornovarehabilitasyon.com",
+    "profiz.com.tr",
+    "fizyoterapistimiz.com",
+    "inegolfizyoterapi.com",
+    "tavsiyeediyorum.com",
+    "fztfurkanuzunyol.com",
+    "fztahmetulus.com",
+    "fizyoboon.com",
+    "gulcerkal.com",
+    "fztelifcubukcu.com",
+    "fztmehmetilhan.com",
+    "bursafizyoterapi.com",
+    "fizyo16.com",
+    "destekozelegitimrehabilitasyon.com",
+    "fizyovela.com",
+    "finefizyoterapi.com",
+    "tugba-kaya.com",
+    "pilatesyap.com",
+    "bakiciburada.com",
+    "bursaca.com",
+    "rommer.com.tr",
+    "fztguldenyildirim.com",
+    "fizyoterapistguldenyildirim.com",
+    "fztfatmadenizli.com.tr",
+    "hekimhane.com.tr",
+    "turanturanyildirim.com",
+    "antalyadoktorlari.com.tr",
+    "fzttunahantulu.com.tr",
+    "antalyafizyoterapi.tr",
+    "firmaatlas.com",
+    "yusufonkol.com",
+    "bioyla.com",
+    "sifakonyaalti.com",
+    "fizyolisa.com",
+    "yakinsube.com",
+    "gigbi.com",
+    "fizyowe.com",
+    "budiyet.com",
+    "fizyoyasam.com",
+    "fizyoterapistnevzatgedik.com",
+    "mersinfizyoterapi.com",
+    "fizyoterapistgamzekurtbeyoglu.com",
+    "fizyoterapisthazaloguz.com.tr",
+    "orthofizyo.com",
+    "mersinfiziktedavi.com",
+    "mersinfizyomed.com",
+    "fitopya.com.tr",
+    "pilatesrehberi.com",
+    "sektorreferans.com.tr",
+    "kayserifiziktedavi.com",
+    "eskisehirpediatrikfizyoterapi.com",
+    "eskisehirfizyoterapist.com.tr",
+    "fizyoterapisthayriyeyeniyapi.com",
+    "fizyobesterapi.com",
+    "fizyoterapistrehberi.com",
+    "fztdilberaysayar.com",
+    "fizyocentersakarya.com",
+    "fizyogenc.com",
+    "tekirdagfiziktedavi.com",
+    "fatmasaglamci.com",
+    "tekirdag.info",
+    "sarikizfizyoterapi.com",
+    "fizipain.com",
+    "findglocal.com",
+    "balikesirfiziktedavi.com",
+    "balfizik.com.tr",
+    "turkiye.rehberi.tr",
+    "yagmurpinarmala.com.tr",
+    "fztismailgunes.com",
+    "wowturkey.com",
+    "fizipol.com",
+    "dijital.link",
+    "fizyotem.com",
+    "diyarbakirfizyoterapistleri.com",
+    "ataadiyaman.com",
+    "ozercetinkaya.com",
+    "firmahizmeti.com",
+    "atafizyoterapi.com",
+    "burdurrehabilitasyon.net",
+    "fizyokord.com",
+    "evdesaglikhizmetleri.com",
+    "ilhamiyavuz.com.tr",
+    "fizyocapa.com.tr",
+    "fizikalefizyoterapi.com",
+    "fztburakpekdogan.com",
+    "fizyoterapistfurkanergul.com",
+    "kirsehirfizyoterapi.com.tr",
+    "fizyovian.com",
+    "malatyaevdefiziktedavi.com",
+    "sevgifiziktedavi.com.tr",
+    "harunerdogan.com",
+    "saglikkampi.com",
+    "osmaniyepilates.com",
+    "osmaniyefizyopilates.com",
+    "ffizmer.com",
+    "siirtfizyoterapist.com",
+    "siirtilkhayat.com",
+    "spor-salonlari.com.tr",
+    "doktortavsiyesi.net",
+    "hemen.app",
+    "sivasfizyoterapi.com",
+    "sanliurfafizyoterapi.com",
+    "fztfurkantuysuz.com.tr",
+    "sanliurfa.com",
+    "fizyoinnova.com",
+    "sanitas.web.tr",
+    "salusfizyoterapi.com",
+    "hastahanem.com",
+    "fztveyisbozkurt.com",
+    "usakrehberi.com",
+    "usakfizyoterapibeyzacoban.com",
+    "usakservis.com.tr",
+    "usakfiziktedavi.com.tr",
+    "fizyoterapistmevludecamlibel.com",
+    "turktelekombys.com.tr",
+    "fizyocare.com.tr"
+  ],
+  "emails": [
+    {
+      "email": "bilgi@istanbulfiziktedavi.com",
+      "city": "İstanbul",
+      "district": "",
+      "website": "https://istanbulfiziktedavi.org"
+    },
+    {
+      "email": "info@fizyoterapistim.net",
+      "city": "İstanbul",
+      "district": "",
+      "website": "https://www.fizyoterapistim.net"
+    },
+    {
+      "email": "bilgi@ahmetburaksezgin.com",
+      "city": "İstanbul",
+      "district": "",
+      "website": "https://www.ahmetburaksezgin.com"
+    },
+    {
+      "email": "bilgi@mervesinemcelik.com",
+      "city": "Ankara",
+      "district": "",
+      "website": "http://www.ankarafizyoterapi.com"
+    },
+    {
+      "email": "bilgi@ankaramanuelterapimerkezi.com",
+      "city": "Ankara",
+      "district": "",
+      "website": "https://ankaramanuelterapimerkezi.com"
+    },
+    {
+      "email": "info@agrisizsaglik.com",
+      "city": "Ankara",
+      "district": "",
+      "website": "https://www.agrisizsaglik.com"
+    },
+    {
+      "email": "tutku12stb@gmail.com",
+      "city": "İzmir",
+      "district": "",
+      "website": "http://izmiruzmanfizyoterapist.com"
+    },
+    {
+      "email": "info@izmirfizyoterapihizmeti.com",
+      "city": "İzmir",
+      "district": "",
+      "website": "https://izmirfizyoterapihizmeti.com"
+    },
+    {
+      "email": "info@sanitayasam.com",
+      "city": "İzmir",
+      "district": "",
+      "website": "https://izmirfizyoterapihizmeti.com"
+    },
+    {
+      "email": "fizyoteamofficial@gmail.com",
+      "city": "İzmir",
+      "district": "",
+      "website": "https://www.fizyoteam.com"
+    },
+    {
+      "email": "info@mersinfizyoterapi.com",
+      "city": "Mersin",
+      "district": "",
+      "website": "https://www.mersinfizyoterapi.com"
+    },
+    {
+      "email": "bilgi@mersinfizyomed.com",
+      "city": "Mersin",
+      "district": "",
+      "website": "https://www.mersinfizyomed.com"
+    },
+    {
+      "email": "fizyotime.26@gmail.com",
+      "city": "Eskişehir",
+      "district": "",
+      "website": "https://fizyotime.com"
+    },
+    {
+      "email": "bilgi@aplusfiziktedavi.com",
+      "city": "Kayseri",
+      "district": "",
+      "website": "https://kayserifiziktedavi.com"
+    },
+    {
+      "email": "fiziktedavimerkezleriturkey@gmail.com",
+      "city": "Kayseri",
+      "district": "",
+      "website": "https://www.fiziktedavimerkezleri.com"
+    },
+    {
+      "email": "fizyosamsun@gmail.com",
+      "city": "Samsun",
+      "district": "",
+      "website": "https://fizyosamsun.com"
+    },
+    {
+      "email": "muhammetakyaman@gmail.com",
+      "city": "Samsun",
+      "district": "",
+      "website": "https://muhammetakyaman.com"
+    },
+    {
+      "email": "bilgi@semadanisik.com.tr",
+      "city": "Samsun",
+      "district": "",
+      "website": "https://www.semadanisik.com.tr"
+    },
+    {
+      "email": "bilg@semadanisik.com.tr",
+      "city": "Samsun",
+      "district": "",
+      "website": "https://www.semadanisik.com.tr"
+    },
+    {
+      "email": "iletisim@fizyocentersakarya.com",
+      "city": "Sakarya",
+      "district": "",
+      "website": "https://www.fizyocentersakarya.com"
+    },
+    {
+      "email": "info@fizyogenc.com",
+      "city": "Sakarya",
+      "district": "",
+      "website": "https://fizyogenc.com"
+    },
+    {
+      "email": "muglafitsaglikliyasammerkezi@gmail.com",
+      "city": "Muğla",
+      "district": "",
+      "website": "https://www.muglafit.com"
+    },
+    {
+      "email": "ykazar2020@gmail.com",
+      "city": "Tekirdağ",
+      "district": "",
+      "website": "https://yusufkazar.com"
+    },
+    {
+      "email": "info@ozelfizyoterapist.net",
+      "city": "Tekirdağ",
+      "district": "",
+      "website": "https://ozelfizyoterapist.net"
+    },
+    {
+      "email": "info@fztsuleyilmaz.com",
+      "city": "Balıkesir",
+      "district": "",
+      "website": "https://fztsuleyilmaz.com"
+    },
+    {
+      "email": "info@apaydinfizyoterapi.com",
+      "city": "Aydın",
+      "district": "",
+      "website": "https://apaydinfizyoterapi.com"
+    },
+    {
+      "email": "idil@apaydinfizyoterapi.com",
+      "city": "Aydın",
+      "district": "",
+      "website": "https://apaydinfizyoterapi.com"
+    },
+    {
+      "email": "fzthasantt@gmail.com",
+      "city": "Bursa",
+      "district": "",
+      "website": "https://bursafizyoterapi.com"
+    },
+    {
+      "email": "fzt.mehmetilhan@gmail.com",
+      "city": "Bursa",
+      "district": "",
+      "website": "https://fztmehmetilhan.com"
+    },
+    {
+      "email": "osmangunbegi@gmail.com",
+      "city": "Antalya",
+      "district": "",
+      "website": "https://www.ossafizfizyoterapi.com"
+    },
+    {
+      "email": "fizyomax@gmail.com",
+      "city": "Antalya",
+      "district": "",
+      "website": "https://fizyoterapistantalya.com"
+    },
+    {
+      "email": "info@agrisizyasammerkezi.com.tr",
+      "city": "Antalya",
+      "district": "",
+      "website": "https://agrisizyasammerkezi.com.tr"
+    },
+    {
+      "email": "fzt.halildulger@gmail.com",
+      "city": "Kocaeli",
+      "district": "",
+      "website": "http://www.kocaelifizyoterapi.com"
+    },
+    {
+      "email": "fztgulcandemir@gmail.com",
+      "city": "Kocaeli",
+      "district": "",
+      "website": "http://www.kocaelifizyoterapi.com"
+    },
+    {
+      "email": "info@fizyopraktik.com",
+      "city": "Adana",
+      "district": "",
+      "website": "https://www.fizyopraktik.com"
+    },
+    {
+      "email": "mt.mehmetkorkmaz@icloud.com",
+      "city": "Adana",
+      "district": "",
+      "website": "https://www.adanafizyoterapist.tr"
+    },
+    {
+      "email": "info@terapiclinic.com",
+      "city": "Adana",
+      "district": "",
+      "website": "https://terapiclinic.com"
+    },
+    {
+      "email": "info@fizitera.com",
+      "city": "Adana",
+      "district": "",
+      "website": "https://www.fizitera.com"
+    },
+    {
+      "email": "ik@fizitera.com",
+      "city": "Adana",
+      "district": "",
+      "website": "https://www.fizitera.com"
+    },
+    {
+      "email": "info@gaziantepfizyoterapi.com",
+      "city": "Gaziantep",
+      "district": "",
+      "website": "https://www.gaziantepfizyoterapi.com"
+    },
+    {
+      "email": "info@fizyoclinic.com.tr",
+      "city": "Gaziantep",
+      "district": "",
+      "website": "https://fizyoclinic.com.tr"
+    },
+    {
+      "email": "iletisim@denizlifizyotom.com",
+      "city": "Denizli",
+      "district": "",
+      "website": "https://denizlifizyotom.com"
+    },
+    {
+      "email": "info@denizlisaltakfizyoterapi.com",
+      "city": "Denizli",
+      "district": "",
+      "website": "https://www.denizlisaltakfizyoterapi.com"
+    },
+    {
+      "email": "iletisim@fztfurkantomasoglu.com",
+      "city": "Denizli",
+      "district": "",
+      "website": "https://www.fztfurkantomasoglu.com"
+    },
+    {
+      "email": "balogluevrim78@gmail.com",
+      "city": "Kocaeli",
+      "district": "Darıca",
+      "website": "https://skolyozrehberi.com.tr"
+    },
+    {
+      "email": "info@daricaozelhayattipmerkezi.com",
+      "city": "Kocaeli",
+      "district": "Darıca",
+      "website": "https://www.daricaozelhayattipmerkezi.com"
+    },
+    {
+      "email": "info@dilgem.com.tr",
+      "city": "Kocaeli",
+      "district": "Darıca",
+      "website": "https://www.dilgem.com.tr"
+    },
+    {
+      "email": "info@fizyopedia.com",
+      "city": "Kocaeli",
+      "district": "Darıca",
+      "website": "https://fizyopedia.com"
+    },
+    {
+      "email": "bilgi@izmitozelegitim.com",
+      "city": "Kocaeli",
+      "district": "İzmit",
+      "website": "https://izmitozelegitim.com"
+    },
+    {
+      "email": "fztoguzcelen@gmail.com",
+      "city": "Kocaeli",
+      "district": "İzmit",
+      "website": "https://fizyoterapiizmit.com"
+    },
+    {
+      "email": "iletisim@romatem.com",
+      "city": "Kocaeli",
+      "district": "İzmit",
+      "website": "https://romatem.com"
+    },
+    {
+      "email": "info@romatem.com",
+      "city": "Kocaeli",
+      "district": "İzmit",
+      "website": "https://romatem.com"
+    },
+    {
+      "email": "info@fztsadiyeatasoy.com",
+      "city": "Kocaeli",
+      "district": "İzmit",
+      "website": "https://www.fztsadiyeatasoy.com"
+    },
+    {
+      "email": "fzt.abdullahokur@gmail.com",
+      "city": "Kocaeli",
+      "district": "İzmit",
+      "website": "https://fztabdullahokur.com"
+    },
+    {
+      "email": "fztdulger@gmail.com",
+      "city": "Kocaeli",
+      "district": "Gölcük",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "info@playstudyo.fit",
+      "city": "Kocaeli",
+      "district": "Derince",
+      "website": "https://www.playstudyo.fit"
+    },
+    {
+      "email": "info@fedfizyoterapi.com",
+      "city": "İstanbul",
+      "district": "Kadıköy",
+      "website": "https://fedfizyoterapi.com"
+    },
+    {
+      "email": "info@ahmetyildirim.com",
+      "city": "İstanbul",
+      "district": "Şişli",
+      "website": "https://ahmetyildirim.com"
+    },
+    {
+      "email": "info@sislifiziktedavi.com",
+      "city": "İstanbul",
+      "district": "Şişli",
+      "website": "https://sislifiziktedavi.com"
+    },
+    {
+      "email": "info@besiktasfiziktedavi.com",
+      "city": "İstanbul",
+      "district": "Beşiktaş",
+      "website": "https://besiktasfiziktedavi.com"
+    },
+    {
+      "email": "iletisim@atasehirfizyoterapi.com.tr",
+      "city": "İstanbul",
+      "district": "Ataşehir",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "info@atasehirfizyoterapi.net",
+      "city": "İstanbul",
+      "district": "Ataşehir",
+      "website": "http://atasehirfizyoterapi.net"
+    },
+    {
+      "email": "info@chirocare.tr",
+      "city": "İstanbul",
+      "district": "Ataşehir",
+      "website": "https://www.ahmetburakbayir.com"
+    },
+    {
+      "email": "info@atasehirfiziktedavi.com",
+      "city": "İstanbul",
+      "district": "Ataşehir",
+      "website": "https://www.atasehirfiziktedavi.com"
+    },
+    {
+      "email": "fizyonatural@gmail.com",
+      "city": "İstanbul",
+      "district": "Bakırköy",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "abidintanrikut@gmail.com",
+      "city": "İstanbul",
+      "district": "Bakırköy",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "info@fizyorom.com",
+      "city": "İstanbul",
+      "district": "Bakırköy",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "info@istanbulfizyoterapimerkez.com",
+      "city": "İstanbul",
+      "district": "Bakırköy",
+      "website": "https://istanbulfizyoterapimerkez.com"
+    },
+    {
+      "email": "fztselvatoraman@gmail.com",
+      "city": "İstanbul",
+      "district": "Bakırköy",
+      "website": "https://fztselvanurtoraman.com.tr"
+    },
+    {
+      "email": "fztozlemozturk@gmail.com",
+      "city": "İstanbul",
+      "district": "Bakırköy",
+      "website": "https://www.fizyonatural.com"
+    },
+    {
+      "email": "fethullahtopdas@gmail.com",
+      "city": "İstanbul",
+      "district": "Üsküdar",
+      "website": "https://fethullahtopdas.com"
+    },
+    {
+      "email": "216fizyoterapi@gmail.com",
+      "city": "İstanbul",
+      "district": "Üsküdar",
+      "website": "https://fizyoterapi216.com"
+    },
+    {
+      "email": "info@physiobalance.com.tr",
+      "city": "İstanbul",
+      "district": "Maltepe",
+      "website": "https://kartal-fiziktedavi.com.tr"
+    },
+    {
+      "email": "iletisim@pendikfiziktedavi.com.tr",
+      "city": "İstanbul",
+      "district": "Pendik",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "iletisim@pendiktip.com.tr",
+      "city": "İstanbul",
+      "district": "Pendik",
+      "website": "https://pendikfizik.neleryapiyoruz.com"
+    },
+    {
+      "email": "info@lumaklinik.com",
+      "city": "İstanbul",
+      "district": "Beylikdüzü",
+      "website": "https://lumaklinik.com"
+    },
+    {
+      "email": "lumaklinik@gmail.com",
+      "city": "İstanbul",
+      "district": "Beylikdüzü",
+      "website": "https://lumaklinik.com"
+    },
+    {
+      "email": "info@aktayfizyoterapi.com",
+      "city": "İstanbul",
+      "district": "Beylikdüzü",
+      "website": "https://aktayfizyoterapi.com.tr"
+    },
+    {
+      "email": "info@aktayfizyoterapi.com.tr",
+      "city": "İstanbul",
+      "district": "Beylikdüzü",
+      "website": "https://aktayfizyoterapi.com.tr"
+    },
+    {
+      "email": "info@harmonyfiziktedavi.com",
+      "city": "İstanbul",
+      "district": "Fatih",
+      "website": "https://harmonyfiziktedavi.com"
+    },
+    {
+      "email": "profizyoterapi@gmail.com",
+      "city": "İstanbul",
+      "district": "Fatih",
+      "website": "https://www.profizyoterapi.com"
+    },
+    {
+      "email": "fizyohomes@gmail.com",
+      "city": "İstanbul",
+      "district": "Adalar",
+      "website": "https://fizyohomeistanbul.com"
+    },
+    {
+      "email": "arnavutkoyozelegitim@gmail.com",
+      "city": "İstanbul",
+      "district": "Arnavutköy",
+      "website": "https://www.arnavutkoyfizyoterapi.com"
+    },
+    {
+      "email": "merhaba@fiziktedavi.ai",
+      "city": "İstanbul",
+      "district": "Avcılar",
+      "website": "https://fiziktedavi.ai"
+    },
+    {
+      "email": "ersinbuyunlu2239@gmail.com",
+      "city": "İstanbul",
+      "district": "Avcılar",
+      "website": "https://avcilarfiziktedavi.com"
+    },
+    {
+      "email": "info@fizyomia.com",
+      "city": "İstanbul",
+      "district": "Avcılar",
+      "website": "https://www.fizyomia.com"
+    },
+    {
+      "email": "fizyodesa@gmail.com",
+      "city": "İstanbul",
+      "district": "Bağcılar",
+      "website": "https://fizyodesa.com"
+    },
+    {
+      "email": "randevu@senemelmali.com",
+      "city": "İstanbul",
+      "district": "Bağcılar",
+      "website": "https://senemelmali.com"
+    },
+    {
+      "email": "sultangazi@drfizyo.com",
+      "city": "İstanbul",
+      "district": "Beykoz",
+      "website": "https://www.drfizyo.com"
+    },
+    {
+      "email": "randevu@drfizyo.com",
+      "city": "İstanbul",
+      "district": "Beykoz",
+      "website": "https://www.drfizyo.com"
+    },
+    {
+      "email": "info@fztveyselekinci.com",
+      "city": "İstanbul",
+      "district": "Beykoz",
+      "website": "https://fztveyselekinci.com"
+    },
+    {
+      "email": "info@fztmehmetkuzudisli.com",
+      "city": "İstanbul",
+      "district": "Beykoz",
+      "website": "https://fztmehmetkuzudisli.com"
+    },
+    {
+      "email": "info@insanfiziktedavi.com.tr",
+      "city": "İstanbul",
+      "district": "Büyükçekmece",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "info@evdefiziktedavim.com.tr",
+      "city": "İstanbul",
+      "district": "Çatalca",
+      "website": "https://evdefiziktedavim.com.tr"
+    },
+    {
+      "email": "info@palmerandstill.com",
+      "city": "İstanbul",
+      "district": "Çatalca",
+      "website": "https://www.palmerandstill.com"
+    },
+    {
+      "email": "elifbacikceran@gmail.com",
+      "city": "İstanbul",
+      "district": "Esenyurt",
+      "website": "https://esenyurtfizyoterapi.com"
+    },
+    {
+      "email": "fzt.salimaslan@gmail.com",
+      "city": "İstanbul",
+      "district": "Zeytinburnu",
+      "website": "https://fztsalimaslan.com"
+    },
+    {
+      "email": "info@medifer.istanbul",
+      "city": "İstanbul",
+      "district": "Zeytinburnu",
+      "website": "https://medifer.istanbul"
+    },
+    {
+      "email": "iletisim@fizyosen.com",
+      "city": "İstanbul",
+      "district": "Zeytinburnu",
+      "website": "https://www.fizyosen.com"
+    },
+    {
+      "email": "esraceylan849@gmail.com",
+      "city": "Ankara",
+      "district": "Keçiören",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "bilgi@eminellerfizyoterapi.com",
+      "city": "Ankara",
+      "district": "Keçiören",
+      "website": "https://www.eminellerfizyoterapi.com"
+    },
+    {
+      "email": "info@sonerhira.com.tr",
+      "city": "Ankara",
+      "district": "Keçiören",
+      "website": "https://www.sonerhira.com.tr"
+    },
+    {
+      "email": "info@fizyoterapisthandeyigityilmaz.com",
+      "city": "Ankara",
+      "district": "Keçiören",
+      "website": "https://www.fizyoterapisthandeyigityilmaz.com"
+    },
+    {
+      "email": "info@fizyopol.com",
+      "city": "Ankara",
+      "district": "Altındağ",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "kecioren@silafiziktedavi.com",
+      "city": "Ankara",
+      "district": "Bala",
+      "website": "https://www.silafiziktedavi.com"
+    },
+    {
+      "email": "mamak@silafiziktedavi.com",
+      "city": "Ankara",
+      "district": "Bala",
+      "website": "https://www.silafiziktedavi.com"
+    },
+    {
+      "email": "fizitek@fizitek.com.tr",
+      "city": "Ankara",
+      "district": "Bala",
+      "website": "https://www.fizitek.com.tr"
+    },
+    {
+      "email": "dr@birolbalaban.com",
+      "city": "Ankara",
+      "district": "Bala",
+      "website": "https://birolbalaban.com"
+    },
+    {
+      "email": "info@fizyozade.com",
+      "city": "Ankara",
+      "district": "Beypazarı",
+      "website": "http://fizyozade.com"
+    },
+    {
+      "email": "info@urofiz.com",
+      "city": "Ankara",
+      "district": "Çamlıdere",
+      "website": "https://www.urofiz.com"
+    },
+    {
+      "email": "urofiz42@gmail.com",
+      "city": "Ankara",
+      "district": "Çamlıdere",
+      "website": "https://www.urofiz.com"
+    },
+    {
+      "email": "fztbthn777@gmail.com",
+      "city": "Ankara",
+      "district": "Çubuk",
+      "website": "https://fizyogunes.com"
+    },
+    {
+      "email": "info@balcovafiziktedavi.com",
+      "city": "İzmir",
+      "district": "Balçova",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "fizyoterapistmelis@gmail.com",
+      "city": "İzmir",
+      "district": "Balçova",
+      "website": "https://meliskocabiyikoglu.com"
+    },
+    {
+      "email": "husen35@hotmail.com",
+      "city": "İzmir",
+      "district": "Balçova",
+      "website": "https://fiziktedavibalcova.com"
+    },
+    {
+      "email": "fztbatuhans@gmail.com",
+      "city": "İzmir",
+      "district": "Bayraklı",
+      "website": "https://fizyoterapistbatuhanucak.com"
+    },
+    {
+      "email": "tedavi@fztferhatgoksoy.com",
+      "city": "İzmir",
+      "district": "Bayraklı",
+      "website": "https://www.fztferhatgoksoy.com"
+    },
+    {
+      "email": "info@fztgizemkara.com",
+      "city": "İzmir",
+      "district": "Bayraklı",
+      "website": "https://fztgizemkara.com"
+    },
+    {
+      "email": "bilgi@borfiz.com.tr",
+      "city": "İzmir",
+      "district": "Bayraklı",
+      "website": "https://borfiz.com.tr"
+    },
+    {
+      "email": "info@bornovarehabilitasyon.com",
+      "city": "İzmir",
+      "district": "Bornova",
+      "website": "https://www.bornovarehabilitasyon.com"
+    },
+    {
+      "email": "fizyoterapistimiz@gmail.com",
+      "city": "İzmir",
+      "district": "Gaziemir",
+      "website": "https://fizyoterapistimiz.com"
+    },
+    {
+      "email": "fztgulceerkal@gmail.com",
+      "city": "Bursa",
+      "district": "Nilüfer",
+      "website": "https://gulcerkal.com"
+    },
+    {
+      "email": "pt.ahmetulus@gmail.com",
+      "city": "Bursa",
+      "district": "Nilüfer",
+      "website": "https://www.fztahmetulus.com"
+    },
+    {
+      "email": "fizyoboon@gmail.com",
+      "city": "Bursa",
+      "district": "Nilüfer",
+      "website": "https://fizyoboon.com"
+    },
+    {
+      "email": "fzt@fztelifcubukcu.com",
+      "city": "Bursa",
+      "district": "Nilüfer",
+      "website": "https://fztelifcubukcu.com"
+    },
+    {
+      "email": "info@fztfurkanuzunyol.com",
+      "city": "Bursa",
+      "district": "Nilüfer",
+      "website": "https://www.fztfurkanuzunyol.com"
+    },
+    {
+      "email": "fizyovela@gmail.com",
+      "city": "Bursa",
+      "district": "Yenişehir",
+      "website": "https://fizyovela.com"
+    },
+    {
+      "email": "bursayenisehirdestekegitim@gmail.com",
+      "city": "Bursa",
+      "district": "Yenişehir",
+      "website": "https://www.destekozelegitimrehabilitasyon.com"
+    },
+    {
+      "email": "info@rommer.com.tr",
+      "city": "Bursa",
+      "district": "Yenişehir",
+      "website": "https://rommer.com.tr"
+    },
+    {
+      "email": "info@fztguldenyildirim.com",
+      "city": "Bursa",
+      "district": "Yıldırım",
+      "website": "https://fztguldenyildirim.com"
+    },
+    {
+      "email": "info@fztfatmadenizli.com.tr",
+      "city": "Bursa",
+      "district": "Yıldırım",
+      "website": "https://fztfatmadenizli.com.tr"
+    },
+    {
+      "email": "info@fzttunahantulu.com.tr",
+      "city": "Antalya",
+      "district": "Alanya",
+      "website": "https://fzttunahantulu.com.tr"
+    },
+    {
+      "email": "info@yusufonkol.com",
+      "city": "Antalya",
+      "district": "Kepez",
+      "website": "https://www.yusufonkol.com"
+    },
+    {
+      "email": "info@akdenizsifa.com",
+      "city": "Antalya",
+      "district": "Konyaaltı",
+      "website": "https://www.sifakonyaalti.com"
+    },
+    {
+      "email": "info@fizyowe.com",
+      "city": "Konya",
+      "district": "Karatay",
+      "website": "https://fizyowe.com"
+    },
+    {
+      "email": "hastahaklari@mersinfizyomed.com",
+      "city": "Mersin",
+      "district": "Yenişehir",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "info@orthofizyo.com",
+      "city": "Mersin",
+      "district": "Yenişehir",
+      "website": "https://orthofizyo.com"
+    },
+    {
+      "email": "fzt.nevzatgedik@gmail.com",
+      "city": "Mersin",
+      "district": "Yenişehir",
+      "website": "https://www.fizyoterapistnevzatgedik.com"
+    },
+    {
+      "email": "info@mersinfiziktedavi.com",
+      "city": "Mersin",
+      "district": "Yenişehir",
+      "website": "https://mersinfiziktedavi.com"
+    },
+    {
+      "email": "fitopyasym@gmail.com",
+      "city": "Kayseri",
+      "district": "Melikgazi",
+      "website": "https://www.fitopya.com.tr"
+    },
+    {
+      "email": "sihirlidokunuslarfizyoterapi@gmail.com",
+      "city": "Eskişehir",
+      "district": "Tepebaşı",
+      "website": "https://eskisehirpediatrikfizyoterapi.com"
+    },
+    {
+      "email": "info@fatmasaglamci.com",
+      "city": "Tekirdağ",
+      "district": "Süleymanpaşa",
+      "website": "https://fatmasaglamci.com"
+    },
+    {
+      "email": "sarikizfizyoterapi@gmail.com",
+      "city": "Balıkesir",
+      "district": "Edremit",
+      "website": "https://www.sarikizfizyoterapi.com"
+    },
+    {
+      "email": "info@balikesirfiziktedavi.com",
+      "city": "Balıkesir",
+      "district": "Karesi",
+      "website": "https://www.balikesirfiziktedavi.com"
+    },
+    {
+      "email": "info@balfizik.com.tr",
+      "city": "Balıkesir",
+      "district": "Karesi",
+      "website": "https://balfizik.com.tr"
+    },
+    {
+      "email": "yagmurpinarmalaa@gmail.com",
+      "city": "Manisa",
+      "district": "Turgutlu",
+      "website": "https://yagmurpinarmala.com.tr"
+    },
+    {
+      "email": "info@fztismailgunes.com",
+      "city": "Manisa",
+      "district": "Turgutlu",
+      "website": "https://fztismailgunes.com"
+    },
+    {
+      "email": "info@fizipol.com",
+      "city": "Manisa",
+      "district": "Yunusemre",
+      "website": "https://fizipol.com"
+    },
+    {
+      "email": "info@fizyotem.com",
+      "city": "Trabzon",
+      "district": "Ortahisar",
+      "website": "https://www.fizyotem.com"
+    },
+    {
+      "email": "fztataa@gmail.com",
+      "city": "Adıyaman",
+      "district": "Merkez",
+      "website": "https://ataadiyaman.com"
+    },
+    {
+      "email": "info@burdurrehabilitasyon.net",
+      "city": "Burdur",
+      "district": "Merkez",
+      "website": "Arama Özeti"
+    },
+    {
+      "email": "info@fizyocapa.com.tr",
+      "city": "Erzurum",
+      "district": "Palandöken",
+      "website": "https://www.fizyocapa.com.tr"
+    },
+    {
+      "email": "info@fizyocapa.com",
+      "city": "Erzurum",
+      "district": "Palandöken",
+      "website": "https://www.fizyocapa.com.tr"
+    },
+    {
+      "email": "rezanonurlu@gmail.com",
+      "city": "Erzurum",
+      "district": "Palandöken",
+      "website": "https://www.fizyocapa.com.tr"
+    },
+    {
+      "email": "info@kirsehirfizyoterapi.com.tr",
+      "city": "Kırşehir",
+      "district": "Merkez",
+      "website": "https://kirsehirfizyoterapi.com.tr"
+    },
+    {
+      "email": "info@sevgifiziktedavi.com.tr",
+      "city": "Malatya",
+      "district": "Yeşilyurt",
+      "website": "https://www.sevgifiziktedavi.com.tr"
+    },
+    {
+      "email": "malatyaevdefiziktedavi@hotmail.com",
+      "city": "Malatya",
+      "district": "Yeşilyurt",
+      "website": "https://www.malatyaevdefiziktedavi.com"
+    },
+    {
+      "email": "fztharunerdogan@gmail.com",
+      "city": "Malatya",
+      "district": "Yeşilyurt",
+      "website": "https://harunerdogan.com"
+    },
+    {
+      "email": "info@osmaniyefizyopilates.com",
+      "city": "Osmaniye",
+      "district": "Merkez",
+      "website": "https://osmaniyefizyopilates.com"
+    },
+    {
+      "email": "info@osmaniyepilates.com",
+      "city": "Osmaniye",
+      "district": "Merkez",
+      "website": "https://osmaniyepilates.com"
+    },
+    {
+      "email": "siirtilkhayat@gmail.com",
+      "city": "Siirt",
+      "district": "Merkez",
+      "website": "https://www.siirtilkhayat.com"
+    },
+    {
+      "email": "siirtfizyoterapist@gmail.com",
+      "city": "Siirt",
+      "district": "Merkez",
+      "website": "https://siirtfizyoterapist.com"
+    },
+    {
+      "email": "ahmetberkkeskin2@gmail.com",
+      "city": "Sivas",
+      "district": "Merkez",
+      "website": "https://sivasfizyoterapi.com"
+    },
+    {
+      "email": "info@fizyoinnova.com",
+      "city": "Şanlıurfa",
+      "district": "Karaköprü",
+      "website": "https://www.fizyoinnova.com"
+    },
+    {
+      "email": "info@sanitas.web.tr",
+      "city": "Tunceli",
+      "district": "Merkez",
+      "website": "https://sanitas.web.tr"
+    },
+    {
+      "email": "veyisbozkurt2@gmail.com",
+      "city": "Uşak",
+      "district": "Merkez",
+      "website": "https://www.fztveyisbozkurt.com"
+    },
+    {
+      "email": "info@fizyocare.com.tr",
+      "city": "Ankara",
+      "district": "Kalecik",
+      "website": "https://fizyocare.com.tr"
+    }
+  ]
+}
