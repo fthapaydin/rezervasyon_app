@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Fizyotim – Randevu & Klinik Yönetim Sistemi | Ürün Tanıtım Dokümanı</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --g:#059669; --gd:#064e3b; --ink:#0f172a; --mut:#64748b; --bg:#f0fdf4; }
+  body { font-family: 'Segoe UI', Inter, Arial, sans-serif; color: var(--ink); line-height: 1.5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 210mm; height: 297mm; padding: 14mm 15mm 13mm; page-break-after: always; position: relative; overflow: hidden; }
+  .page:last-child { page-break-after: auto; }
+  .eyebrow { font-size: 8.5pt; letter-spacing: .14em; font-weight: 800; color: var(--g); text-transform: uppercase; }
+  h1 { font-size: 32pt; line-height: 1.12; font-weight: 800; letter-spacing: -.02em; }
+  h2 { font-size: 18.5pt; font-weight: 800; letter-spacing: -.01em; margin: 2mm 0 3mm; }
+  h3 { font-size: 11.5pt; font-weight: 700; margin-bottom: 1.2mm; }
+  p { font-size: 10pt; color: #334155; }
+  .lead { font-size: 11.5pt; color: #334155; }
+  .footer { position: absolute; left: 15mm; right: 15mm; bottom: 7mm; font-size: 8pt; color: var(--mut); display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; padding-top: 2mm; }
+  .cover { background: linear-gradient(160deg, #052e22 0%, #064e3b 55%, #059669 120%); color: #fff; display: flex; flex-direction: column; justify-content: space-between; }
+  .cover p { color: #d1fae5; }
+  .logo { display:flex; align-items:center; gap:3mm; font-weight:800; font-size:16pt; }
+  .logo b { background:#fff; color:var(--gd); width:11mm; height:11mm; border-radius:3mm; display:flex; align-items:center; justify-content:center; font-size:13pt; }
+  .cover .tag { display:inline-block; border:1px solid rgba(255,255,255,.35); border-radius:99px; padding:1.5mm 4mm; font-size:9pt; color:#d1fae5; margin-bottom:5mm; }
+  .cover .shot { border-radius: 4mm; box-shadow: 0 10mm 25mm rgba(0,0,0,.45); width: 100%; display:block; }
+  .shotbox { border: 1px solid #e2e8f0; border-radius: 3mm; overflow: hidden; box-shadow: 0 2.5mm 7mm rgba(15,23,42,.09); background:#fff; }
+  .shotbox img { width: 100%; display: block; }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 4.5mm; }
+  .grid3 { display:grid; grid-template-columns: repeat(3,1fr); gap: 3.8mm; }
+  .card { background: var(--bg); border: 1px solid #bbf7d0; border-radius: 3mm; padding: 3.8mm; }
+  .card.w { background:#fff; border-color:#e2e8f0; }
+  .card.dark { background:#0f172a; border-color:#1e293b; color:#fff; }
+  .card.dark p { color:#cbd5e1; }
+  .card p { font-size: 9.2pt; }
+  .stat { text-align:center; padding:3.5mm; border-radius:3mm; background:#fff; border:1px solid #e2e8f0; }
+  .stat b { display:block; font-size:18pt; color:var(--g); }
+  .stat span { font-size:8.5pt; color:var(--mut); }
+  ul.chk { list-style:none; margin-top:1.5mm; }
+  ul.chk li { font-size:9.8pt; padding-left:5.5mm; position:relative; margin-bottom:1.4mm; color:#334155; }
+  ul.chk li::before { content:'✓'; position:absolute; left:0; color:var(--g); font-weight:800; }
+  .caption { font-size:8pt; color:var(--mut); margin-top:1.2mm; text-align:center; }
+  .price { border:2px solid #e2e8f0; border-radius:4mm; padding:5.5mm; }
+  .price.hl { background:#0f172a; color:#fff; border-color:#0f172a; }
+  .price.hl p, .price.hl li { color:#cbd5e1 !important; }
+  .price .amt { font-size:26pt; font-weight:800; }
+  .price .amt small { font-size:9.5pt; font-weight:600; opacity:.8; }
+  .badge { display:inline-block; font-size:7.5pt; font-weight:700; background:#10b981; color:#fff; padding:.8mm 3mm; border-radius:99px; margin-bottom:2mm; }
+  table { width:100%; border-collapse:collapse; font-size:9pt; margin-top:2mm; }
+  td, th { border-bottom:1px solid #e2e8f0; padding:2mm 2.2mm; text-align:left; vertical-align:top; }
+  th { color:var(--mut); font-size:8pt; text-transform:uppercase; letter-spacing:.05em; background:#f8fafc; font-weight:700; }
+  .steps { counter-reset:s; }
+  .step { display:flex; gap:3.5mm; margin-bottom:3.2mm; align-items:flex-start; }
+  .step::before { counter-increment:s; content:counter(s); flex:none; width:8mm; height:8mm; border-radius:50%; background:var(--g); color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:9.5pt; }
+  .flow { display:grid; grid-template-columns: 1fr 26mm 1fr; align-items:center; gap:2mm; margin:4mm 0; }
+  .flow-mid { text-align:center; font-size:8pt; font-weight:700; color:var(--g); background:#ecfdf5; border:1px dashed #6ee7b7; border-radius:2.5mm; padding:2.5mm 1mm; }
+</style>
+</head>
+<body>
+
+<!-- 1. KAPAK -->
+<section class="page cover">
+  <div class="logo"><b>FT</b> Fizyotim</div>
+  <div>
+    <span class="tag">Randevu, Seans &amp; Danışan Odaklı İşletmeler İçin Bulut Yazılım</span>
+    <h1>Randevu, danışan takibi<br>ve tahsilat —<br>tek ekranda.</h1>
+    <p class="lead" style="margin-top:5mm; max-width:148mm;">Defter, Excel ve dağınık mesajlaşma karmaşasına son. Dinamik takvim, paket/seans takibi, kasa &amp; resmî makbuz, ekip yetkilendirme ve paralel çalışan online randevu platformu tek bir bulut ekosisteminde.</p>
+  </div>
+  <img class="shot" src="ekran/01-dashboard.png" alt="Dashboard">
+  <div style="display:flex; justify-content:space-between; font-size:9pt; color:#a7f3d0;"><span>Kapsamlı Ürün &amp; Sistem Tanıtım Dokümanı</span><span>14 gün ücretsiz deneme · Kredi kartı gerekmez</span></div>
+</section>
+
+<!-- 2. NEDEN FİZYOTİM & SEKTÖREL UYUMLULUK -->
+<section class="page">
+  <div class="eyebrow">Neden Fizyotim?</div>
+  <h2>Randevu ile çalışan her işletmeye hazır altyapı</h2>
+  <p class="lead">İlk olarak fizyoterapi kliniklerinin yoğun seans ve paket temposu için geliştirilen Fizyotim; randevu, paket takibi ve tahsilatla çalışan tüm uzmanlık merkezlerine birebir uyum sağlar.</p>
+  <div class="grid2" style="margin-top:4.5mm;">
+    <div class="card w"><h3>😓 Klasik Yöntemlerde Yaşanan Kayıplar</h3>
+      <ul class="chk" style="list-style:disc; padding-left:4.5mm;">
+        <li style="padding-left:0">Ajanda ve telefon trafiğinde çakışan randevular</li>
+        <li style="padding-left:0">Unutulan randevular yüzünden boş kalan saatler</li>
+        <li style="padding-left:0">"Kaç seansı kaldı, ne kadar ödedi?" karmaşası</li>
+        <li style="padding-left:0">Mesai dışında gelen randevu telefonlarına yetişememe</li>
+        <li style="padding-left:0">Tüm personelin kasa ve ciro verilerini görmesi</li>
+      </ul>
+      <style>.card.w ul li::before{content:''!important}</style>
+    </div>
+    <div class="card"><h3>✅ Fizyotim ile Kazandıklarınız</h3>
+      <ul class="chk">
+        <li>Sürükle-bırak haftalık takvim ve otomatik mola kilidi</li>
+        <li>7/24 çalışan paralel online randevu ve keşif portalı</li>
+        <li>Otomatik seans düşümü, bakiye ve FIFO borç takibi</li>
+        <li>Tek tıkla kurumsal antetli PDF rapor ve tahsilat makbuzu</li>
+        <li>Rol bazlı yetkilendirme (RBAC) ile güvenli ekip yönetimi</li>
+      </ul>
+    </div>
+  </div>
+  <h3 style="margin-top:5.5mm;">Sektörel Kullanım &amp; Terminoloji Uyum Tablosu</h3>
+  <table>
+    <thead>
+      <tr><th>Sektör / İşletme Türü</th><th>Danışan Karşılığı</th><th>Takvim &amp; Paket Kullanımı</th><th>Öne Çıkan Modül</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><b>Fizyoterapi &amp; Rehabilitasyon</b></td><td>Hasta / Danışan</td><td>8-10 seanslık tedavi paketleri, Klinikte / Evde terapi</td><td>Hasta Özeti PDF, Tekrarlayan Paket</td></tr>
+      <tr><td><b>Psikolog, Diyetisyen &amp; Koçluk</b></td><td>Danışan</td><td>Bireysel seanslar, Online (Uzaktan) veya yüz yüze görüşme</td><td>Hizmet Yeri (Uzaktan), KVKK Maskeleme</td></tr>
+      <tr><td><b>Pilates, Yoga &amp; PT Stüdyoları</b></td><td>Üye / Sporcu</td><td>Haftalık düzenli ders paketleri, eğitmen bazlı ders takvimi</td><td>Eğitmen Performansı, Paket Tamamlanma %</td></tr>
+      <tr><td><b>Güzellik, Estetik &amp; Spa</b></td><td>Müşteri / Danışan</td><td>Cilt bakımı, lazer ve masaj seans paketleri, uzman seçimi</td><td>QR Masa Standı, Tahsilat &amp; Borçlu Takibi</td></tr>
+      <tr><td><b>Diş, Podoloji &amp; Özel Muayenehane</b></td><td>Hasta</td><td>Hekim bazlı randevu planlama, işlem ve kontrol takibi</td><td>RBAC Sekreter/Hekim Yetkisi, Kasa Raporu</td></tr>
+    </tbody>
+  </table>
+  <div class="grid3" style="margin-top:5mm;">
+    <div class="stat"><b>5 dk</b><span>Bulut kurulum süresi</span></div>
+    <div class="stat"><b>7/24</b><span>Online randevu kabulü</span></div>
+    <div class="stat"><b>%0</b><span>Kurulum &amp; komisyon ücreti</span></div>
+  </div>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>2</span></div>
+</section>
+
+<!-- 3. PARALEL EKOSİSTEM MİMARİSİ (REZERVASYON_APP <-> FIZYO-BOOKING) -->
+<section class="page">
+  <div class="eyebrow">Çift Yönlü Bulut Mimarisi</div>
+  <h2>Yönetim Paneli ve Online Randevu Sitesi paralel çalışır</h2>
+  <p>Fizyotim tek bir yazılım değil, aynı gerçek zamanlı veritabanı üzerinde senkronize çalışan <b>iki paralel uygulamadan</b> oluşur: işletmenizin kullandığı <b>Klinik Yönetim Paneli</b> ve danışanlarınızın kullandığı <b>Online Randevu &amp; Keşif Platformu (fizyo-booking)</b>.</p>
+  <div class="flow">
+    <div class="card dark">
+      <h3 style="color:#6ee7b7;">1. Klinik Yönetim Paneli</h3>
+      <p>Yönetici, uzman ve sekreter ekranı. Takvim planlama, hasta kabul, paket tanımlama, kasa, makbuz ve raporlama burada yürütülür.</p>
+    </div>
+    <div class="flow-mid">⚡ Anlık Senkron<br><span style="font-size:7pt; color:#047857;">Ortak Veritabanı</span><br>↔</div>
+    <div class="card">
+      <h3 style="color:#065f46;">2. Online Randevu Platformu</h3>
+      <p>Danışanların 7/24 müsait saatleri gördüğü, uzman seçip randevu talebi gönderdiği ve kalan paket seanslarını sorguladığı vitrin sitesi.</p>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:3mm;">
+    <div>
+      <div class="shotbox"><img src="ekran/03-takvim.png"></div>
+      <p class="caption"><b>Yönetim Paneli Takvimi:</b> 2 Eyl 08:00 ve 5 Eyl 09:00 seansları</p>
+    </div>
+    <div>
+      <div class="shotbox"><img src="ekran/20-fb-canli-takvim.png"></div>
+      <p class="caption"><b>Hasta Randevu Sitesi:</b> Aynı saatler anında "DOLU" olarak kilitlenir</p>
+    </div>
+  </div>
+  <h3 style="margin-top:4.5mm;">Paralel Çalışma Senaryosu Nasıl İşler?</h3>
+  <ul class="chk">
+    <li><b>Çakışma Sıfırlama:</b> Yönetim panelinden bir saate randevu girdiğiniz veya öğle molası tanımladığınız anda, online randevu sitesinde o kutu otomatik olarak <b>DOLU</b> veya <b>KİLİTLİ</b> hale gelir.</li>
+    <li><b>Canlı Talep Akışı:</b> Danışan online siteden yeşil <b>MÜSAİT</b> kutuya tıklayıp talep gönderdiğinde, yönetim panelinizde sesli bildirim çalar ve <b>Randevu Talepleri</b> sekmesine düşer.</li>
+    <li><b>Çift Yönlü Paket Takibi:</b> Siz panelde bir seansı "Tamamlandı" olarak işaretlediğinizde, danışan kendi ekranındaki <b>Randevu Durumu Sorgula</b> penceresinden kalan seans hakkını ve ilerleme yüzdesini anında güncel görür.</li>
+  </ul>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>3</span></div>
+</section>
+
+<!-- 4. DASHBOARD -->
+<section class="page">
+  <div class="eyebrow">01 · Genel Bakış (Dashboard)</div>
+  <h2>İşletmenizin nabzı tek bir ekranda</h2>
+  <p>Giriş yaptığınız anda toplam danışan, bekleyen seans, toplam tahsilat ve açık alacak bakiyesini görürsünüz. Yaklaşan seanslar saat sırasıyla listelenir.</p>
+  <div class="shotbox" style="margin-top:5mm;"><img src="ekran/01-dashboard.png"></div>
+  <p class="caption">Dashboard — özet finans ve seans kartları, yaklaşan randevular, ciro durumu ve seans dağılım özeti</p>
+  <div class="grid3" style="margin-top:5mm;">
+    <div class="card"><h3>👁️ Finansal Gizlilik Modu</h3><p>Tahsilat, alacak ve ciro kartlarındaki göz ikonuna tıklayarak yanınızda danışan varken rakamları tek tıkla gizleyin.</p></div>
+    <div class="card"><h3>🔔 Anlık Sesli Bildirim</h3><p>Online randevu platformundan yeni bir talep geldiğinde üst bardaki bildirim sistemi sesli ve görsel uyarı verir.</p></div>
+    <div class="card"><h3>⚡ Hızlı Üst Araç Çubuğu</h3><p>Duyurular, Masaüstü QR Standı, Randevu Linki Kopyalama ve Karanlık Mod geçişi her sayfada elinizin altındadır.</p></div>
+  </div>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>4</span></div>
+</section>
+
+<!-- 5. HAFTALIK SEANS TAKVİMİ -->
+<section class="page">
+  <div class="eyebrow">02 · Seans Takvimi</div>
+  <h2>Sürükle-bırak destekli, akıllı haftalık takvim</h2>
+  <p>Haftalık takvimde her seans kartı üzerinde danışan adı, paket ilerleme durumu (ör. <b>1/10</b>, <b>3/8</b>), tedavi adı, hizmet yeri (<b>Klinikte / Evde / Uzaktan</b>) ve uzmanın renk kodu yer alır. Seansları fareyle tutup başka bir gün veya saate sürükleyerek taşıyabilirsiniz.</p>
+  <div class="shotbox" style="margin-top:4mm;"><img src="ekran/03-takvim.png"></div>
+  <p class="caption">Haftalık takvim — renk kodlu seans kartları, öğle molası koruması (12:00) ve kapalı gün (Pazar) kilidi</p>
+  <div class="grid2" style="margin-top:4.5mm; align-items:center;">
+    <div class="shotbox" style="aspect-ratio:1/1.18; overflow:hidden; max-width:66%; margin:0 auto;"><img src="ekran/05-yeni-seans.png" style="width:277%; max-width:none; margin-left:-88.9%; margin-top:-26%;"></div>
+    <div>
+      <h3>Hızlı tekli randevu oluşturma</h3>
+      <ul class="chk">
+        <li>Takvimdeki herhangi bir boş <b>(+)</b> hücresine tıkladığınızda tarih ve saat otomatik seçili açılır.</li>
+        <li>Tedavi seçildiğinde o hizmeti veren uzmanlar otomatik filtrelenir.</li>
+        <li><b>Seans Hizmet Yeri:</b> Klinikte, Evde veya Uzaktan etiketiyle kaydedilir.</li>
+        <li><b>Geçmişe dönük randevu</b> kutucuğu ile geçmiş seansları da işleyebilirsiniz.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>5</span></div>
+</section>
+
+<!-- 6. TEKRARLAYAN PAKET & LİSTE GÖRÜNÜMÜ -->
+<section class="page">
+  <div class="eyebrow">03 · Paket Planlama &amp; Liste Görünümü</div>
+  <h2>8–10 seanslık paketleri tek tıkla takvime dizin</h2>
+  <p>Düzenli gelen danışanlar için her haftaya tek tek randevu girmek yerine <b>Tekrarlayan Seans Paketi</b> aracını kullanın; sistem başlangıç tarihinden itibaren seçtiğiniz seans sayısı kadar haftalık randevuyu otomatik oluşturur.</p>
+  <div class="grid2" style="margin-top:4mm; align-items:center;">
+    <div class="shotbox" style="aspect-ratio:1/1.05; overflow:hidden; max-width:72%; margin:0 auto;"><img src="ekran/18-tekrarlayan-paket.png" style="width:277%; max-width:none; margin-left:-88.9%; margin-top:-32%;"></div>
+    <div>
+      <h3>Tekrarlayan Seans Paketi Özellikleri</h3>
+      <ul class="chk">
+        <li>Danışan, tedavi, uzman, başlangıç tarihi, saat ve <b>Seans Sayısı</b> (ör. 8 veya 10 seans) seçilir.</li>
+        <li>Sistem her seansı <code>Tekrarlayan Seans (1/8)</code> şeklinde numaralandırır.</li>
+        <li>Öğle molası saatine denk gelen seansları otomatik algılar ve uyarı verir.</li>
+        <li>Klinikte, Evde ve Uzaktan lokasyon etiketlerini tüm pakete uygular.</li>
+      </ul>
+    </div>
+  </div>
+  <h2 style="margin-top:5.5mm;">Seans listesi &amp; Excel dışa aktarma</h2>
+  <div class="shotbox" style="margin-top:2.5mm;"><img src="ekran/04-seans-liste.png"></div>
+  <p class="caption">Liste görünümü — tüm randevuları tablo halinde filtreleyin, durumunu değiştirin veya tek tıkla Excel'e aktarın</p>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>6</span></div>
+</section>
+
+<!-- 7. RANDEVU TALEPLERİ & PORTAL -->
+<section class="page">
+  <div class="eyebrow">04 · Online Randevu Talepleri &amp; QR Stand</div>
+  <h2>Danışandan gelen talepleri tek tıkla onaylayın</h2>
+  <p>Online randevu platformundan veya hasta portalından iletilen tüm talepler <b>Randevu Talepleri</b> ekranına düşer. Onayladığınız talep otomatik olarak seans takvimine eklenir; reddettiğiniz taleplerde ise red nedeni danışanın sorgulama ekranında gösterilir.</p>
+  <div class="shotbox" style="margin-top:4mm;"><img src="ekran/02-requests.png"></div>
+  <p class="caption">Randevu Talepleri — Bekleyenler, Onaylananlar, Reddedilenler ve Tümü filtreleri</p>
+  <h2 style="margin-top:6mm;">Danışma masası için hazır QR standı</h2>
+  <div class="grid2" style="align-items:center; margin-top:2mm;">
+    <div class="shotbox" style="aspect-ratio:1/1.42; overflow:hidden; max-width:68%; margin:0 auto;"><img src="ekran/15-qr.png" style="width:277%; max-width:none; margin-left:-88.9%; margin-top:-15.6%;"></div>
+    <div>
+      <p>Üst menüdeki <b>QR Standı</b> butonuna tıklayarak işletmenizin adıyla hazırlanmış masaüstü randevu standını anında oluşturun.</p>
+      <ul class="chk" style="margin-top:3mm;">
+        <li><b>Yazdır / PDF:</b> A4 boyutunda baskıya hazır PDF çıktısı alın ve danışma masanıza yerleştirin.</li>
+        <li><b>QR İndir &amp; Link Kopyala:</b> Karekodu görsel olarak sosyal medya gönderilerinizde veya profilinizde paylaşın.</li>
+        <li>Danışanlar seans çıkışında bankoda beklemeden kamerayla kodu okutup sonraki randevusunu alır.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>7</span></div>
+</section>
+
+<!-- 8. HASTA LİSTESİ & TEDAVİLER -->
+<section class="page">
+  <div class="eyebrow">05 · Danışan Portföyü &amp; Hizmet Tanımları</div>
+  <h2>Tüm danışan kayıtları ve seans ilerlemeleri</h2>
+  <p>Kayıtlı tüm danışanlarınızı iletişim bilgileri, ön tanı/şikayet notu ve görsel <b>Seans İlerlemesi</b> çubuğu (ör. <code>1/10</code>, <code>3/10</code>) ile tek listede görüntüleyin. Mükerrer telefon kontrolü sayesinde aynı numarayla ikinci kez hatalı kayıt açılması engellenir.</p>
+  <div class="shotbox" style="margin-top:4mm;"><img src="ekran/06-hastalar.png"></div>
+  <p class="caption">Hasta Yönetimi — hızlı arama, iletişim, tanı ve seans ilerleme çubuğu</p>
+  <h2 style="margin-top:6mm;">Tedavi &amp; hizmet tanımları</h2>
+  <p>Sunduğunuz her hizmetin adını, seans süresini (dk), birim fiyatını ve o hizmeti uygulayacak uzmanları tanımlayın. Online randevu sayfasında yalnızca o hizmete atadığınız uzmanlar seçilebilir.</p>
+  <div class="shotbox" style="margin-top:4mm;"><img src="ekran/08-tedavi.png"></div>
+  <p class="caption">Tedavi &amp; Hizmetler — süre, fiyat ve uygulayan uzman eşleştirmesi</p>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>8</span></div>
+</section>
+
+<!-- 9. DETAYLI HASTA KARTI & KURUMSAL PDF RAPORLAR (YENİ) -->
+<section class="page">
+  <div class="eyebrow">06 · Detaylı Danışan Kartı &amp; PDF Raporlama</div>
+  <h2>Danışan geçmişi, bakiye ve resmî PDF belgeler</h2>
+  <p>Listeden bir danışana tıkladığınızda açılan <b>Detaylı Danışan Kartı</b>; planlanan, tamamlanan ve kalan seans sayısını, yüzdesel tedavi ilerleme çubuğunu ve kalan borç/bakiye durumunu tek bakışta sunar.</p>
+  <div class="shotbox" style="margin-top:4mm;"><img src="ekran/07-hasta-detay.png"></div>
+  <p class="caption">Detaylı Hasta Kartı — Planlanan/Tamamlanan/Kalan seans, açık bakiye, ilerleme çubuğu ve seans geçmişi</p>
+  <div class="grid3" style="margin-top:5mm;">
+    <div class="card">
+      <h3>📄 Seans Raporu PDF</h3>
+      <p>Danışanın katıldığı tüm seansların tarih, saat, yapılan uygulama ve uzman bilgilerini içeren kurumsal antetli PDF raporu tek tıkla indirilir.</p>
+    </div>
+    <div class="card">
+      <h3>🖨️ Hasta Hesap Özeti PDF</h3>
+      <p>Toplam seans tutarı, yapılan ödemeler ve kalan bakiye dökümünü resmi belge formatında PDF olarak üretir; danışana veya kurumlara sunulabilir.</p>
+    </div>
+    <div class="card">
+      <h3>➕ Paket Yenileme &amp; Kopyalama</h3>
+      <p>Paketi biten danışana <b>+ Seans / Paket Ekle</b> ile yeni dönem tanımlayın veya geçmiş bir seansı <b>Randevuyu Kopyala</b> ile yeni haftaya çoğaltın.</p>
+    </div>
+  </div>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>9</span></div>
+</section>
+
+<!-- 10. EKİP & RBAC YETKİLENDİRME -->
+<section class="page">
+  <div class="eyebrow">07 · Ekip Yönetimi &amp; Rol Bazlı Yetkilendirme (RBAC)</div>
+  <h2>Her personel sadece yetkili olduğu sekmeleri görür</h2>
+  <p>Uzmanlarınızı ve sekreterlerinizi sisteme ekleyin. Her ekip üyesi kendi e-postası ve şifresiyle giriş yapar; hangi menü sekmelerine erişebileceğini (ör. sadece Takvim ve Hastalar) siz belirlersiniz. Kasa ve ciro verileriniz tam koruma altında kalır.</p>
+  <div class="shotbox" style="margin-top:4mm;"><img src="ekran/09-ekip.png"></div>
+  <p class="caption">Ekip &amp; Personel — rol rozeti, erişim izni (ör. Tam Yetki 9/9 veya 3 Sekme), atanan tedaviler ve takvim rengi</p>
+  <h2 style="margin-top:5.5mm;">Uzman performans ve seans dağılım analizi</h2>
+  <div class="shotbox" style="margin-top:3mm;"><img src="ekran/13-personel-performans.png"></div>
+  <p class="caption">Personel Performansı — uzman bazında atanan, tamamlanan ve bekleyen seans karşılaştırması ile seans payı (%)</p>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>10</span></div>
+</section>
+
+<!-- 11. ÖDEMELER, FIFO BORÇ KAPATMA & RESMÎ MAKBUZ -->
+<section class="page">
+  <div class="eyebrow">08 · Ödemeler, Kasa &amp; Resmî Tahsilat Makbuzu</div>
+  <h2>Tahsilat, borçlu listesi ve dijital makbuz yönetimi</h2>
+  <p>Nakit, kredi kartı ve havale tahsilatlarını kaydedin. Toplu ödemelerde sistem borçları en eski seanstan başlayarak otomatik (<b>FIFO</b> mantığıyla) kapatır. Açık bakiyesi olan danışanlar <b>Borçlular</b> sekmesinde otomatik listelenir.</p>
+  <div class="shotbox" style="margin-top:3.5mm;"><img src="ekran/10-odemeler.png"></div>
+  <p class="caption">Ödemeler &amp; Kasa — toplam tahsilat, kalan alacak, ödeme listesi ve hızlı makbuz butonları</p>
+  <div class="grid2" style="margin-top:4.5mm; align-items:center;">
+    <div class="shotbox" style="aspect-ratio:1/1.12; overflow:hidden; max-width:74%; margin:0 auto;"><img src="ekran/19-makbuz-modal.png" style="width:240%; max-width:none; margin-left:-70%; margin-top:-6%;"></div>
+    <div>
+      <h3>Tahsilat Makbuzu &amp; Paylaşım Paneli</h3>
+      <ul class="chk">
+        <li>Her tahsilat için benzersiz belge numaralı (ör. <code>#MAK-2026-E8ADE67F</code>) resmî görünüm üretilir.</li>
+        <li><b>Kurumsal PDF İndir:</b> Kaşeli ve onaylı PDF tahsilat makbuzunu tek tıkla indirin.</li>
+        <li><b>E-Posta ile Gönder:</b> Makbuz detaylarını danışanın e-posta adresine iletin veya metni kopyalayın.</li>
+        <li><b>Borçlular Sekmesi:</b> Kalan borcu olan danışanları tek listede görüp tahsilat girin.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>11</span></div>
+</section>
+
+<!-- 12. İSTATİSTİK & RAPORLAR -->
+<section class="page">
+  <div class="eyebrow">09 · İstatistik &amp; Finansal Raporlar</div>
+  <h2>Büyümenizi grafiklerle ve net verilerle izleyin</h2>
+  <p>Toplam gelir, aktif danışan sayısı, toplam seans ve ortalama seans değerini dönem filtreleriyle (Bu Ay, Son 3 Ay, Tüm Zamanlar) analiz edin.</p>
+  <div class="shotbox" style="margin-top:4.5mm;"><img src="ekran/12-rapor.png"></div>
+  <p class="caption">İstatistik &amp; Performans Raporları — aylık gelir trendi, haftalık seans doluluğu, tedavi dağılımı ve yeni kayıtlar</p>
+  <div class="grid3" style="margin-top:5.5mm;">
+    <div class="card"><h3>📈 Aylık Gelir Trendi</h3><p>Son 6 ay içindeki ciro akışınızı grafik üzerinde karşılaştırarak sezonluk yoğunlukları görün.</p></div>
+    <div class="card"><h3>📊 Haftalık Doluluk</h3><p>Son 8 haftadaki seans sayılarını takip ederek kapasite kullanımınızı optimize edin.</p></div>
+    <div class="card"><h3>🎯 Hizmet Dağılımı</h3><p>En çok tercih edilen tedavi ve paket türlerini yüzdesel pasta grafikle analiz edin.</p></div>
+  </div>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>12</span></div>
+</section>
+
+<!-- 13. KLİNİK AYARLARI -->
+<section class="page">
+  <div class="eyebrow">10 · Klinik Ayarları &amp; Marka Özelleştirme</div>
+  <h2>Sistemi kendi kurumsal kimliğinize göre yapılandırın</h2>
+  <p>İşletme adı, yetkili bilgisi, il/ilçe, logo, kurumsal tema rengi, çalışma saatleri, öğle molası ve hizmet yerlerini (Klinikte / Evde / Uzaktan) tek ekrandan yönetin. Yaptığınız her değişiklik online randevu platformuna da anında yansır.</p>
+  <div class="shotbox" style="margin-top:4.5mm; position:relative;"><img src="ekran/14-ayarlar.png">
+    <div style="position:absolute; left:50.4%; top:33.3%; width:29%; height:4.6%; background:#fff; border:1px solid #e2e8f0; border-radius:2mm; display:flex; align-items:center; padding-left:1.8%; font-size:5.5pt; color:#0f172a;">Dr. Ayşe Yılmaz</div>
+    <div style="position:absolute; left:20.5%; top:50.8%; width:28.5%; height:4.4%; background:#fff; border:1px solid #e2e8f0; border-radius:2mm; display:flex; align-items:center; padding-left:2%; font-size:5.5pt; color:#0f172a;">05XX XXX XX XX</div>
+  </div>
+  <p class="caption">Klinik Ayarları — kurumsal profil, 6 hazır renk teması (Zümrüt, Okyanus, İndigo, Mor, Teal, Turuncu) ve mesai ayarları</p>
+  <div class="grid2" style="margin-top:5mm;">
+    <div class="card">
+      <h3>⏰ Dinamik Mesai &amp; Öğle Molası</h3>
+      <p>Haftanın her günü için ayrı açılış-kapanış saati ve dinlenme molası belirleyin. Mola saatleri hem iç takvimde hem de online randevuda otomatik kilitlenir.</p>
+    </div>
+    <div class="card">
+      <h3>📍 Çoklu Hizmet Yeri &amp; Mesaj Şablonları</h3>
+      <p>Klinikte, Evde veya Uzaktan hizmet seçeneklerini aktif edin; randevu onay, hatırlatma ve tamamlanma mesaj şablonlarınızı özelleştirin.</p>
+    </div>
+  </div>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>13</span></div>
+</section>
+
+<!-- 14. KARANLIK MOD, GÜVENLİK & SSS -->
+<section class="page">
+  <div class="eyebrow">11 · Kullanıcı Deneyimi, Güvenlik &amp; Sıkça Sorulan Sorular</div>
+  <h2>Göz yormayan karanlık mod ve kurumsal veri güvenliği</h2>
+  <div class="grid2" style="margin-top:3mm;">
+    <div><div class="shotbox"><img src="ekran/16-dashboard-karanlik.png"></div><p class="caption">Karanlık Mod (Dark Mode) görünümü</p></div>
+    <div><div class="shotbox"><img src="ekran/00-giris-modal.png"></div><p class="caption">Yönetici ve personel için tek noktadan güvenli giriş</p></div>
+  </div>
+  <h3 style="margin-top:5mm;">Sıkça Sorulan Sorular (SSS)</h3>
+  <div class="grid2" style="margin-top:2mm;">
+    <div class="card w">
+      <h3>Bilgisayara program kurmam gerekiyor mu?</h3>
+      <p>Hayır. Fizyotim %100 bulut tabanlıdır. Bilgisayar, tablet veya cep telefonunuzdan tarayıcı ile anında giriş yapabilirsiniz.</p>
+    </div>
+    <div class="card w">
+      <h3>Personelim kasa ve ciro rakamlarını görebilir mi?</h3>
+      <p>Hayır. Rol bazlı yetkilendirme (RBAC) sayesinde uzman veya sekreterlerinize sadece "Takvim" ve "Hastalar" yetkisi verebilirsiniz.</p>
+    </div>
+    <div class="card w">
+      <h3>Eski hasta ve paket kayıtlarımızı aktarabilir miyiz?</h3>
+      <p>Evet. Mevcut danışan listenizi, kalan seans sayılarını ve geçmişe dönük randevularınızı sisteme kolayca tanımlayabilirsiniz.</p>
+    </div>
+    <div class="card w">
+      <h3>Yabancı kişiler online takvimi rastgele doldurabilir mi?</h3>
+      <p>Hayır. Online randevu modülü telefon numarasından kayıtlı danışanı doğrular ve haftalık/bekleyen talep kotasıyla suistimali engeller.</p>
+    </div>
+    <div class="card w">
+      <h3>Verilerimiz güvende mi, KVKK'ya uygun mu?</h3>
+      <p>Tüm veriler 256-bit SSL şifreli bulut altyapısında saklanır. Danışan sorgulama ekranlarında kişisel veriler KVKK gereği otomatik maskelenir.</p>
+    </div>
+    <div class="card w">
+      <h3>İnternet bağlantısı koparsa fark edebilir miyiz?</h3>
+      <p>Evet. Dahili çevrimdışı algılama (Offline Banner) özelliği internet kesintisinde anında uyarı verir ve hatalı işlem yapılmasını önler.</p>
+    </div>
+  </div>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>14</span></div>
+</section>
+
+<!-- 15. FİYATLANDIRMA & İLETİŞİM -->
+<section class="page">
+  <div class="eyebrow">Fiyatlandırma &amp; Başlangıç</div>
+  <h2>Sade, şeffaf ve komisyonsuz paketler</h2>
+  <p>Gizli kurulum ücreti veya seans başına komisyon yoktur. 14 gün boyunca kredi kartı gerekmeden tüm özellikleri ücretsiz deneyebilirsiniz.</p>
+  <div class="grid2" style="margin-top:5mm;">
+    <div class="price">
+      <h3>Standart Paket</h3><p>Aylık esnek abonelik planı</p>
+      <div class="amt" style="margin:3mm 0;">₺250 <small>/ ay (KDV Dahil)</small></div>
+      <ul class="chk">
+        <li>Dinamik Takvim &amp; Öğle Molası Koruması</li>
+        <li>Tekrarlayan Seans Paketi &amp; Kopyalama</li>
+        <li>Rol Bazlı Ekip Yetkilendirme (RBAC)</li>
+        <li>Kurumsal Antetli PDF Raporlar &amp; Tahsilat Makbuzu</li>
+        <li>Paralel Online Randevu &amp; Keşif Sayfası</li>
+        <li>Danışma Masası QR Stand Üretici</li>
+        <li>Sınırsız Danışan, Seans ve Kasa Kaydı</li>
+      </ul>
+    </div>
+    <div class="price hl">
+      <span class="badge">%33 TASARRUF · 4 AY ÜCRETSİZ</span>
+      <h3>Yıllık Avantaj Paketi</h3><p>Uzun vadeli, en avantajlı maliyet (Aylık ~₺166)</p>
+      <div class="amt" style="margin:3mm 0;">₺2.000 <small>/ yıl (KDV Dahil)</small></div>
+      <ul class="chk">
+        <li><b>Tüm Standart Paket Özellikleri Dahil</b></li>
+        <li>Yıllık Peşin Ödemede <b>4 Ay Ücretsiz Kullanım</b></li>
+        <li>Ücretsiz Eski Hasta &amp; Randevu Veri Aktarımı</li>
+        <li>1 Yıl Boyunca Fiyat Artışından Etkilenmeme Güvencesi</li>
+        <li>Kliniğinize Özel QR Masa Standı Tasarım Desteği</li>
+        <li>Öncelikli Teknik Destek</li>
+      </ul>
+    </div>
+  </div>
+  <h2 style="margin-top:7mm;">3 adımda hemen başlayın</h2>
+  <div class="steps" style="margin-top:2mm;">
+    <div class="step"><div><h3>14 günlük ücretsiz demo talebi oluşturun</h3><p>Web sitemizdeki başvuru formunu doldurun veya e-posta adresimiz üzerinden bizimle iletişime geçin.</p></div></div>
+    <div class="step"><div><h3>Hesabınız ve online randevu sayfanız 5 dakikada açılsın</h3><p>Klinik bilgileriniz, çalışma saatleriniz ve özel randevu bağlantınız anında tanımlanır.</p></div></div>
+    <div class="step"><div><h3>Ekibinizle ve danışanlarınızla canlı test edin</h3><p>14 gün boyunca hiçbir kart bilgisi girmeden tüm modülleri tam yetkiyle kullanın.</p></div></div>
+  </div>
+  <div class="card" style="margin-top:5mm; background:#052e22; color:#fff; border:none; text-align:center; padding:6mm;">
+    <h3 style="color:#fff; font-size:14pt;">Kurumsal İletişim &amp; Demo Başvurusu</h3>
+    <p style="color:#a7f3d0; margin-top:2mm; font-size:11pt;">E-posta: <b>fatalsoft.inc@gmail.com</b></p>
+    <p style="color:#6ee7b7; margin-top:1.5mm; font-size:9pt;">FatalSoft Bilişim Teknolojileri · Kocaeli / Gebze</p>
+  </div>
+  <div class="footer"><span>Fizyotim · Randevu &amp; Klinik Yönetim Sistemi</span><span>15</span></div>
+</section>
+
+</body>
+</html>
