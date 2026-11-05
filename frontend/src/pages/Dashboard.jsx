@@ -5,7 +5,10 @@ import EmptyState from '../components/ui/EmptyState';
 import { getSessionLocation } from '../lib/sessionLocationUtils';
 import { LocationBadge } from '../components/common/LocationSelector';
 
-export default function Dashboard({ patients, sessions, payments, onPatientClick, setActiveTab, requests = [], onNavigateToRequests }) {
+import { getClinicSectorConfig } from '../lib/sectorUtils';
+
+export default function Dashboard({ clinic, patients, sessions, payments, onPatientClick, setActiveTab, requests = [], onNavigateToRequests }) {
+  const sector = getClinicSectorConfig(clinic);
   const [hideFinancials, setHideFinancials] = useState(() => {
     return localStorage.getItem('fizyo_hide_financials') === 'true';
   });
@@ -44,9 +47,9 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
 
   const stats = [
     { 
-      label: 'Toplam Hasta',    
+      label: `Toplam ${sector.clientSingular}`,    
       value: patients.length,        
-      desc: 'Kayıtlı aktif hasta portföyü',
+      desc: `Kayıtlı aktif ${sector.clientSingular.toLowerCase()} portföyü`,
       icon: Users
     },
     { 
@@ -86,7 +89,7 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
               </span>
             </div>
             <p className="text-[12px] text-slate-400 mt-0.5 truncate">
-              {pendingRequests[0]?.patient?.full_name ? `Son talep: ${pendingRequests[0].patient.full_name} (${pendingRequests[0].requested_date} - ${pendingRequests[0].requested_time?.substring(0, 5)})` : 'Hastalar online randevu takviminden talep oluşturdu.'}
+              {pendingRequests[0]?.patient?.full_name ? `Son talep: ${pendingRequests[0].patient.full_name} (${pendingRequests[0].requested_date} - ${pendingRequests[0].requested_time?.substring(0, 5)})` : `${sector.clientPlural} online randevu takviminden talep oluşturdu.`}
             </p>
           </div>
 
@@ -221,7 +224,7 @@ export default function Dashboard({ patients, sessions, payments, onPatientClick
           <div className="bg-slate-900 rounded-xl p-5 text-white border border-slate-800 shadow-2xs">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-400 block">
-                Klinik Ciro Durumu
+                {sector.businessSingular} Ciro Durumu
               </span>
               <button
                 type="button"

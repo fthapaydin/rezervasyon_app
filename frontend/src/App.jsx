@@ -23,6 +23,7 @@ import Settings from './pages/Settings';
 import PatientPortal from './pages/PatientPortal';
 import SuperAdmin from './pages/SuperAdmin';
 import NotFound from './pages/NotFound';
+import { getClinicSectorConfig } from './lib/sectorUtils';
 import OfflineBanner from './components/common/OfflineBanner';
 
 import { API_URL } from './lib/api';
@@ -338,7 +339,19 @@ function App() {
     );
   }
 
-  const meta = pageMeta[activeTab] || pageMeta.dashboard;
+  const sector = getClinicSectorConfig(clinic);
+  const dynamicMetaMap = {
+    dashboard:  { title: 'Dashboard',                   subtitle: `${sector.businessSingular} performansınızın genel görünümü` },
+    patients:   { title: sector.clientManagementTitle,  subtitle: sector.clientSubtitle },
+    sessions:   { title: 'Seans Takvimi',               subtitle: 'Haftalık takvim üzerinden randevu planlayın' },
+    treatments: { title: sector.servicePlural,          subtitle: sector.serviceSubtitle },
+    staff:      { title: `${sector.staffPlural} & Ekip`, subtitle: sector.staffSubtitle },
+    payments:   { title: 'Ödemeler & Kasa',             subtitle: 'Tahsilat ve finans takibi' },
+    reports:    { title: 'İstatistik & Raporlar',       subtitle: 'Grafikler ve performans analizleri' },
+    requests:   { title: 'Randevu Talepleri',           subtitle: `${sector.clientPlural}ın online randevu taleplerini onaylayın veya reddedin` },
+    settings:   { title: `${sector.businessSingular} Ayarları`, subtitle: `Branş şablonu, logo, çalışma saatleri ve tercihler` },
+  };
+  const meta = dynamicMetaMap[activeTab] || dynamicMetaMap.dashboard;
 
   return (
     <div className="flex h-screen overflow-hidden font-[Inter] relative">

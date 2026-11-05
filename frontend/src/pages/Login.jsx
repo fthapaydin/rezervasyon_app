@@ -11,6 +11,7 @@ import {
 
 import { getStaffPassword, getStaffAllowedTabs } from '../lib/rbacUtils';
 import { saveNewDemoRequest } from '../lib/demoRequestsUtils';
+import { getMarketingSectorKey, setMarketingSectorKey, SECTOR_LIST, SECTOR_PRESETS } from '../lib/sectorUtils';
 
 export default function Login({ onLogin }) {
   // Landing / Giriş sayfası her zaman tertemiz aydınlık modda açılır (dark mode zorlamasını kaldırır)
@@ -26,6 +27,10 @@ export default function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [activeSector, setActiveSector] = useState(() => {
+    const key = getMarketingSectorKey();
+    return SECTOR_PRESETS[key] || SECTOR_PRESETS.fizyoterapi;
+  });
 
   // Demo & İletişim Form State
   const [demoForm, setDemoForm] = useState({
@@ -281,16 +286,41 @@ export default function Login({ onLogin }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
           <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
-            <div className="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-medium mb-6">
-              Fizyoterapi ve Manuel Terapi Klinikleri İçin SaaS Altyapısı
+            {/* Dynamic Sector Switcher for Multi-Sector Marketing */}
+            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mb-5">
+              {SECTOR_LIST.map((s) => {
+                const isCur = activeSector.id === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      const updated = setMarketingSectorKey(s.id);
+                      setActiveSector(updated);
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isCur
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{s.icon}</span>
+                    <span>{s.shortLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="inline-flex items-center px-3.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-medium mb-6">
+              {activeSector.marketing.heroBadge}
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight leading-[1.18] mb-6">
-              Kliniğinizi akıllı takvim, otomatik WhatsApp ve online randevuyla büyütün.
+              {activeSector.marketing.heroTitle}
             </h1>
 
             <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed font-normal mb-8">
-              Randevuları saniyeler içinde organize edin, gelmeme oranlarını düşürün, hasta takibini ve tahsilatları eksiksiz yönetin. Kredi kartı gerekmeden 14 gün ücretsiz deneyin.
+              {activeSector.marketing.heroDesc}
             </p>
 
             {/* Action Buttons */}
@@ -1040,7 +1070,7 @@ export default function Login({ onLogin }) {
                         <input
                           type="text"
                           required
-                          placeholder="Örn: Fatih Apaydın"
+                          placeholder={activeSector.marketing?.demoRolePlaceholder || 'Örn: Ad Soyad'}
                           value={demoForm.full_name}
                           onChange={(e) => setDemoForm({ ...demoForm, full_name: e.target.value })}
                           className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-900 placeholder-slate-400 text-[13px] outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all"
@@ -1049,12 +1079,12 @@ export default function Login({ onLogin }) {
 
                       <div>
                         <label className="block text-[12px] font-semibold text-slate-700 mb-1">
-                          Klinik / Merkez Adı *
+                          {activeSector.businessSingular} / İşletme Adı *
                         </label>
                         <input
                           type="text"
                           required
-                          placeholder="Örn: Yaşam Fizyoterapi"
+                          placeholder={activeSector.marketing?.demoBusinessPlaceholder || 'Örn: İşletme Adı'}
                           value={demoForm.clinic_name}
                           onChange={(e) => setDemoForm({ ...demoForm, clinic_name: e.target.value })}
                           className="w-full h-10 px-3 rounded-xl border border-slate-200 text-slate-900 placeholder-slate-400 text-[13px] outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all"

@@ -12,12 +12,7 @@ import {
   ALL_TABS, getDefaultTabsForRole, getStaffPassword, getStaffAllowedTabs, syncStaffMetaToClinic,
   getTreatmentAssignedStaff, syncTreatmentStaffToClinic, getStaffAssignedTreatments
 } from '../lib/rbacUtils';
-
-const ROLE_MAP = {
-  admin:     { label: 'Klinik Sahibi / Yönetici', icon: ShieldCheck, bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  therapist: { label: 'Fizyoterapist',           icon: Stethoscope,  bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  secretary: { label: 'Sekreterlik / Danışma',    icon: UserCheck,    bg: 'bg-amber-50 text-amber-700 border-amber-200' },
-};
+import { getClinicSectorConfig } from '../lib/sectorUtils';
 
 const COLOR_PRESETS = [
   '#059669', // Emerald
@@ -31,6 +26,14 @@ const COLOR_PRESETS = [
 
 export default function Staff({ clinic, staff = [], treatments = [], refresh }) {
   const { toast } = useToast();
+  const sector = getClinicSectorConfig(clinic);
+
+  const ROLE_MAP = {
+    admin:     { label: `${sector.businessSingular} Sahibi / Yönetici`, icon: ShieldCheck, bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    therapist: { label: sector.staffSingular,                         icon: Stethoscope,  bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    secretary: { label: 'Sekreterlik / Danışma',                      icon: UserCheck,    bg: 'bg-amber-50 text-amber-700 border-amber-200' },
+  };
+
   const [showModal, setShowModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState(null);
@@ -45,7 +48,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
   const [formData, setFormData] = useState({
     full_name: '',
     role: 'therapist',
-    title: 'Fizyoterapist',
+    title: sector.staffTitle || 'Uzman',
     color: '#059669',
     phone: '',
     email: '',
@@ -60,7 +63,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
     setFormData({
       full_name: '',
       role: 'therapist',
-      title: 'Fizyoterapist',
+      title: sector.staffTitle || 'Uzman',
       color: COLOR_PRESETS[Math.floor(Math.random() * COLOR_PRESETS.length)],
       phone: '',
       email: '',
@@ -106,10 +109,10 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
       ...prev,
       role: newRole,
       title: newRole === 'admin' 
-        ? 'Klinik Sahibi / Yönetici' 
+        ? `${sector.businessSingular} Yöneticisi` 
         : newRole === 'secretary' 
         ? 'Sekreter / Danışma' 
-        : 'Fizyoterapist',
+        : sector.staffTitle,
       allowed_tabs: getDefaultTabsForRole(newRole),
     }));
   };
@@ -171,7 +174,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
           });
         }
 
-        toast.success(`"${formData.full_name}" ekibe eklendi.`, 'Personel Kaydedildi');
+        toast.success(`"${formData.full_name}" ekibe eklendi.`, `${sector.staffSingular} Kaydedildi`);
       } else {
         const payload = { ...cleanFormData };
         let { error } = await supabase
@@ -203,10 +206,10 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
           allowed_tabs: formData.allowed_tabs
         });
 
-        toast.success(`"${formData.full_name}" bilgileri güncellendi.`, 'Personel Güncellendi');
+        toast.success(`"${formData.full_name}" bilgileri güncellendi.`, `${sector.staffSingular} Güncellendi`);
       }
 
-      // Tedavi Atamalarını Senkronize Et (Terapist veya Yönetici ise)
+      // Hizmet / Tedavi Atamalarını Senkronize Et
       if (targetStaffId && (formData.role === 'therapist' || formData.role === 'admin')) {
         const selectedTreatIds = formData.assigned_treatment_ids || [];
         for (const tr of treatments) {
@@ -288,7 +291,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <p className="text-[13px] text-gray-500">
-            Fizyoterapistlerinizi ve sekreterlerinizi ekleyin; kendi e-postalarıyla giriş yapıp sadece yetkili oldukları sekmeleri yönetebilirler.
+            {sector.staffPlural}inizi ve ekip üyelerinizi ekleyin; kendi e-postalarıyla giriş yapıp sadece yetkili oldukları sekmeleri yönetebilirler.
           </p>
         </div>
         <button
@@ -296,7 +299,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
           className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-semibold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
         >
           <Plus size={16} />
-          <span>Yeni Ekip Üyesi</span>
+          <span>Yeni {sector.staffSingular} Ekle</span>
         </button>
       </div>
 
@@ -304,7 +307,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {staff.length === 0 ? (
           <div className="col-span-full bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center text-gray-400">
-            Henüz personel eklenmemiş. Yukarıdaki butondan fizyoterapist veya sekreter ekleyebilirsiniz.
+            Henüz personel eklenmemiş. Yukarıdaki butondan {sector.staffSingular.toLowerCase()} veya sekreter ekleyebilirsiniz.
           </div>
         ) : (
           staff.map((member) => {
@@ -330,7 +333,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
                       </div>
                       <div>
                         <h4 className="font-bold text-gray-900 text-[15px]">{member.full_name}</h4>
-                        <p className="text-[12px] text-gray-400 font-medium">{member.title || 'Fizyoterapist'}</p>
+                        <p className="text-[12px] text-gray-400 font-medium">{member.title || sector.staffTitle}</p>
                       </div>
                     </div>
 
@@ -380,17 +383,17 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
                     </span>
                   </div>
 
-                  {/* Uyguladığı Tedaviler / Branşlar */}
+                  {/* Uyguladığı Hizmetler / Tedaviler */}
                   {(member.role === 'therapist' || member.role === 'admin') && (
                     <div className="mb-3 py-2 px-3 rounded-xl bg-gray-50/80 border border-gray-100 flex flex-col gap-1 text-[11px]">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500 font-medium flex items-center gap-1.5">
                           <Activity size={13} className="text-emerald-600" />
-                          <span>Atanan Tedaviler:</span>
+                          <span>Atanan {sector.servicePlural}:</span>
                         </span>
                         <span className="font-bold text-slate-700">
                           {memberTreatments.length > 0 ? (
-                            `${memberTreatments.length} Tedavi`
+                            `${memberTreatments.length} ${sector.serviceSingular}`
                           ) : (
                             <span className="text-amber-600 font-normal">Atama Yok</span>
                           )}
@@ -415,7 +418,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
                         </div>
                       ) : (
                         <span className="text-[10px] text-gray-400 mt-0.5">
-                          Düzenle ile tedavi atayabilirsiniz
+                          Düzenle ile {sector.serviceSingular.toLowerCase()} atayabilirsiniz
                         </span>
                       )}
                     </div>
@@ -476,7 +479,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
               <div className="flex items-center gap-2">
                 <Users size={18} className="text-emerald-600" />
                 <h3 className="text-[16px] font-bold text-gray-900">
-                  {modalMode === 'add' ? 'Yeni Personel Tanımla' : 'Personel Bilgilerini ve Yetkilerini Düzenle'}
+                  {modalMode === 'add' ? `Yeni ${sector.staffSingular} Tanımla` : `${sector.staffSingular} Bilgilerini ve Yetkilerini Düzenle`}
                 </h3>
               </div>
               <button
@@ -493,7 +496,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
                 <input
                   required
                   type="text"
-                  placeholder="Örn: Fzt. Ayşe Yılmaz"
+                  placeholder={`Örn: ${sector.staffTitle} Ayşe Yılmaz`}
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   className="input-field"
@@ -508,9 +511,9 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
                     onChange={(e) => handleRoleChange(e.target.value)}
                     className="input-field bg-white"
                   >
-                    <option value="therapist">Fizyoterapist (Kendi takvimi &amp; hastaları)</option>
+                    <option value="therapist">{sector.staffSingular} (Kendi takvimi &amp; {sector.clientPlural.toLowerCase()})</option>
                     <option value="secretary">Sekreterlik / Danışma (Randevu yönetimi)</option>
-                    <option value="admin">Yönetici / Baş Hekim (Tüm yetkiler)</option>
+                    <option value="admin">{sector.businessSingular} Yöneticisi (Tüm yetkiler)</option>
                   </select>
                 </div>
 
@@ -518,7 +521,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
                   <label className="block text-[12px] font-semibold text-gray-600 mb-1">Unvan / Uzmanlık</label>
                   <input
                     type="text"
-                    placeholder="Manuel Terapi Uzmanı"
+                    placeholder={`Örn: ${sector.staffTitle}`}
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     className="input-field"
@@ -533,7 +536,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
                   <span>Sisteme Giriş Bilgileri</span>
                 </div>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Personeliniz kliniğe giriş yaparken bu e-posta ve şifreyi kullanacaktır. Dilediğinde kendi ekranından şifresini değiştirebilir.
+                  Personeliniz {sector.businessSingular.toLowerCase()} sistemine giriş yaparken bu e-posta ve şifreyi kullanacaktır. Dilediğinde kendi ekranından şifresini değiştirebilir.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -542,7 +545,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
                     <input
                       required
                       type="email"
-                      placeholder="ayse@klinik.com"
+                      placeholder="ayse@isletme.com"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="input-field bg-white"
@@ -586,7 +589,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
 
               {/* Calendar Color Picker */}
               <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-2">Takvimde Terapist Rengi</label>
+                <label className="block text-[12px] font-semibold text-gray-600 mb-2">Takvimde {sector.staffSingular} Rengi</label>
                 <div className="flex items-center gap-3">
                   {COLOR_PRESETS.map((color) => (
                     <button
@@ -604,17 +607,17 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
                 </div>
               </div>
 
-              {/* Uyguladığı Tedaviler & Branşlar (Fizyoterapist veya Yönetici ise) */}
+              {/* Uyguladığı Hizmetler (Uzman veya Yönetici ise) */}
               {(formData.role === 'therapist' || formData.role === 'admin') && (
                 <div className="pt-3 border-t border-gray-100 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div>
                       <label className="text-[12px] font-bold text-gray-800 flex items-center gap-1.5">
                         <Activity size={14} className="text-emerald-600" />
-                        <span>Uyguladığı Tedaviler &amp; Branşlar</span>
+                        <span>Uyguladığı {sector.servicePlural}</span>
                       </label>
                       <p className="text-[11px] text-gray-400">
-                        Bu uzmanın verebileceği tedavileri seçin. Randevu alınırken sadece atandığı tedavilerde listelenir.
+                        Bu {sector.staffSingular.toLowerCase()}in verebileceği {sector.servicePlural.toLowerCase()}i seçin. Randevu alınırken sadece atandığı hizmetlerde listelenir.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -638,7 +641,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
 
                   {treatments.length === 0 ? (
                     <div className="p-3 text-center text-xs text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                      Henüz klinik tedavisi tanımlanmamış. Tedavi &amp; Hizmetler sekmesinden tedavi ekleyebilirsiniz.
+                      Henüz {sector.serviceSingular.toLowerCase()} tanımlanmamış. {sector.servicePlural} sekmesinden ekleyebilirsiniz.
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -748,7 +751,7 @@ export default function Staff({ clinic, staff = [], treatments = [], refresh }) 
                   disabled={submitting}
                   className="h-10 px-5 rounded-xl text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
                 >
-                  {submitting ? 'Kaydediliyor...' : modalMode === 'add' ? 'Personeli Ekle' : 'Güncelle'}
+                  {submitting ? 'Kaydediliyor...' : modalMode === 'add' ? `${sector.staffSingular} Ekle` : 'Güncelle'}
                 </button>
               </div>
             </form>

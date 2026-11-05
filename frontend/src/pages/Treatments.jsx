@@ -7,9 +7,11 @@ import ConfirmModal from '../components/ui/ConfirmModal';
 import EmptyState from '../components/ui/EmptyState';
 import { API_URL } from '../lib/api';
 import { getTreatmentAssignedStaff, syncTreatmentStaffToClinic } from '../lib/rbacUtils';
+import { getClinicSectorConfig } from '../lib/sectorUtils';
 
 export default function Treatments({ clinic, treatments = [], staff = [], refresh }) {
   const { toast } = useToast();
+  const sector = getClinicSectorConfig(clinic);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ 
     name: '', 
@@ -23,7 +25,7 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Hizmet uygulayabilecek personeller (Terapistler ve Yöneticiler)
+  // Hizmet uygulayabilecek personeller (Uzmanlar ve Yöneticiler)
   const eligibleStaff = staff.filter(s => s.role === 'therapist' || s.role === 'admin');
 
   const handleSubmit = async (e) => {
@@ -69,7 +71,7 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
           }
         }
 
-        toast.success(`"${formData.name}" tedavisi güncellendi.`, 'Tedavi Güncellendi');
+        toast.success(`"${formData.name}" ${sector.serviceSingular.toLowerCase()}i güncellendi.`, `${sector.serviceSingular} Güncellendi`);
       } else {
         // 1. Doğrudan Supabase ile ekle
         let { data, error } = await supabase
@@ -103,7 +105,7 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
           savedTreatmentId = data[0].id;
         }
 
-        toast.success(`"${formData.name}" tedavisi eklendi.`, 'Tedavi Eklendi');
+        toast.success(`"${formData.name}" ${sector.serviceSingular.toLowerCase()}i eklendi.`, `${sector.serviceSingular} Eklendi`);
       }
 
       // Her durumda yedek JSONB senkronizasyonunu da yap
@@ -147,7 +149,7 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
         await axios.delete(`${API_URL}/treatments/${itemToDelete.id}`);
       }
 
-      toast.success(`"${itemToDelete.name}" tedavisi silindi.`, 'Tedavi Silindi');
+      toast.success(`"${itemToDelete.name}" ${sector.serviceSingular.toLowerCase()}i silindi.`, `${sector.serviceSingular} Silindi`);
       setShowDeleteModal(false);
       setItemToDelete(null);
       refresh();
@@ -165,15 +167,15 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
         isLoading={deleting}
-        title="Tedavi / Hizmeti Sil"
-        message={`"${itemToDelete?.name}" tedavisini silmek istediğinize emin misiniz?`}
+        title={`${sector.serviceSingular} Sil`}
+        message={`"${itemToDelete?.name}" ${sector.serviceSingular.toLowerCase()}ini silmek istediğinize emin misiniz?`}
         confirmText="Evet, Sil"
         type="danger"
       />
 
       {/* Toolbar */}
       <div className="flex items-center justify-between">
-        <p className="text-[13px] text-gray-500 font-medium">{treatments.length} aktif hizmet kayıtlı</p>
+        <p className="text-[13px] text-gray-500 font-medium">{treatments.length} aktif {sector.serviceSingular.toLowerCase()} kayıtlı</p>
         <button
           onClick={() => {
             if (showForm) {
@@ -187,7 +189,7 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
           className="h-10 px-4 rounded-xl text-[13px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm cursor-pointer"
         >
           {showForm ? <X size={15} /> : <Plus size={15} />}
-          <span>{showForm ? 'Formu Kapat' : 'Yeni Tedavi Ekle'}</span>
+          <span>{showForm ? 'Formu Kapat' : `Yeni ${sector.serviceSingular} Ekle`}</span>
         </button>
       </div>
 
@@ -196,7 +198,7 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-sm space-y-4 animate-in fade-in duration-200">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100">
             <h3 className="text-[14px] font-bold text-gray-800">
-              {editItem ? 'Tedavi Bilgilerini Düzenle' : 'Yeni Tedavi & Hizmet Tanımla'}
+              {editItem ? `${sector.serviceSingular} Bilgilerini Düzenle` : `Yeni ${sector.serviceSingular} Tanımla`}
             </h3>
             <button type="button" onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
               <X size={16} />
@@ -205,11 +207,11 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-[12px] font-semibold text-gray-600 mb-1">Tedavi Adı</label>
+              <label className="block text-[12px] font-semibold text-gray-600 mb-1">{sector.serviceSingular} Adı</label>
               <input
                 type="text"
                 required
-                placeholder="Örn: Manuel Terapi"
+                placeholder={sector.sampleServices?.[0] ? `Örn: ${sector.sampleServices[0]}` : `Örn: Hizmet Adı`}
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                 className="input-field"
@@ -239,13 +241,13 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
             </div>
           </div>
 
-          {/* Terapist / Doktor Atama */}
+          {/* Uzman / Personel Atama */}
           {eligibleStaff.length > 0 && (
             <div className="pt-3 border-t border-gray-100">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-[12px] font-bold text-gray-700 flex items-center gap-1.5">
                   <Users size={14} className="text-emerald-600" />
-                  <span>Bu Tedaviyi Uygulayan Uzmanlar</span>
+                  <span>Bu Hizmeti Veren {sector.staffPlural}</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <button
@@ -264,7 +266,7 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
                 </div>
               </div>
               <p className="text-[11px] text-gray-400 mb-2.5">
-                Tedaviyi sadece seçili terapistler uygulayabilir. Boş bırakırsanız kliniğin tüm uzmanları için geçerli olur.
+                Bu hizmeti sadece seçili {sector.staffPlural.toLowerCase()} verebilir. Boş bırakırsanız işletmenin tüm uzmanları için geçerli olur.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
@@ -298,7 +300,7 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-[12px] truncate">{s.full_name}</div>
-                        <div className="text-[10px] text-gray-400 truncate">{s.title || (s.role === 'admin' ? 'Yönetici' : 'Fizyoterapist')}</div>
+                        <div className="text-[10px] text-gray-400 truncate">{s.title || (s.role === 'admin' ? `${sector.businessSingular} Yöneticisi` : sector.staffTitle)}</div>
                       </div>
                     </label>
                   );
@@ -320,7 +322,7 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
               disabled={submitting}
               className="h-10 px-5 rounded-xl text-[13px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-sm cursor-pointer"
             >
-              {submitting ? 'Kaydediliyor...' : editItem ? 'Değişiklikleri Kaydet' : 'Tedaviyi Kaydet'}
+              {submitting ? 'Kaydediliyor...' : editItem ? 'Değişiklikleri Kaydet' : `${sector.serviceSingular} Kaydet`}
             </button>
           </div>
         </form>
@@ -330,9 +332,9 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
       {treatments.length === 0 ? (
         <EmptyState
           icon={Activity}
-          title="Henüz tedavi veya hizmet eklenmemiş"
-          description="Kliniğinizde sunulan manuel terapi, kuru iğneleme, pilates gibi hizmetleri buradan tanımlayabilirsiniz."
-          actionText="İlk Tedaviyi Ekle"
+          title={`Henüz ${sector.serviceSingular.toLowerCase()} veya hizmet eklenmemiş`}
+          description={`${sector.businessSingular} bünyesinde sunulan ${sector.sampleServices?.slice(0, 3).join(', ')} gibi hizmetleri buradan tanımlayabilirsiniz.`}
+          actionText={`İlk ${sector.serviceSingular} Ekle`}
           onAction={() => setShowForm(true)}
         />
       ) : (
@@ -379,12 +381,12 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
                   </div>
                 </div>
 
-                {/* Assigned Therapists Badge */}
+                {/* Assigned Staff Badge */}
                 <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px]">
                   <span className="text-gray-400 font-medium">Uygulayanlar:</span>
                   {matchedStaff.length === 0 ? (
                     <span className="font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-                      Tüm Uzmanlar
+                      Tüm {sector.staffPlural}
                     </span>
                   ) : (
                     <div className="flex items-center gap-1">
@@ -394,14 +396,14 @@ export default function Treatments({ clinic, treatments = [], staff = [], refres
                             key={m.id}
                             className="w-5 h-5 rounded-full text-white text-[9px] font-bold flex items-center justify-center ring-1 ring-white shadow-2xs shrink-0"
                             style={{ backgroundColor: m.color || '#059669' }}
-                            title={`${m.full_name} (${m.title || 'Fzt.'})`}
+                            title={`${m.full_name} (${m.title || sector.staffTitle})`}
                           >
                             {m.full_name?.charAt(0)}
                           </div>
                         ))}
                       </div>
                       <span className="font-medium text-gray-700 truncate max-w-[90px] ml-1">
-                        {matchedStaff.length === 1 ? matchedStaff[0].full_name.split(' ')[0] : `${matchedStaff.length} Uzman`}
+                        {matchedStaff.length === 1 ? matchedStaff[0].full_name.split(' ')[0] : `${matchedStaff.length} ${sector.staffSingular}`}
                       </span>
                     </div>
                   )}

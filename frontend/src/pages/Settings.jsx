@@ -5,11 +5,12 @@ import { TURKEY_CITIES } from '../lib/turkeyCities';
 import { API_URL } from '../lib/api';
 import { 
   Settings as SettingsIcon, Building2, Palette, Clock, MessageSquare, Save, CheckCircle2, MapPin,
-  Coffee, Calendar, Copy, Sparkles, Check, Eye, EyeOff, Lock, KeyRound, Plus, Trash2
+  Coffee, Calendar, Copy, Sparkles, Check, Eye, EyeOff, Lock, KeyRound, Plus, Trash2, Layers, Sliders
 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import { ALL_DAYS, DAY_FULL_NAMES, TIME_OPTIONS, getClinicSchedule } from '../lib/scheduleUtils';
 import { getClinicLocations } from '../lib/sessionLocationUtils';
+import { SECTOR_LIST, SECTOR_PRESETS, getClinicSectorConfig } from '../lib/sectorUtils';
 
 const THEME_COLORS = [
   { name: 'Zümrüt Yeşili', hex: '#059669', bg: 'bg-emerald-600' },
@@ -22,6 +23,30 @@ const THEME_COLORS = [
 
 export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements }) {
   const { toast } = useToast();
+  const initialSector = getClinicSectorConfig(clinic);
+
+  const [sectorType, setSectorType] = useState(initialSector.sectorKey || 'fizyoterapi');
+  const [customTerms, setCustomTerms] = useState({
+    clientSingular: initialSector.customTerms?.clientSingular || '',
+    staffSingular: initialSector.customTerms?.staffSingular || '',
+    staffTitle: initialSector.customTerms?.staffTitle || '',
+    serviceSingular: initialSector.customTerms?.serviceSingular || '',
+    businessSingular: initialSector.customTerms?.businessSingular || '',
+    complaintLabel: initialSector.customTerms?.complaintLabel || ''
+  });
+  const [showCustomTermsEditor, setShowCustomTermsEditor] = useState(
+    Boolean(Object.values(initialSector.customTerms || {}).some(v => v && String(v).trim()))
+  );
+  const [loadingSampleServices, setLoadingSampleServices] = useState(false);
+
+  const activePreset = SECTOR_PRESETS[sectorType] || SECTOR_PRESETS.fizyoterapi;
+  const previewClient = customTerms.clientSingular?.trim() || activePreset.clientSingular;
+  const previewStaff = customTerms.staffSingular?.trim() || activePreset.staffSingular;
+  const previewTitle = customTerms.staffTitle?.trim() || activePreset.staffTitle;
+  const previewService = customTerms.serviceSingular?.trim() || activePreset.serviceSingular;
+  const previewBusiness = customTerms.businessSingular?.trim() || activePreset.businessSingular;
+  const previewComplaint = customTerms.complaintLabel?.trim() || activePreset.complaintLabel;
+
   const [schedule, setSchedule] = useState(() => getClinicSchedule(clinic));
   const [formData, setFormData] = useState({
     name: clinic?.name || '',
@@ -45,6 +70,53 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
     return locs.map(l => l.label);
   });
   const [newLocationInput, setNewLocationInput] = useState('');
+
+  const handleSelectSectorPreset = (newSectorKey) => {
+    setSectorType(newSectorKey);
+    // Özel terimleri sıfırla ki seçilen şablonun terimleri devreye girsin
+    setCustomTerms({
+      clientSingular: '',
+      staffSingular: '',
+      staffTitle: '',
+      serviceSingular: '',
+      businessSingular: '',
+      complaintLabel: ''
+    });
+    const p = SECTOR_PRESETS[newSectorKey];
+    if (p) {
+      toast.info(
+        `"${p.badge}" şablonu seçildi (${p.clientSingular} / ${p.staffSingular} / ${p.serviceSingular}). Kaydet butonuna basarak aktif edebilirsiniz.`,
+        'Sektör Şablonu Seçildi'
+      );
+    }
+  };
+
+  const handleLoadSampleServices = async () => {
+    if (!activePreset?.sampleServices?.length) return;
+    setLoadingSampleServices(true);
+    try {
+      const { data: existing } = await supabase.from('treatments').select('name');
+      const existingNames = new Set((existing || []).map(t => (t.name || '').toLowerCase().trim()));
+      const toInsert = activePreset.sampleServices.filter(
+        s => !existingNames.has(s.name.toLowerCase().trim())
+      );
+
+      if (toInsert.length === 0) {
+        toast.info('Bu branşa ait örnek hizmetler zaten listenizde mevcut.', 'Zaten Yüklü');
+      } else {
+        const { error } = await supabase.from('treatments').insert(toInsert);
+        if (error) throw error;
+        toast.success(
+          `${activePreset.shortLabel} branşı için ${toInsert.length} adet hazır hizmet şablonu eklendi!`,
+          'Hizmetler Yüklendi'
+        );
+      }
+    } catch (err) {
+      toast.error(err.message || 'Örnek hizmetler eklenirken hata oluştu.', 'Hata');
+    } finally {
+      setLoadingSampleServices(false);
+    }
+  };
 
   const handleAddLocation = () => {
     const trimmed = newLocationInput.trim();
@@ -176,11 +248,22 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
       const calculatedMinStart = activeStarts[0] || '08:00';
       const calculatedMaxEnd = activeEnds[activeEnds.length - 1] || '20:00';
 
+      const existingWd = (clinic?.working_days && typeof clinic.working_days === 'object' && !Array.isArray(clinic.working_days))
+        ? clinic.working_days
+        : {};
+
       const fullSchedule = {
+        ...existingWd,
         ...schedule,
         active_days: activeDaysList,
-        session_locations: sessionLocations
+        session_locations: sessionLocations,
+        sector_type: sectorType,
+        custom_terms: customTerms
       };
+
+      try {
+        localStorage.setItem('fizyo_marketing_sector', sectorType);
+      } catch {}
 
       const payload = {
         ...formData,
@@ -197,19 +280,18 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         .single();
 
       if (error) {
-        // Fallback: working_days as array if backend accepts only array
         const fallbackPayload = {
           ...payload,
           working_days: activeDaysList
         };
         const res = await axios.put(`${API_URL}/clinics/${clinic.id}`, fallbackPayload);
-        onClinicUpdated(res.data);
+        onClinicUpdated({ ...res.data, working_days: fullSchedule });
       } else if (data) {
         onClinicUpdated(data);
       }
 
       setSavedSuccess(true);
-      toast.success('Klinik ayarları ve mesai programı başarıyla kaydedildi.', 'Ayarlar Güncellendi');
+      toast.success('İşletme ayarları, branş şablonu ve mesai programı kaydedildi.', 'Ayarlar Güncellendi');
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err) {
       toast.error(err.message || 'Ayarlar kaydedilirken hata oluştu.', 'Hata');
@@ -227,8 +309,8 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
             <SettingsIcon size={20} />
           </div>
           <div>
-            <h2 className="text-[16px] font-bold text-slate-900 leading-tight">Klinik Ayarları</h2>
-            <p className="text-[12px] text-slate-500">Klinik profili, mesai programı, mola ve bildirim tercihleri</p>
+            <h2 className="text-[16px] font-bold text-slate-900 leading-tight">{previewBusiness} Ayarları</h2>
+            <p className="text-[12px] text-slate-500">Branş şablonu, {previewBusiness.toLowerCase()} profili, mesai programı ve bildirim tercihleri</p>
           </div>
         </div>
 
@@ -252,16 +334,225 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         </div>
       </div>
 
+      {/* 0. ÇOKLU BRANŞ MODU & DİNAMİK TERİM ŞABLONU */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <Layers size={18} className="text-emerald-600" />
+            <div>
+              <h3 className="text-[15px] font-bold text-gray-900">İşletme / Branş Türü (Çoklu Sektör Modu)</h3>
+              <p className="text-[12px] text-gray-400">
+                Seçtiğiniz branşa göre hem yönetim panelindeki hem de online randevu sayfasındaki tüm terimler otomatik uyum sağlar
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowCustomTermsEditor(!showCustomTermsEditor)}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-[11px] font-bold text-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto"
+          >
+            <Sliders size={13} className="text-emerald-600" />
+            <span>{showCustomTermsEditor ? 'Özel Terim Düzenleyiciyi Gizle' : 'Terimleri Özel Düzenle'}</span>
+          </button>
+        </div>
+
+        {/* 7 Hazır Branş Kartı */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {SECTOR_LIST.map((sec) => {
+            const isSelected = sectorType === sec.id;
+            return (
+              <button
+                key={sec.id}
+                type="button"
+                onClick={() => handleSelectSectorPreset(sec.id)}
+                className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                  isSelected
+                    ? 'bg-slate-900 border-slate-900 text-white shadow-md'
+                    : 'bg-white border-slate-200 hover:border-slate-300 text-slate-800 hover:bg-slate-50/70'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xl">{sec.icon}</span>
+                  {isSelected && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950">
+                      Aktif Şablon
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p className={`text-[13px] font-bold leading-snug ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                    {sec.shortLabel}
+                  </p>
+                  <p className={`text-[10px] mt-0.5 truncate ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                    {sec.clientSingular} • {sec.staffSingular} ({sec.staffTitle})
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Canlı Terim Önizleme & Hazır Hizmet Yükleme Kutusu */}
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/90 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-base">{activePreset.icon}</span>
+              <span className="text-[12px] font-bold text-slate-900">
+                Canlı Sistem Terimleri ({activePreset.badge})
+              </span>
+            </div>
+
+            <button
+              type="button"
+              disabled={loadingSampleServices}
+              onClick={handleLoadSampleServices}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50 self-start sm:self-auto"
+            >
+              <Sparkles size={12} />
+              <span>{loadingSampleServices ? 'Yükleniyor...' : `+ ${activePreset.shortLabel} Örnek Hizmetlerini Yükle`}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-[11px]">
+            <div className="p-2.5 rounded-lg bg-white border border-slate-200/80">
+              <span className="text-[10px] text-slate-400 font-semibold block">Kişi Adlandırması</span>
+              <span className="font-bold text-slate-900">{previewClient}</span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-white border border-slate-200/80">
+              <span className="text-[10px] text-slate-400 font-semibold block">Uzman Adlandırması</span>
+              <span className="font-bold text-slate-900">{previewStaff}</span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-white border border-slate-200/80">
+              <span className="text-[10px] text-slate-400 font-semibold block">Varsayılan Unvan</span>
+              <span className="font-bold text-slate-900 font-mono">{previewTitle}</span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-white border border-slate-200/80">
+              <span className="text-[10px] text-slate-400 font-semibold block">Hizmet / Paket</span>
+              <span className="font-bold text-slate-900">{previewService}</span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-white border border-slate-200/80">
+              <span className="text-[10px] text-slate-400 font-semibold block">İşletme Tipi</span>
+              <span className="font-bold text-slate-900">{previewBusiness}</span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-white border border-slate-200/80">
+              <span className="text-[10px] text-slate-400 font-semibold block">Ön Tanı / Hedef Alanı</span>
+              <span className="font-bold text-slate-900 truncate block">{previewComplaint}</span>
+            </div>
+          </div>
+
+          {/* Özel Terim Düzenleyici (İsteğe Bağlı Override) */}
+          {showCustomTermsEditor && (
+            <div className="pt-3 mt-2 border-t border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[12px] font-bold text-slate-800">
+                  ✏️ Özel Terim Özelleştirme (Boş bırakılan alanlar seçili şablonu kullanır)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCustomTerms({
+                    clientSingular: '',
+                    staffSingular: '',
+                    staffTitle: '',
+                    serviceSingular: '',
+                    businessSingular: '',
+                    complaintLabel: ''
+                  })}
+                  className="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer"
+                >
+                  Varsayılana Sıfırla
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Kişi Terimi (Örn: Hasta, Danışan, Üye)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={activePreset.clientSingular}
+                    value={customTerms.clientSingular}
+                    onChange={(e) => setCustomTerms({ ...customTerms, clientSingular: e.target.value })}
+                    className="input-field bg-white h-9 text-[12px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Uzman Terimi (Örn: Fizyoterapist, Diyetisyen, Eğitmen)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={activePreset.staffSingular}
+                    value={customTerms.staffSingular}
+                    onChange={(e) => setCustomTerms({ ...customTerms, staffSingular: e.target.value })}
+                    className="input-field bg-white h-9 text-[12px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Unvan Kısaltması (Örn: Fzt., Dyt., Psk., Eğt.)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={activePreset.staffTitle}
+                    value={customTerms.staffTitle}
+                    onChange={(e) => setCustomTerms({ ...customTerms, staffTitle: e.target.value })}
+                    className="input-field bg-white h-9 text-[12px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Hizmet Terimi (Örn: Tedavi, Seans, Ders, İşlem)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={activePreset.serviceSingular}
+                    value={customTerms.serviceSingular}
+                    onChange={(e) => setCustomTerms({ ...customTerms, serviceSingular: e.target.value })}
+                    className="input-field bg-white h-9 text-[12px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    İşletme Terimi (Örn: Klinik, Merkez, Stüdyo, Ofis)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={activePreset.businessSingular}
+                    value={customTerms.businessSingular}
+                    onChange={(e) => setCustomTerms({ ...customTerms, businessSingular: e.target.value })}
+                    className="input-field bg-white h-9 text-[12px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Tanı / Hedef Etiketi (Örn: Şikayeti, Hedef, Konu)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={activePreset.complaintLabel}
+                    value={customTerms.complaintLabel}
+                    onChange={(e) => setCustomTerms({ ...customTerms, complaintLabel: e.target.value })}
+                    className="input-field bg-white h-9 text-[12px]"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* 1. Klinik Bilgileri & Marka */}
       <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-5">
         <div className="flex items-center gap-2.5 pb-4 border-b border-gray-100">
           <Building2 size={18} className="text-emerald-600" />
-          <h3 className="text-[15px] font-bold text-gray-900">Klinik Bilgileri &amp; Marka</h3>
+          <h3 className="text-[15px] font-bold text-gray-900">{previewBusiness} Bilgileri &amp; Marka</h3>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-[12px] font-semibold text-gray-600 mb-1">Klinik Adı</label>
+            <label className="block text-[12px] font-semibold text-gray-600 mb-1">{previewBusiness} Adı</label>
             <input
               type="text"
               required
@@ -352,7 +643,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
 
         <div>
           <label className="block text-[12px] font-semibold text-gray-600 mb-3">
-            Klinik &amp; Rezervasyon Sayfası Ana Rengi
+            {previewBusiness} &amp; Rezervasyon Sayfası Ana Rengi
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {THEME_COLORS.map((theme) => (
@@ -456,7 +747,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
           )}
 
           <p className="text-[11px] text-amber-800/80 leading-relaxed">
-            💡 Mola saatleri klinik takviminde kilitli mola hücresi olarak görünür, online rezervasyon sayfasında ise randevuya otomatik kapatılır.
+            💡 Mola saatleri takvimde kilitli mola hücresi olarak görünür, online rezervasyon sayfasında ise randevuya otomatik kapatılır.
           </p>
         </div>
 
@@ -526,7 +817,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
                     </div>
                   ) : (
                     <span className="text-[11px] text-slate-400 italic">
-                      Bu gün randevu kabul edilmez (Klinik kapalı).
+                      Bu gün randevu kabul edilmez ({previewBusiness} kapalı).
                     </span>
                   )}
                 </div>
@@ -542,8 +833,8 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
           <div className="flex items-center gap-2.5">
             <MapPin size={18} className="text-emerald-600" />
             <div>
-              <h3 className="text-[15px] font-bold text-gray-900">Seans Hizmet Yerleri (Lokasyonlar)</h3>
-              <p className="text-[12px] text-gray-400">Kliniğinizin sunduğu seans yerlerini belirleyin, yeni lokasyon ekleyin veya çıkarın</p>
+              <h3 className="text-[15px] font-bold text-gray-900">Seans Hizmet Yerleri (Lokasyonlar &amp; Odalar)</h3>
+              <p className="text-[12px] text-gray-400">Sunduğunuz seans yerlerini veya oda/kabin isimlerini belirleyin</p>
             </div>
           </div>
           <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
@@ -579,12 +870,12 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         {/* Yeni Lokasyon Ekleme */}
         <div className="pt-3 border-t border-slate-100">
           <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">
-            Yeni Hizmet Yeri Ekle
+            Yeni Hizmet Yeri / Oda Ekle
           </label>
           <div className="flex gap-2 max-w-md">
             <input
               type="text"
-              placeholder="Örn: VIP Salonu, Pilates Odası..."
+              placeholder="Örn: VIP Salonu, Pilates Odası, Online..."
               value={newLocationInput}
               onChange={(e) => setNewLocationInput(e.target.value)}
               onKeyDown={(e) => {
@@ -605,7 +896,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
             </button>
           </div>
           <p className="text-[11px] text-slate-400 mt-1.5">
-            Burada tanımladığınız seçenekler seans ekleme pencerelerinde ve hasta randevu takviminde listelenir.
+            Burada tanımladığınız seçenekler seans ekleme pencerelerinde ve online randevu takviminde listelenir.
           </p>
         </div>
       </div>
@@ -616,7 +907,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
           <MessageSquare size={18} className="text-emerald-600" />
           <div>
             <h3 className="text-[15px] font-bold text-gray-900">WhatsApp Mesaj Şablonları</h3>
-            <p className="text-[12px] text-gray-400">Hastalara otomatik veya tek tıkla giden mesaj metinlerini özelleştirin</p>
+            <p className="text-[12px] text-gray-400">{previewClient}larınıza otomatik veya tek tıkla giden mesaj metinlerini özelleştirin</p>
           </div>
         </div>
 
@@ -655,7 +946,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
             </label>
             <textarea
               rows={3}
-              placeholder="Sayın {hasta_adi}, bugünkü {saat} seansınıza 2 saat kalmıştır. Lütfen 10 dakika önce kliniğimizde olunuz..."
+              placeholder="Sayın {hasta_adi}, bugünkü {saat} seansınıza 2 saat kalmıştır. Lütfen 10 dakika önce merkezemizde olunuz..."
               value={formData.whatsapp_template_reminder || ''}
               onChange={(e) => setFormData({ ...formData, whatsapp_template_reminder: e.target.value })}
               className="w-full p-3 rounded-xl border border-gray-200 text-[13px] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
@@ -668,7 +959,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
             </label>
             <textarea
               rows={3}
-              placeholder="Sayın {hasta_adi}, bugünkü {tedavi_adi} seansınız tamamlanmıştır. Sağlıklı ve ağrısız günler dileriz..."
+              placeholder="Sayın {hasta_adi}, bugünkü {tedavi_adi} seansınız tamamlanmıştır. Sağlıklı günler dileriz..."
               value={formData.whatsapp_template_completed || ''}
               onChange={(e) => setFormData({ ...formData, whatsapp_template_completed: e.target.value })}
               className="w-full p-3 rounded-xl border border-gray-200 text-[13px] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
@@ -677,7 +968,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         </div>
       </div>
 
-      {/* 5. Otomatik WhatsApp API Entegrasyonu */}
+      {/* 6. Otomatik WhatsApp API Entegrasyonu */}
       <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-5">
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
@@ -746,7 +1037,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         )}
       </div>
 
-      {/* 6. Güvenlik & Şifre */}
+      {/* 7. Güvenlik & Şifre */}
       <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-6">
         <div className="flex items-center gap-2.5 pb-4 border-b border-gray-100">
           <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -759,7 +1050,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         </div>
 
         {/* Password Change Sub-section */}
-        <form onSubmit={handlePasswordUpdate} className="space-y-4">
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-[13px] font-bold text-gray-800">Panel Giriş Şifresini Değiştir</h4>
             <span className="text-[11px] text-slate-400 font-medium">Göz simgesiyle şifrenizi görebilirsiniz</span>
@@ -831,13 +1122,14 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
           </div>
 
           <button
-            type="submit"
+            type="button"
+            onClick={handlePasswordUpdate}
             disabled={passLoading}
             className="h-9 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-semibold transition-all cursor-pointer shadow-2xs disabled:opacity-50"
           >
             {passLoading ? 'Güncelleniyor...' : 'Şifreyi Güncelle'}
           </button>
-        </form>
+        </div>
 
         {/* Security Logs info */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
@@ -848,7 +1140,7 @@ export default function Settings({ clinic, onClinicUpdated, onOpenAnnouncements 
         </div>
       </div>
 
-      {/* 5. Duyuru & Bildirim Tercihleri */}
+      {/* 8. Duyuru & Bildirim Tercihleri */}
       <div className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs space-y-5">
         <div className="flex items-center gap-2.5 pb-4 border-b border-gray-100">
           <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center">

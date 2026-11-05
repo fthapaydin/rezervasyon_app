@@ -10,6 +10,7 @@ import {
   getSessionLocation, cleanSessionNotes, encodeSessionNotes, getSessionLocationMeta 
 } from '../lib/sessionLocationUtils';
 import LocationSelector, { LocationBadge } from '../components/common/LocationSelector';
+import { getClinicSectorConfig } from '../lib/sectorUtils';
 
 const STATUS_MAP = {
   bekliyor:    { label: 'Bekliyor',    cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
@@ -29,6 +30,7 @@ function formatCreated(d) {
 
 export default function Requests({ clinic, staff = [], requests = [], refresh }) {
   const { toast } = useToast();
+  const sector = getClinicSectorConfig(clinic);
   const [filter, setFilter] = useState('bekliyor');
   const [rejectModal, setRejectModal] = useState(null);
   const [approveModal, setApproveModal] = useState(null);
@@ -49,7 +51,7 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
   const handleApproveConfirm = async () => {
     if (!approveModal) return;
     if (staff.length > 1 && !selectedTherapistId) {
-      toast.warning('Lütfen randevuyu yönetecek fizyoterapisti seçiniz.', 'Terapist Seçimi Gerekli');
+      toast.warning(`Lütfen randevuyu yönetecek ${sector.staffSingular.toLowerCase()}i seçiniz.`, `${sector.staffSingular} Seçimi Gerekli`);
       return;
     }
     setProcessing(approveModal.id);
@@ -146,7 +148,7 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
             <p className="text-[13px] font-semibold text-slate-900">
               {pendingCount} onay bekleyen randevu talebi
             </p>
-            <p className="text-[11px] text-slate-500 mt-0.5">Talebi onaylamak veya terapist atamak için inceleyin.</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Talebi onaylamak veya {sector.staffSingular.toLowerCase()} atamak için inceleyin.</p>
           </div>
           <span className="text-[11px] font-semibold text-slate-700 bg-slate-200/60 px-2 py-0.5 rounded">
             Yeni Talep
@@ -222,14 +224,14 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
                       </div>
                       {req.therapist && (
                         <div>
-                          <span className="font-medium text-slate-700">Terapist: {req.therapist.full_name}</span>
+                          <span className="font-medium text-slate-700">{sector.staffSingular}: {req.therapist.full_name}</span>
                         </div>
                       )}
                     </div>
 
                     {cleanSessionNotes(req.notes) && (
                       <p className="text-[12px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                        <span className="font-semibold text-slate-800">Hasta Notu:</span> {cleanSessionNotes(req.notes)}
+                        <span className="font-semibold text-slate-800">{sector.complaintLabel}:</span> {cleanSessionNotes(req.notes)}
                       </p>
                     )}
                   </div>
@@ -243,7 +245,7 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
                         className="flex items-center gap-1.5 h-8 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-semibold transition-colors cursor-pointer disabled:opacity-50"
                       >
                         <Check size={13} />
-                        <span>Onayla &amp; Terapist Ata</span>
+                        <span>Onayla &amp; {sector.staffSingular} Ata</span>
                       </button>
                       <button
                         onClick={() => { setRejectModal(req); setRejectionReason(''); }}
@@ -268,7 +270,7 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
           <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setApproveModal(null)} />
           <div className="relative bg-white rounded-2xl border border-gray-200 shadow-2xl p-6 w-full max-w-md z-10 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
-              <h3 className="text-[15px] font-bold text-gray-900">Randevu Onayla &amp; Terapist Belirle</h3>
+              <h3 className="text-[15px] font-bold text-gray-900">Randevu Onayla &amp; {sector.staffSingular} Belirle</h3>
               <button onClick={() => setApproveModal(null)} className="text-gray-400 hover:text-gray-600">
                 <X size={17} />
               </button>
@@ -289,7 +291,7 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
 
               <div>
                 <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">
-                  Görevli Fizyoterapist {staff.length > 1 ? <span className="text-red-500">*</span> : ''}
+                  Görevli {sector.staffSingular} {staff.length > 1 ? <span className="text-red-500">*</span> : ''}
                 </label>
                 <select
                   required={staff.length > 1}
@@ -297,17 +299,17 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
                   onChange={(e) => setSelectedTherapistId(e.target.value)}
                   className="input-field bg-white"
                 >
-                  <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Seçim yapılmadı (Varsayılan)'}</option>
+                  <option value="">{staff.length > 1 ? `${sector.staffSingular} seçiniz *` : 'Seçim yapılmadı (Varsayılan)'}</option>
                   {staff.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.full_name} ({s.title || 'Fzt.'})
+                      {s.full_name} ({s.title || sector.staffTitle})
                     </option>
                   ))}
                 </select>
               </div>
 
               <p className="text-[11px] text-gray-400">
-                💡 Onaylandığında hastaya otomatik WhatsApp onay bildirimi gönderilir ve seans takvime işlenir.
+                💡 Onaylandığında {sector.clientSingular.toLowerCase()}a otomatik bildirim iletilir ve seans takvime işlenir.
               </p>
             </div>
 
@@ -346,14 +348,14 @@ export default function Requests({ clinic, staff = [], requests = [], refresh })
 
             <div className="space-y-3">
               <p className="text-[13px] text-gray-600">
-                <span className="font-bold">{rejectModal.patient?.full_name}</span> adlı hastanın talebini reddetmek üzeresiniz.
+                <span className="font-bold">{rejectModal.patient?.full_name}</span> adlı {sector.clientSingular.toLowerCase()}ın talebini reddetmek üzeresiniz.
               </p>
 
               <div>
                 <label className="block text-[12px] font-semibold text-gray-600 mb-1">Reddetme Nedeni (İsteğe Bağlı)</label>
                 <textarea
                   rows={3}
-                  placeholder="Örn: O saatte kliniğimiz doludur..."
+                  placeholder={`Örn: O saatte ${sector.businessSingular.toLowerCase()}imiz doludur...`}
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   className="w-full p-3 rounded-xl border border-gray-200 text-[12px] outline-none focus:border-red-500"

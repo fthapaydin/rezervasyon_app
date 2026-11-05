@@ -3,38 +3,7 @@ import {
   Users, Activity, CalendarDays, Wallet, LayoutGrid, BarChart3, Menu, X, 
   ClipboardList, LogOut, Settings as SettingsIcon, UserCheck, ChevronRight, ChevronLeft
 } from 'lucide-react';
-
-const NAV_GROUPS = [
-  {
-    title: 'GENEL',
-    items: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
-      { id: 'requests', label: 'Randevu Talepleri', icon: ClipboardList },
-    ]
-  },
-  {
-    title: 'KLİNİK YÖNETİMİ',
-    items: [
-      { id: 'sessions', label: 'Seans Takvimi', icon: CalendarDays },
-      { id: 'patients', label: 'Hasta Yönetimi', icon: Users },
-      { id: 'treatments', label: 'Tedavi & Hizmetler', icon: Activity },
-      { id: 'staff', label: 'Ekip & Personel', icon: UserCheck },
-    ]
-  },
-  {
-    title: 'FİNANS & RAPOR',
-    items: [
-      { id: 'payments', label: 'Ödemeler & Kasa', icon: Wallet },
-      { id: 'reports', label: 'İstatistik & Rapor', icon: BarChart3 },
-    ]
-  },
-  {
-    title: 'SİSTEM',
-    items: [
-      { id: 'settings', label: 'Klinik Ayarları', icon: SettingsIcon },
-    ]
-  }
-];
+import { getClinicSectorConfig } from '../../lib/sectorUtils';
 
 export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobileOpen, onLogout, pendingCount = 0, clinic, activeUser, isDark = false }) {
   const [collapsed, setCollapsed] = useState(() => {
@@ -45,7 +14,41 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
     }
   });
 
-  const navGroups = NAV_GROUPS.map(group => {
+  const sector = getClinicSectorConfig(clinic);
+
+  const dynamicNavGroups = [
+    {
+      title: 'GENEL',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
+        { id: 'requests', label: 'Randevu Talepleri', icon: ClipboardList },
+      ]
+    },
+    {
+      title: sector.navSectionTitle || 'İŞLETME YÖNETİMİ',
+      items: [
+        { id: 'sessions', label: 'Seans Takvimi', icon: CalendarDays },
+        { id: 'patients', label: sector.clientManagementTitle || 'Danışan Yönetimi', icon: Users },
+        { id: 'treatments', label: sector.servicePlural || 'Hizmetler', icon: Activity },
+        { id: 'staff', label: `${sector.staffPlural} & Ekip`, icon: UserCheck },
+      ]
+    },
+    {
+      title: 'FİNANS & RAPOR',
+      items: [
+        { id: 'payments', label: 'Ödemeler & Kasa', icon: Wallet },
+        { id: 'reports', label: 'İstatistik & Rapor', icon: BarChart3 },
+      ]
+    },
+    {
+      title: 'SİSTEM',
+      items: [
+        { id: 'settings', label: `${sector.businessSingular} Ayarları`, icon: SettingsIcon },
+      ]
+    }
+  ];
+
+  const navGroups = dynamicNavGroups.map(group => {
     if (!activeUser || activeUser.role === 'admin' || !activeUser.allowed_tabs) {
       return group;
     }
@@ -84,7 +87,7 @@ export default function Sidebar({ activeTab, setActiveTab, mobileOpen, setMobile
                   {clinic?.name || 'Fizyotim'}
                 </span>
                 <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">
-                  KLİNİK YÖNETİM SİSTEMİ
+                  {sector.businessSystemTitle || 'İŞLETME YÖNETİM SİSTEMİ'}
                 </span>
               </div>
             </div>
