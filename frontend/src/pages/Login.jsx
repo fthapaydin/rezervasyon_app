@@ -387,7 +387,7 @@ export default function Login({ onLogin }) {
                 <span className="px-2.5 py-1 rounded-md hover:text-slate-900 cursor-default">
                   Talepler <span className="ml-1 px-1.5 py-0.2 rounded-full bg-slate-200 text-[10px] font-bold text-slate-800">2</span>
                 </span>
-                <span className="px-2.5 py-1 rounded-md hover:text-slate-900 cursor-default">Hastalar (142)</span>
+                <span className="px-2.5 py-1 rounded-md hover:text-slate-900 cursor-default">{activeSector.clientPlural} (142)</span>
                 <span className="px-2.5 py-1 rounded-md hover:text-slate-900 cursor-default">Kasa &amp; Makbuzlar</span>
                 <span className="px-2.5 py-1 rounded-md hover:text-slate-900 cursor-default">Raporlar &amp; Excel</span>
               </div>
@@ -398,7 +398,7 @@ export default function Login({ onLogin }) {
               {/* Top Stats Cards (All Uniform Clean Border) */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                  <span className="text-[11px] font-medium text-slate-500 block">Bugünkü Seanslar</span>
+                  <span className="text-[11px] font-medium text-slate-500 block">Bugünkü {activeSector.servicePlural}</span>
                   <span className="text-xl font-bold text-slate-900 tracking-tight">8 Seans</span>
                   <span className="text-[11px] text-slate-400 block mt-0.5">6 Onaylı • 2 Bekleyen</span>
                 </div>
@@ -408,7 +408,7 @@ export default function Login({ onLogin }) {
                   <span className="text-[11px] text-slate-400 block mt-0.5">randevu.fizyotim.com</span>
                 </div>
                 <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                  <span className="text-[11px] font-medium text-slate-500 block">Aktif Terapist Kadrosu</span>
+                  <span className="text-[11px] font-medium text-slate-500 block">Aktif {activeSector.staffPlural}</span>
                   <span className="text-xl font-bold text-slate-900 tracking-tight">3 Uzman</span>
                   <span className="text-[11px] text-slate-400 block mt-0.5">RBAC Yetkili</span>
                 </div>
@@ -427,14 +427,14 @@ export default function Login({ onLogin }) {
                     <div>
                       <span className="font-semibold text-slate-900">Ahmet Yılmaz</span>
                       <span className="text-slate-400 mx-1.5">•</span>
-                      <span className="text-slate-600">Manuel Terapi</span>
+                      <span className="text-slate-600">{activeSector.sampleServices?.[0]?.name || activeSector.serviceSingular}</span>
                       <span className="text-slate-400 mx-1.5">•</span>
-                      <span className="text-slate-500">Fzt. Mehmet Demir</span>
+                      <span className="text-slate-500">{activeSector.staffTitle} Mehmet Demir</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 self-start sm:self-auto">
                     <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-200/70 text-slate-700">
-                      Klinikte
+                      {activeSector.businessSingular}&apos;de
                     </span>
                     <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                       WhatsApp Onaylandı
@@ -456,14 +456,14 @@ export default function Login({ onLogin }) {
                     <div>
                       <span className="font-semibold text-slate-900">Zeynep Kaya</span>
                       <span className="text-slate-400 mx-1.5">•</span>
-                      <span className="text-slate-600">Klinik Pilates</span>
+                      <span className="text-slate-600">{activeSector.sampleServices?.[1]?.name || activeSector.sampleServices?.[0]?.name || activeSector.serviceSingular}</span>
                       <span className="text-slate-400 mx-1.5">•</span>
-                      <span className="text-slate-500">Fzt. Elif Ak</span>
+                      <span className="text-slate-500">{activeSector.staffTitle} Elif Ak</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 self-start sm:self-auto">
                     <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-200/70 text-slate-700">
-                      Evde Terapi
+                      Özel Seans
                     </span>
                     <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                       PDF Seans Kartı Hazır

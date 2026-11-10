@@ -178,11 +178,11 @@ export default function Dashboard({ clinic, patients, sessions, payments, onPati
                             onClick={() => onPatientClick?.(s.patient?.id)} 
                             className="text-[13px] font-semibold text-slate-900 hover:text-slate-600 transition-colors text-left block truncate cursor-pointer"
                           >
-                            {s.patient?.full_name || 'İsimsiz Hasta'}
+                            {s.patient?.full_name || `İsimsiz ${sector.clientSingular}`}
                           </button>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-[11px] text-slate-500 truncate max-w-[140px] sm:max-w-[200px]">
-                              {s.treatment?.name || 'Fizyoterapi Seansı'}
+                              {s.treatment?.name || `${sector.serviceSingular} Seansı`}
                               {s.therapist?.full_name && (
                                 <span className="text-slate-400"> • {s.therapist.full_name}</span>
                               )}

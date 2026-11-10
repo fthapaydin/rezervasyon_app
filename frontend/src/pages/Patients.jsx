@@ -1,6 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Plus, X, Phone, Search, ArrowLeft, Mail, MapPin, CheckCircle2, Clock, FileDown, AlertTriangle, MessageCircle, MessageSquare, Pencil, Trash2, Copy, FileText, Printer } from 'lucide-react';
+import { 
+  Plus, X, Phone, Search, ArrowLeft, Mail, MapPin, CheckCircle2, Clock, FileDown, 
+  AlertTriangle, MessageCircle, MessageSquare, Pencil, Trash2, Copy, FileText, Printer,
+  Activity, Scale, Heart, Sparkles, Send, Check
+} from 'lucide-react';
 import { generateSessionReport, generatePatientSummary } from '../lib/pdfGenerator';
 import { sendWhatsAppReminder } from '../lib/reminder';
 import { useToast } from '../components/ui/Toast';
@@ -9,7 +13,9 @@ import { supabase } from '../lib/supabase';
 import { API_URL } from '../lib/api';
 import { getSessionLocation, cleanSessionNotes, encodeSessionNotes } from '../lib/sessionLocationUtils';
 import LocationSelector, { LocationBadge } from '../components/common/LocationSelector';
-import { getClinicSectorConfig } from '../lib/sectorUtils';
+import { 
+  getClinicSectorConfig, calculateBMI, buildDirectWhatsAppUrl, formatAppointmentWhatsAppText 
+} from '../lib/sectorUtils';
 
 export default function Patients({ clinic, patients, sessions, staff = [], treatments = [], selectedPatientId, setSelectedPatientId, refresh }) {
   if (selectedPatientId) {
@@ -42,7 +48,7 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
     // Strict phone validation & Duplicate check
     const cleanedPhone = formData.phone.replace(/\D/g, '');
     if (cleanedPhone.length < 10 || cleanedPhone.length > 11) {
-      toast.warning('Lütfen geçerli bir telefon numarası giriniz (10 veya 11 haneli sayı, Örn: 05551234567).', 'Geçersiz Telefon');
+      toast.warning('Lütfen geçerli bir telefon numarası giriniz (10 veya 11 haneli sayı, Örn: 05XXXXXXXXX).', 'Geçersiz Telefon');
       return;
     }
 
@@ -50,7 +56,7 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
     const existingWithPhone = patients.find(p => p.phone && p.phone.replace(/\D/g, '').slice(-10) === last10);
     if (existingWithPhone) {
       toast.error(
-        `Bu telefon numarası (${cleanedPhone}) zaten "${existingWithPhone.full_name}" adlı hastaya aittir. Aynı numarayla mükerrer kayıt oluşturulamaz.`,
+        `Bu telefon numarası (${cleanedPhone}) zaten "${existingWithPhone.full_name}" adlı ${sector.clientSingular.toLowerCase()}a aittir. Aynı numarayla mükerrer kayıt oluşturulamaz.`,
         'Mükerrer Telefon Uyarısı'
       );
       return;
@@ -65,12 +71,12 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
         age: formData.age ? parseInt(formData.age, 10) : null,
         total_sessions: parseInt(formData.total_sessions, 10) || 10
       });
-      toast.success(`"${formData.full_name}" başarıyla kaydedildi.`, 'Hasta Eklendi');
+      toast.success(`"${formData.full_name}" başarıyla kaydedildi.`, `${sector.clientSingular} Eklendi`);
       setShowForm(false);
       setFormData({ full_name: '', phone: '', email: '', age: '', gender: '', address: '', complaint: '', total_sessions: 10, notes: '' });
       refresh();
     } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message || 'Hasta kaydedilirken hata oluştu';
+      const errorMsg = err.response?.data?.error || err.message || 'Kayıt sırasında hata oluştu';
       toast.error(errorMsg, 'Kayıt Hatası');
     } finally {
       setSubmitting(false);
@@ -80,7 +86,6 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
   const set = (k, v) => setFormData(prev => ({ ...prev, [k]: v }));
 
   const handlePhoneChange = (e) => {
-    // Only allow numbers, maximum 11 digits
     const cleaned = e.target.value.replace(/\D/g, '').slice(0, 11);
     set('phone', cleaned);
   };
@@ -98,28 +103,38 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
       <div className="flex items-center gap-3">
         <div className="flex-1 relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input type="text" placeholder={`${sector.clientSingular} ara...`} value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full h-10 pl-9 pr-4 rounded-lg border border-gray-200 bg-white text-[13px] placeholder:text-gray-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all" />
+          <input 
+            type="text" 
+            placeholder={`${sector.clientSingular} adı, telefon veya ${sector.complaintLabel.toLowerCase()} ara...`} 
+            value={search} 
+            onChange={e => setSearch(e.target.value)}
+            className="w-full h-10 pl-9 pr-4 rounded-xl border border-gray-200 bg-white text-[13px] placeholder:text-gray-400 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all shadow-2xs" 
+          />
         </div>
-        <button onClick={() => setShowForm(!showForm)}
-          className={`h-10 px-4 rounded-lg text-[13px] font-semibold transition-colors shrink-0 cursor-pointer ${showForm ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-slate-900 text-white hover:bg-slate-800 shadow-2xs'}`}>
+        <button 
+          onClick={() => setShowForm(!showForm)}
+          className={`h-10 px-4 rounded-xl text-[13px] font-semibold transition-all shrink-0 cursor-pointer ${
+            showForm ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm'
+          }`}
+        >
           {showForm ? 'İptal' : `+ Yeni ${sector.clientSingular}`}
         </button>
       </div>
 
       {/* Form */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200/80 p-5 md:p-6">
-          <h3 className="text-[14px] font-semibold text-gray-800 mb-1">Yeni {sector.clientSingular} Kaydı</h3>
-          <p className="text-[12px] text-gray-400 mb-5">Tüm iletişim bilgilerini ve tedavi planını girin.</p>
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200/80 p-5 md:p-6 shadow-sm animate-in fade-in duration-200">
+          <h3 className="text-[15px] font-bold text-gray-800 mb-1">Yeni {sector.clientSingular} Kaydı</h3>
+          <p className="text-[12px] text-gray-400 mb-5">İletişim bilgilerini ve seans planlamasını tanımlayın.</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Ad Soyad <span className="text-red-400">*</span></label>
+              <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Ad Soyad <span className="text-red-500">*</span></label>
               <input required type="text" placeholder="Ahmet Yılmaz" value={formData.full_name} className="input-field" onChange={e => set('full_name', e.target.value)} />
             </div>
+
             <div>
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Telefon (10-11 Hane) <span className="text-red-400">*</span></label>
+              <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Telefon (10-11 Hane) <span className="text-red-500">*</span></label>
               <input 
                 required 
                 type="tel" 
@@ -131,18 +146,19 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
                 onChange={handlePhoneChange} 
               />
             </div>
+
             <div>
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">E-posta</label>
+              <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">E-posta</label>
               <input type="email" placeholder="ornek@mail.com" value={formData.email} className="input-field" onChange={e => set('email', e.target.value)} />
             </div>
 
             <div>
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Yaş (0-120)</label>
+              <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Yaş</label>
               <input 
                 type="number" 
                 min={0} 
                 max={120} 
-                placeholder="34" 
+                placeholder="32" 
                 value={formData.age} 
                 className="input-field" 
                 onChange={e => {
@@ -151,31 +167,34 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
                 }} 
               />
             </div>
+
             <div>
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Cinsiyet</label>
-              <select className="input-field" value={formData.gender} onChange={e => set('gender', e.target.value)}>
+              <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Cinsiyet</label>
+              <select className="input-field bg-white" value={formData.gender} onChange={e => set('gender', e.target.value)}>
                 <option value="">Seçiniz</option>
                 <option value="Erkek">Erkek</option>
                 <option value="Kadın">Kadın</option>
               </select>
             </div>
+
             <div className="sm:col-span-2">
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Adres</label>
+              <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Adres</label>
               <input type="text" placeholder="İlçe / Mahalle" value={formData.address} className="input-field" onChange={e => set('address', e.target.value)} />
             </div>
 
             <div className="sm:col-span-3">
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">{sector.complaintLabel}</label>
-              <input type="text" placeholder={sector.complaintPlaceholder || 'Not / açıklama...'} value={formData.complaint} className="input-field" onChange={e => set('complaint', e.target.value)} />
+              <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">{sector.complaintLabel}</label>
+              <input type="text" placeholder={sector.complaintPlaceholder || 'Açıklama / tanı...'} value={formData.complaint} className="input-field" onChange={e => set('complaint', e.target.value)} />
             </div>
+
             <div>
-              <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Planlanan Seans (1-100)</label>
+              <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Planlanan Seans Sayısı</label>
               <input 
                 type="number" 
                 min={1} 
                 max={100} 
                 value={formData.total_sessions} 
-                className="input-field font-semibold text-emerald-700" 
+                className="input-field font-bold text-emerald-700" 
                 onChange={e => {
                   const val = parseInt(e.target.value, 10);
                   set('total_sessions', isNaN(val) ? '' : Math.max(1, Math.min(100, val)));
@@ -185,70 +204,100 @@ function PatientList({ clinic, patients, sessions, onSelect, refresh }) {
           </div>
 
           <div className="flex justify-end mt-5 gap-2">
-            <button type="button" onClick={() => setShowForm(false)} className="h-9 px-4 rounded-lg text-[13px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200">Vazgeç</button>
-            <button type="submit" disabled={submitting} className="h-9 px-5 rounded-lg text-[13px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-sm">
-              {submitting ? 'Kaydediliyor...' : 'Kaydet'}
+            <button type="button" onClick={() => setShowForm(false)} className="h-9 px-4 rounded-xl text-[13px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200">Vazgeç</button>
+            <button type="submit" disabled={submitting} className="h-9 px-5 rounded-xl text-[13px] font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 shadow-2xs">
+              {submitting ? 'Kaydediliyor...' : `${sector.clientSingular} Kaydet`}
             </button>
           </div>
         </form>
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px]">
+          <table className="w-full min-w-[650px]">
             <thead>
-              <tr className="border-b border-gray-100">
+              <tr className="border-b border-gray-100 bg-slate-50/60">
                 <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{sector.clientSingular}</th>
-                <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">İletişim</th>
-                <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tanı</th>
+                <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">İletişim &amp; WhatsApp</th>
+                <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{sector.complaintLabel}</th>
                 <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Seans İlerlemesi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.length === 0 && (
-                <tr><td colSpan={4} className="px-5 py-12 text-center text-[13px] text-gray-400">
-                  {search ? `Eşleşen ${sector.clientSingular.toLowerCase()} bulunamadı.` : `Henüz ${sector.clientSingular.toLowerCase()} kaydı yok.`}
-                </td></tr>
+                <tr>
+                  <td colSpan={4} className="px-5 py-12 text-center text-[13px] text-gray-400">
+                    {search ? `Eşleşen ${sector.clientSingular.toLowerCase()} bulunamadı.` : `Henüz ${sector.clientSingular.toLowerCase()} kaydı yok.`}
+                  </td>
+                </tr>
               )}
               {filtered.map(p => {
                 const info = getSessionInfo(p.id);
                 const totalPlanned = p.total_sessions || 10;
                 const pct = Math.min(100, Math.round((info.completed / totalPlanned) * 100));
+                const waUrl = buildDirectWhatsAppUrl(
+                  p.phone,
+                  `Merhaba Sayın ${p.full_name}, ${clinic?.name || sector.businessSingular} üzerinden iletişime geçiyoruz.`
+                );
+
                 return (
-                  <tr key={p.id} onClick={() => onSelect(p.id)} className="hover:bg-gray-50/60 cursor-pointer transition-colors">
+                  <tr key={p.id} onClick={() => onSelect(p.id)} className="hover:bg-slate-50/70 cursor-pointer transition-colors group">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-[12px] font-bold shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 font-bold text-[13px] flex items-center justify-center shrink-0 border border-slate-200/60">
                           {p.full_name.charAt(0)}
                         </div>
                         <div>
-                          <span className="text-[13px] font-semibold text-gray-800 block">{p.full_name}</span>
+                          <span className="text-[13px] font-bold text-gray-900 block group-hover:text-emerald-700 transition-colors">{p.full_name}</span>
                           {p.age && <span className="text-[11px] text-gray-400">{p.age} yaş{p.gender ? ` · ${p.gender}` : ''}</span>}
                         </div>
                       </div>
                     </td>
+
                     <td className="px-5 py-3.5">
-                      <p className="text-[13px] text-gray-600">{p.phone}</p>
-                      {p.email && <p className="text-[11px] text-gray-400">{p.email}</p>}
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <p className="text-[13px] text-gray-700 font-mono font-medium">{p.phone}</p>
+                          {p.email && <p className="text-[11px] text-gray-400 truncate max-w-[140px]">{p.email}</p>}
+                        </div>
+                        {p.phone && (
+                          <a
+                            href={waUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-all cursor-pointer shrink-0"
+                            title="Tek Tıkla WhatsApp Aç"
+                          >
+                            <MessageCircle size={14} />
+                          </a>
+                        )}
+                      </div>
                     </td>
+
                     <td className="px-5 py-3.5">
-                      {p.complaint
-                        ? <span className="inline-block px-2 py-1 rounded-md bg-amber-50 text-amber-700 text-[12px] font-medium">{p.complaint}</span>
-                        : <span className="text-[12px] text-gray-300">—</span>}
+                      {p.complaint ? (
+                        <span className="inline-block px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200/60 text-[11px] font-medium max-w-[200px] truncate">
+                          {p.complaint}
+                        </span>
+                      ) : (
+                        <span className="text-[12px] text-gray-300">—</span>
+                      )}
                     </td>
+
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2.5">
-                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[90px]">
+                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden max-w-[90px]">
                           <div 
-                            className={`h-full rounded-full transition-all ${info.completed >= totalPlanned ? 'bg-slate-900' : 'bg-emerald-500'}`} 
+                            className={`h-full rounded-full transition-all duration-300 ${info.completed >= totalPlanned ? 'bg-slate-900' : 'bg-emerald-500'}`} 
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <span className="text-[12px] text-gray-500 font-medium whitespace-nowrap">{info.completed}/{totalPlanned}</span>
+                        <span className="text-[12px] text-gray-600 font-bold font-mono whitespace-nowrap">{info.completed}/{totalPlanned}</span>
                         {info.completed >= totalPlanned && (
                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-900 text-white shadow-2xs">
-                            Paket Doldu
+                            Tamamlandı
                           </span>
                         )}
                       </div>
@@ -275,6 +324,29 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
   const [editData, setEditData] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Klinik Değerlendirme & Ölçüm Form State (SOAP / Intake)
+  const [clinicalState, setClinicalState] = useState({
+    vas_pain: 5,
+    pain_location: '',
+    rom_notes: '',
+    height: '',
+    weight: '',
+    target_weight: '',
+    body_fat: '',
+    flexibility_score: 6,
+    core_strength: 5,
+    posture_assessment: '',
+    mood_score: 6,
+    session_target: '',
+    homework_notes: '',
+    skin_type: '',
+    treated_area: '',
+    tooth_number: '',
+    target_phoneme: '',
+    fluency_score: 5,
+  });
+  const [savingClinical, setSavingClinical] = useState(false);
 
   // Randevu Kopyalama Durumları
   const [copyModalSession, setCopyModalSession] = useState(null);
@@ -331,7 +403,6 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
   }
 
   const openCopyModal = (session) => {
-    // Default: Tam 1 hafta sonraya (aynı gün) ve aynı saate
     const targetDate = addDays(session.session_date, 7);
     const targetTime = session.session_time ? session.session_time.substring(0, 5) : '18:00';
     setCopyModalSession(session);
@@ -363,7 +434,6 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
 
     setCopying(true);
     try {
-      // Çakışma kontrolü
       if (copyTherapistId) {
         const { data: conflicts } = await supabase
           .from('sessions')
@@ -374,9 +444,9 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
           .neq('status', 'iptal');
 
         if (conflicts && conflicts.length > 0) {
-          const conflictingName = conflicts[0]?.patient?.full_name || 'Başka bir hasta';
+          const conflictingName = conflicts[0]?.patient?.full_name || 'Başka bir danışan';
           toast.warning(
-            `Seçilen saatte bu fizyoterapistin zaten bir randevusu var (${conflictingName}). Lütfen farklı bir saat seçiniz.`,
+            `Seçilen saatte bu uzmanın zaten bir randevusu var (${conflictingName}). Lütfen farklı bir saat seçiniz.`,
             'Saat Çakışması'
           );
           setCopying(false);
@@ -384,7 +454,6 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
         }
       }
 
-      // Supabase sessions tablosuna ekle (clinic_id yok)
       const { error: insertErr } = await supabase
         .from('sessions')
         .insert([{
@@ -418,6 +487,11 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
     setAddedSessions(8);
     setPackageNote('');
     setRenewModalOpen(true);
+  };
+
+  const applySuggestedPackage = (pkg) => {
+    setAddedSessions(pkg.sessions);
+    setPackageNote(pkg.name);
   };
 
   const handleRenewPackageSubmit = async (e) => {
@@ -469,6 +543,17 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
       const res = await axios.get(`${API_URL}/patients/${id}`);
       setPatient(res.data);
       setEditData(res.data);
+
+      // Parse clinical notes if saved as structured text/JSON
+      if (res.data?.notes) {
+        try {
+          const match = res.data.notes.match(/\[CLINICAL_DATA\](.*?)\[\/CLINICAL_DATA\]/s);
+          if (match && match[1]) {
+            const parsed = JSON.parse(match[1]);
+            setClinicalState(prev => ({ ...prev, ...parsed }));
+          }
+        } catch {}
+      }
     } catch {
       // ignore
     } finally {
@@ -480,6 +565,23 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
     fetchPatientDetail();
   }, [id]);
 
+  const handleSaveClinicalNotes = async () => {
+    setSavingClinical(true);
+    try {
+      const clinicalPayload = JSON.stringify(clinicalState);
+      const cleanExistingNotes = (patient.notes || '').replace(/\[CLINICAL_DATA\].*?\[\/CLINICAL_DATA\]/s, '').trim();
+      const finalNotes = `${cleanExistingNotes}\n\n[CLINICAL_DATA]${clinicalPayload}[/CLINICAL_DATA]`.trim();
+
+      await supabase.from('patients').update({ notes: finalNotes }).eq('id', patient.id);
+      toast.success('Klinik değerlendirme ve ölçüm verileri başarıyla kaydedildi.', 'Klinik Kayıt Güncellendi');
+      await fetchPatientDetail();
+    } catch (err) {
+      toast.error(err.message || 'Ölçüm verileri kaydedilemedi.', 'Hata');
+    } finally {
+      setSavingClinical(false);
+    }
+  };
+
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     const cleanedPhone = editData.phone.replace(/\D/g, '');
@@ -488,12 +590,11 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
       return;
     }
 
-    // Başka bir hastada bu numara kayıtlı mı kontrolü
     const last10 = cleanedPhone.slice(-10);
     const conflictPatient = allPatients.find(p => p.id !== id && p.phone && p.phone.replace(/\D/g, '').slice(-10) === last10);
     if (conflictPatient) {
       toast.error(
-        `Bu telefon numarası (${cleanedPhone}) zaten "${conflictPatient.full_name}" adlı başka bir hastaya aittir.`,
+        `Bu telefon numarası (${cleanedPhone}) zaten "${conflictPatient.full_name}" adlı başka bir ${sector.clientSingular.toLowerCase()}a aittir.`,
         'Mükerrer Telefon Uyarısı'
       );
       return;
@@ -513,7 +614,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
         notes: editData.notes
       };
       await axios.put(`${API_URL}/patients/${id}`, payload);
-      toast.success('Hasta bilgileri güncellendi.', 'Başarılı');
+      toast.success(`${sector.clientSingular} bilgileri güncellendi.`, 'Başarılı');
       setShowEditModal(false);
       fetchPatientDetail();
       refresh();
@@ -529,7 +630,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
     setDeleting(true);
     try {
       await axios.delete(`${API_URL}/patients/${id}`);
-      toast.success(`"${patient.full_name}" ve tüm geçmiş kayıtları silindi.`, 'Hasta Silindi');
+      toast.success(`"${patient.full_name}" ve tüm geçmiş kayıtları silindi.`, `${sector.clientSingular} Silindi`);
       setShowDeleteModal(false);
       refresh();
       onBack();
@@ -540,7 +641,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /></div>;
-  if (!patient) return <p className="text-center text-gray-400 py-12">Hasta bulunamadı.</p>;
+  if (!patient) return <p className="text-center text-gray-400 py-12">{sector.clientSingular} bulunamadı.</p>;
 
   const sessions = patient.sessions || [];
   const payments = patient.payments || [];
@@ -553,18 +654,36 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
   const totalSessionCost = sessions.reduce((s, ses) => s + Number(ses.treatment?.price || 0), 0);
   const balanceDebt = Math.max(0, totalSessionCost - totalPaid);
 
+  const bmiResult = (clinicalState.weight && clinicalState.height) 
+    ? calculateBMI(clinicalState.weight, clinicalState.height) 
+    : null;
+
+  const directWaUrl = buildDirectWhatsAppUrl(
+    patient.phone,
+    `Merhaba Sayın ${patient.full_name},\n${clinic?.name || sector.businessSingular} bünyesindeki seans planınız hakkında iletişime geçiyoruz.`
+  );
+
   return (
     <div className="space-y-5">
       {/* Header Bar with Action & PDF Buttons */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <button onClick={onBack} className="h-9 px-3.5 rounded-lg text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer">
+        <button onClick={onBack} className="h-9 px-3.5 rounded-xl text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs">
           ← {sector.clientPlural} Listesine Dön
         </button>
 
         <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={directWaUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[12px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors cursor-pointer"
+          >
+            <MessageCircle size={14} />
+            <span>WhatsApp Aç</span>
+          </a>
           <button 
             onClick={openRenewPackageModal}
-            className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-2xs transition-colors cursor-pointer"
           >
             <Plus size={13} />
             <span>+ Seans / Paket Ekle</span>
@@ -574,38 +693,38 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
               setEditData(patient);
               setShowEditModal(true);
             }}
-            className="h-9 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
+            className="h-9 px-3 rounded-xl text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
           >
             Düzenle
           </button>
           <button 
             onClick={() => setShowDeleteModal(true)}
             disabled={deleting}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-[12px] font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-[12px] font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
           >
             <Trash2 size={13} className="text-rose-500" />
-            <span>{sector.clientSingular} Kaydını Sil</span>
+            <span>Sil</span>
           </button>
           <button 
             onClick={() => generateSessionReport(patient, sessions, clinic)}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
           >
             <FileText size={13} className="text-slate-500" />
             <span>Seans Raporu PDF</span>
           </button>
           <button 
             onClick={() => generatePatientSummary(patient, sessions, payments, clinic)}
-            className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[12px] font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
           >
             <Printer size={13} className="text-slate-500" />
-            <span>{sector.clientSingular} Özeti PDF</span>
+            <span>Özet PDF</span>
           </button>
         </div>
       </div>
 
       {/* ─── Paket Seansları Tamamlandı Uyarı Bannerı ─── */}
       {remaining <= 0 && (
-        <div className="p-4 sm:p-5 rounded-xl bg-slate-900 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-800 shadow-2xs">
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-800 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-slate-800 text-emerald-400 border border-slate-700 flex items-center justify-center shrink-0">
               <CheckCircle2 size={20} />
@@ -620,14 +739,14 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </span>
               </div>
               <p className="text-[12px] text-slate-400 mt-0.5">
-                Hastanın bu dönemki seans hakkı bitti. Yeni ay/dönem seanslarını planlamak için tek tıkla seans paketi ekleyin.
+                {sector.clientSingular}ın bu dönemki seans hakkı bitti. Yeni dönem seanslarını tanımlamak için butona tıklayın.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={openRenewPackageModal}
-            className="flex items-center gap-1.5 h-8.5 px-4 rounded-lg bg-white text-slate-900 hover:bg-slate-100 font-semibold text-[12px] transition-colors shrink-0 cursor-pointer shadow-2xs self-end sm:self-auto"
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-[12px] transition-colors shrink-0 cursor-pointer shadow-2xs self-end sm:self-auto"
           >
             <Plus size={14} />
             <span>+ Yeni Paket / Seans Ekle</span>
@@ -636,20 +755,35 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
       )}
 
       {/* Patient Info Card */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
         <div className="p-6 flex items-start justify-between">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-800 border border-slate-200 flex items-center justify-center text-lg font-bold shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 border border-slate-200 flex items-center justify-center text-lg font-bold shrink-0">
               {patient.full_name.charAt(0)}
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">{patient.full_name}</h2>
-              {patient.complaint && <span className="inline-block mt-1 px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-[12px] font-medium">{patient.complaint}</span>}
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-xl font-bold text-gray-900">{patient.full_name}</h2>
+                <a
+                  href={directWaUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold hover:bg-emerald-100 transition-colors"
+                >
+                  <MessageCircle size={12} />
+                  <span>WhatsApp Hattı</span>
+                </a>
+              </div>
+              {patient.complaint && (
+                <span className="inline-block mt-1.5 px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200/60 text-[12px] font-medium">
+                  {sector.complaintLabel}: {patient.complaint}
+                </span>
+              )}
 
               <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 text-[12px] text-gray-500">
-                <span className="flex items-center gap-1"><Phone size={13}/> {patient.phone}</span>
-                {patient.email && <span className="flex items-center gap-1"><Mail size={13}/> {patient.email}</span>}
-                {patient.address && <span className="flex items-center gap-1"><MapPin size={13}/> {patient.address}</span>}
+                <span className="flex items-center gap-1.5"><Phone size={13}/> {patient.phone}</span>
+                {patient.email && <span className="flex items-center gap-1.5"><Mail size={13}/> {patient.email}</span>}
+                {patient.address && <span className="flex items-center gap-1.5"><MapPin size={13}/> {patient.address}</span>}
                 {patient.age && <span>{patient.age} yaş{patient.gender ? ` · ${patient.gender}` : ''}</span>}
               </div>
             </div>
@@ -659,15 +793,14 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
         {/* Quick stats with Debt Status */}
         <div className="border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
           <div className="px-5 py-4 text-center relative group">
-            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1">Planlanan Seans</p>
-            <p className="text-lg font-bold text-gray-900">{totalPlanned} Seans</p>
+            <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-1">Planlanan Seans</p>
+            <p className="text-xl font-black text-gray-900">{totalPlanned} Seans</p>
             <button
               type="button"
               onClick={openRenewPackageModal}
-              className="text-[11px] text-slate-600 hover:text-slate-900 font-semibold underline cursor-pointer mt-0.5 inline-block"
-              title="Yeni seans paketi ekle"
+              className="text-[11px] text-emerald-600 hover:text-emerald-700 font-bold underline cursor-pointer mt-0.5 inline-block"
             >
-              + Seans Ekle
+              + Paket Ekle
             </button>
           </div>
           <Stat label="Tamamlanan" value={`${completedCount} Seans`} />
@@ -679,12 +812,200 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
             subtitle={remaining === 0 ? 'Paket Doldu' : `Tamamlanma: %${pct}`} 
           />
           <Stat 
-            label="Kalan Borç / Bakiye" 
+            label="Kalan Bakiye / Borç" 
             value={`${balanceDebt.toLocaleString('tr-TR')} ₺`} 
             danger={balanceDebt > 0} 
-            subtitle={`Ödenen: ${totalPaid.toLocaleString('tr-TR')} ₺`}
+            subtitle={`Tahsil Edilen: ${totalPaid.toLocaleString('tr-TR')} ₺`}
           />
         </div>
+      </div>
+
+      {/* ─── YENİ: Sektöre Özel Klinik Değerlendirme & Ölçümler Modülü (SOAP Notes / Intake) ─── */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <Activity size={16} />
+            </div>
+            <div>
+              <h3 className="text-[14px] font-bold text-slate-900">
+                {sector.badge} — Klinik Ölçüm &amp; Değerlendirme
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                {sector.clientSingular}ın seans takibinde kullanılacak klinik parametreleri ve ölçüm geçmişini güncelleyin.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSaveClinicalNotes}
+            disabled={savingClinical}
+            className="h-8.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-[12px] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
+          >
+            <Check size={13} />
+            <span>{savingClinical ? 'Kaydediliyor...' : 'Ölçümleri Kaydet'}</span>
+          </button>
+        </div>
+
+        {/* Branşa Özel Dinamik Alanlar */}
+        {sector.sectorKey === 'diyetisyen' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Boy (cm)</label>
+                <input
+                  type="number"
+                  placeholder="172"
+                  value={clinicalState.height || ''}
+                  onChange={e => setClinicalState({ ...clinicalState, height: e.target.value })}
+                  className="input-field font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Güncel Kilo (kg)</label>
+                <input
+                  type="number"
+                  placeholder="78.5"
+                  value={clinicalState.weight || ''}
+                  onChange={e => setClinicalState({ ...clinicalState, weight: e.target.value })}
+                  className="input-field font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Hedef Kilo (kg)</label>
+                <input
+                  type="number"
+                  placeholder="65"
+                  value={clinicalState.target_weight || ''}
+                  onChange={e => setClinicalState({ ...clinicalState, target_weight: e.target.value })}
+                  className="input-field font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Yağ Oranı (%)</label>
+                <input
+                  type="number"
+                  placeholder="24"
+                  value={clinicalState.body_fat || ''}
+                  onChange={e => setClinicalState({ ...clinicalState, body_fat: e.target.value })}
+                  className="input-field font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Dinamik VKİ Rozeti */}
+            {bmiResult && (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-[12px]">
+                <span className="text-slate-600 font-medium">Hesaplanan Vücut Kitle İndeksi (VKİ):</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-black text-slate-900 text-sm">{bmiResult.bmi} kg/m²</span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${bmiResult.color}`}>
+                    {bmiResult.category}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {sector.sectorKey === 'fizyoterapi' && (
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[12px] font-semibold text-slate-700">
+                  VAS Ağrı Skoru: <strong className="text-emerald-700 font-mono text-sm">{clinicalState.vas_pain} / 10</strong>
+                </label>
+                <span className="text-[11px] text-slate-400">
+                  {clinicalState.vas_pain <= 3 ? 'Hafif Ağrı' : clinicalState.vas_pain <= 6 ? 'Orta Düzey Ağrı' : 'Şiddetli Ağrı'}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={clinicalState.vas_pain || 5}
+                onChange={e => setClinicalState({ ...clinicalState, vas_pain: parseInt(e.target.value, 10) })}
+                className="w-full accent-emerald-600 cursor-pointer"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Ağrı / Patoloji Bölgesi</label>
+                <input
+                  type="text"
+                  placeholder="Örn: L4-L5 Bel Fıtığı, Sağ Omuz Rotator Cuff"
+                  value={clinicalState.pain_location || ''}
+                  onChange={e => setClinicalState({ ...clinicalState, pain_location: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Eklem Açıklığı (ROM) &amp; Test Notu</label>
+                <input
+                  type="text"
+                  placeholder="Örn: Lasegue (+), Fleksiyon 60° kısıtlı"
+                  value={clinicalState.rom_notes || ''}
+                  onChange={e => setClinicalState({ ...clinicalState, rom_notes: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {sector.sectorKey === 'pilates' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Esneklik Skoru (1-10)</label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={clinicalState.flexibility_score || 6}
+                onChange={e => setClinicalState({ ...clinicalState, flexibility_score: parseInt(e.target.value, 10) })}
+                className="input-field font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Postür Analizi &amp; Kısıtlılık</label>
+              <input
+                type="text"
+                placeholder="Örn: Anterior Pelvik Tilt, Kifoz"
+                value={clinicalState.posture_assessment || ''}
+                onChange={e => setClinicalState({ ...clinicalState, posture_assessment: e.target.value })}
+                className="input-field"
+              />
+            </div>
+          </div>
+        )}
+
+        {sector.sectorKey === 'psikoloji' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Seans Duygudurum Puanı (1-10)</label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={clinicalState.mood_score || 6}
+                onChange={e => setClinicalState({ ...clinicalState, mood_score: parseInt(e.target.value, 10) })}
+                className="input-field font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Haftalık Ev Ödevi / Seans Teması</label>
+              <input
+                type="text"
+                placeholder="Örn: Düşünce günlüğü tutulacak, 4-7-8 nefes"
+                value={clinicalState.homework_notes || ''}
+                onChange={e => setClinicalState({ ...clinicalState, homework_notes: e.target.value })}
+                className="input-field"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Edit Patient Modal */}
@@ -693,7 +1014,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowEditModal(false)} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
-              <h3 className="text-[16px] font-semibold text-gray-800">{sector.clientSingular} Bilgilerini Düzenle</h3>
+              <h3 className="text-[16px] font-bold text-gray-800">{sector.clientSingular} Bilgilerini Düzenle</h3>
               <button onClick={() => setShowEditModal(false)} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
                 <X size={15} className="text-gray-500" />
               </button>
@@ -702,7 +1023,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Ad Soyad *</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">Ad Soyad *</label>
                   <input
                     required
                     type="text"
@@ -713,7 +1034,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Telefon *</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">Telefon *</label>
                   <input
                     required
                     type="tel"
@@ -726,7 +1047,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-medium text-gray-500 mb-1">E-posta</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">E-posta</label>
                   <input
                     type="email"
                     value={editData.email || ''}
@@ -736,7 +1057,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Yaş</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">Yaş</label>
                   <input
                     type="number"
                     min={0}
@@ -748,11 +1069,11 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Cinsiyet</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">Cinsiyet</label>
                   <select
                     value={editData.gender || ''}
                     onChange={e => setEditData({ ...editData, gender: e.target.value })}
-                    className="input-field"
+                    className="input-field bg-white"
                   >
                     <option value="">Seçiniz</option>
                     <option value="Erkek">Erkek</option>
@@ -761,7 +1082,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Adres</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">Adres</label>
                   <input
                     type="text"
                     value={editData.address || ''}
@@ -771,7 +1092,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[12px] font-medium text-gray-500 mb-1">{sector.complaintLabel}</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">{sector.complaintLabel}</label>
                   <input
                     type="text"
                     value={editData.complaint || ''}
@@ -781,19 +1102,19 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Planlanan Seans Sayısı</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">Planlanan Seans Sayısı</label>
                   <input
                     type="number"
                     min={1}
                     max={100}
                     value={editData.total_sessions || 10}
                     onChange={e => setEditData({ ...editData, total_sessions: parseInt(e.target.value, 10) || 10 })}
-                    className="input-field font-semibold text-emerald-700"
+                    className="input-field font-bold text-emerald-700"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[12px] font-medium text-gray-500 mb-1">Notlar</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1">Notlar</label>
                   <textarea
                     rows={2}
                     value={editData.notes || ''}
@@ -807,14 +1128,14 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="h-9 px-4 rounded-lg text-[13px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200"
+                  className="h-9 px-4 rounded-xl text-[13px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200"
                 >
                   Vazgeç
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="h-9 px-5 rounded-lg text-[13px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-sm"
+                  className="h-9 px-5 rounded-xl text-[13px] font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 shadow-sm"
                 >
                   {submitting ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
                 </button>
@@ -830,30 +1151,21 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeletePatient}
         isLoading={deleting}
-        title="Hastayı Silmek İstediğinize Emin misiniz?"
-        message={`"${patient?.full_name}" isimli hastayı ve bu hastaya ait TÜM randevu ve ödeme geçmişi kalıcı olarak silinecektir. Bu işlem geri alınamaz.`}
-        confirmText="Evet, Hastayı Sil"
+        title={`${sector.clientSingular}ı Silmek İstediğinize Emin misiniz?`}
+        message={`"${patient?.full_name}" isimli ${sector.clientSingular.toLowerCase()}ı ve bu kayda ait TÜM randevu geçmişini silmek üzeresiniz. Bu işlem geri alınamaz.`}
+        confirmText={`Evet, ${sector.clientSingular}ı Sil`}
         cancelText="Vazgeç"
         type="danger"
       />
-      <div className="bg-white rounded-xl border border-gray-200/80 p-5">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[12px] font-medium text-gray-500">Tedavi İlerlemesi</span>
-          <span className="text-[13px] font-bold text-emerald-600">{pct}%</span>
-        </div>
-        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }}></div>
-        </div>
-      </div>
 
       {/* Sessions Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h3 className="text-[14px] font-bold text-slate-900">Seans Geçmişi &amp; Randevular</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">Hastanın tüm seansları. Randevuyu haftaya veya istediğiniz bir güne kopyalayabilirsiniz.</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Seansları haftaya aynı güne tek tıkla kopyalayabilir veya WhatsApp ile hatırlatma iletebilirsiniz.</p>
           </div>
-          <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded">{sessions.length} seans</span>
+          <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg">{sessions.length} seans</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[650px]">
@@ -862,9 +1174,9 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 <th className="text-left px-5 py-3">#</th>
                 <th className="text-left px-5 py-3">Tarih &amp; Gün</th>
                 <th className="text-left px-5 py-3">Saat</th>
-                <th className="text-left px-5 py-3">Tedavi</th>
+                <th className="text-left px-5 py-3">{sector.serviceSingular}</th>
                 <th className="text-left px-5 py-3">Hizmet Yeri</th>
-                <th className="text-left px-5 py-3">Terapist</th>
+                <th className="text-left px-5 py-3">{sector.staffSingular}</th>
                 <th className="text-left px-5 py-3">Durum</th>
                 <th className="text-right px-5 py-3">İşlemler</th>
               </tr>
@@ -873,7 +1185,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
               {sessions.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-8 text-center text-slate-400">
-                    Bu hastaya ait seans kaydı bulunmuyor.
+                    Kayıtlı seans bulunmuyor.
                   </td>
                 </tr>
               ) : (
@@ -933,7 +1245,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                           title="Bu seansı haftaya aynı güne veya istediğiniz tarihe kopyalar"
                         >
                           <Copy size={11} className="text-slate-500" />
-                          <span>Randevuyu Kopyala</span>
+                          <span>Kopyala</span>
                         </button>
                         {s.status === 'bekliyor' && (
                           <button
@@ -941,10 +1253,10 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                               const patientSession = { ...s, patient };
                               sendWhatsAppReminder(patientSession);
                             }}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-semibold transition-colors cursor-pointer"
                             title="WhatsApp Randevu Hatırlatması Gönder"
                           >
-                            <MessageSquare size={11} className="text-slate-500" />
+                            <MessageCircle size={12} className="text-emerald-600" />
                             <span>WhatsApp</span>
                           </button>
                         )}
@@ -962,7 +1274,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
       {copyModalSession && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setCopyModalSession(null)} />
-          <div className="relative bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-lg p-6 overflow-hidden max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-lg p-6 overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <div>
                 <h3 className="text-[15px] font-bold text-slate-900">Randevuyu Kopyala</h3>
@@ -977,7 +1289,6 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
             </div>
 
             <form onSubmit={handleCopySubmit} className="space-y-4 text-[13px]">
-              {/* Mevcut Seans Özeti */}
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-[12px] space-y-1">
                 <div className="flex items-center justify-between font-semibold text-slate-800">
                   <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Kopyalanacak Kaynak Seans</span>
@@ -986,19 +1297,14 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 <p className="text-slate-700">
                   {formatTurkishDate(copyModalSession.session_date)} — Saat: <strong className="text-slate-900 font-mono">{copyModalSession.session_time?.substring(0, 5)}</strong>
                 </p>
-                {copyModalSession.therapist && (
-                  <p className="text-slate-500 text-[11px]">Terapist: {copyModalSession.therapist.full_name}</p>
-                )}
               </div>
 
-              {/* Hedef Tarih */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-[12px] font-semibold text-slate-700">Hedef Randevu Tarihi *</label>
                   <span className="text-[11px] text-emerald-700 font-medium">Varsayılan: Haftaya Aynı Gün</span>
                 </div>
 
-                {/* Hızlı Hafta Atlama Butonları */}
                 <div className="grid grid-cols-4 gap-1.5 mb-2">
                   {[
                     { weeks: 1, label: '+1 Hafta (Önerilen)' },
@@ -1038,14 +1344,8 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </p>
               </div>
 
-              {/* Hedef Saat */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[12px] font-semibold text-slate-700">Hedef Randevu Saati *</label>
-                  <span className="text-[11px] text-slate-400">Varsayılan: Aynı Saat</span>
-                </div>
-
-                {/* Hızlı Saat Çipleri */}
+                <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Hedef Randevu Saati *</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'].map(t => (
                     <button
@@ -1072,30 +1372,29 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 />
               </div>
 
-              {/* Terapist & Tedavi */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[12px] font-semibold text-slate-700 mb-1">Fizyoterapist</label>
+                  <label className="block text-[12px] font-semibold text-slate-700 mb-1">{sector.staffSingular}</label>
                   <select
                     value={copyTherapistId}
                     onChange={e => setCopyTherapistId(e.target.value)}
-                    className="input-field text-[12px]"
+                    className="input-field text-[12px] bg-white"
                   >
-                    <option value="">Terapist seçiniz...</option>
+                    <option value="">{sector.staffSingular} seçiniz...</option>
                     {staffList.map(st => (
-                      <option key={st.id} value={st.id}>{st.full_name} ({st.title || 'Terapist'})</option>
+                      <option key={st.id} value={st.id}>{st.full_name} ({st.title || sector.staffTitle})</option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-semibold text-slate-700 mb-1">Tedavi Türü</label>
+                  <label className="block text-[12px] font-semibold text-slate-700 mb-1">{sector.serviceSingular}</label>
                   <select
                     value={copyTreatmentId}
                     onChange={e => setCopyTreatmentId(e.target.value)}
-                    className="input-field text-[12px]"
+                    className="input-field text-[12px] bg-white"
                   >
-                    <option value="">Tedavi seçiniz...</option>
+                    <option value="">{sector.serviceSingular} seçiniz...</option>
                     {treatmentList.map(tr => (
                       <option key={tr.id} value={tr.id}>{tr.name} {tr.price ? `(₺${tr.price})` : ''}</option>
                     ))}
@@ -1103,38 +1402,24 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </div>
               </div>
 
-              {/* Hizmet Yeri */}
               <LocationSelector 
                 value={copyLocation} 
                 onChange={setCopyLocation} 
                 clinic={clinic}
               />
 
-              {/* Notlar */}
-              <div>
-                <label className="block text-[12px] font-semibold text-slate-700 mb-1">Randevu Notu (Opsiyonel)</label>
-                <input
-                  type="text"
-                  placeholder="Örn: Manuel terapi devam seansı"
-                  value={copyNotes}
-                  onChange={e => setCopyNotes(e.target.value)}
-                  className="input-field text-[12px]"
-                />
-              </div>
-
-              {/* Footer Butonları */}
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setCopyModalSession(null)}
-                  className="h-9 px-4 rounded-lg text-[12px] font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+                  className="h-9 px-4 rounded-xl text-[12px] font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
                 >
                   Vazgeç
                 </button>
                 <button
                   type="submit"
                   disabled={copying}
-                  className="h-9 px-5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition-colors cursor-pointer shadow-2xs"
+                  className="h-9 px-5 rounded-xl text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition-colors cursor-pointer shadow-2xs"
                 >
                   {copying ? 'Kopyalanıyor...' : 'Randevuyu Kopyala & Kaydet'}
                 </button>
@@ -1148,13 +1433,12 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
       {renewModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setRenewModalOpen(false)} />
-          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 sm:p-7 z-10 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 sm:p-7 z-10 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             
-            {/* Modal Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-gray-100 mb-5">
               <div>
-                <h3 className="text-base font-bold text-gray-900">Yeni Seans Paketi Tanımla</h3>
-                <p className="text-[12px] text-gray-500 mt-0.5">{patient.full_name} için seans hakkı tanımlayın</p>
+                <h3 className="text-base font-bold text-gray-900">Yeni {sector.serviceSingular} Paketi Tanımla</h3>
+                <p className="text-[12px] text-gray-500 mt-0.5">{patient.full_name} için seans hakkı ekleyin</p>
               </div>
               <button 
                 onClick={() => setRenewModalOpen(false)} 
@@ -1164,10 +1448,40 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
               </button>
             </div>
 
-            {/* Current Status Mini Grid */}
+            {/* Sektöre Özel Önerilen Hazır Paketler */}
+            {sector.suggestedPackages && sector.suggestedPackages.length > 0 && (
+              <div className="mb-5 space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  {sector.badge} — Önerilen Paketler
+                </span>
+                <div className="grid grid-cols-1 gap-2">
+                  {sector.suggestedPackages.map((pkg, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => applySuggestedPackage(pkg)}
+                      className="p-3 rounded-xl border border-slate-200 hover:border-slate-800 bg-slate-50 hover:bg-white text-left transition-all flex items-center justify-between group cursor-pointer"
+                    >
+                      <div>
+                        <div className="text-[13px] font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                          {pkg.name}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          {pkg.sessions} Seans · {pkg.discountLabel}
+                        </div>
+                      </div>
+                      <span className="font-mono font-bold text-slate-800 text-[13px]">
+                        {pkg.price ? `${pkg.price} ₺` : ''}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 border border-slate-200/80 rounded-xl mb-5 text-center">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Mevcut Paket</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Mevcut Toplam</span>
                 <span className="text-base font-black text-slate-800 font-mono block mt-0.5">{totalPlanned} Seans</span>
               </div>
               <div>
@@ -1183,13 +1497,11 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
             </div>
 
             <form onSubmit={handleRenewPackageSubmit} className="space-y-4">
-              {/* Seans Sayısı Seçimi */}
               <div>
                 <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">
                   Eklenecek Seans Sayısı <span className="text-rose-500">*</span>
                 </label>
                 
-                {/* Hızlı Çipler */}
                 <div className="flex flex-wrap gap-2 mb-2.5">
                   {[4, 8, 10, 12, 16].map(num => (
                     <button
@@ -1202,7 +1514,7 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                       }`}
                     >
-                      +{num} Seans {num === 8 ? '(Aylık Paket)' : ''}
+                      +{num} Seans {num === 8 ? '(Standart Paket)' : ''}
                     </button>
                   ))}
                 </div>
@@ -1221,21 +1533,19 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </div>
               </div>
 
-              {/* Paket Açıklaması / Dönem Notu */}
               <div>
                 <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">
                   Dönem / Paket Notu (İsteğe Bağlı)
                 </label>
                 <input
                   type="text"
-                  placeholder="Örn: 2. Ay Manuel Terapi Devam Paketi"
+                  placeholder="Örn: 2. Dönem Devam Paketi"
                   value={packageNote}
                   onChange={e => setPackageNote(e.target.value)}
                   className="w-full h-10 px-3 rounded-xl border border-gray-200 text-[13px] outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                 />
               </div>
 
-              {/* Canlı Önizleme & Sonuç Kartı */}
               <div className="p-3.5 rounded-xl bg-slate-900 text-white border border-slate-800 shadow-2xs space-y-1.5">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Güncelleme Sonrası Durum</span>
                 <div className="flex items-center justify-between text-[13px]">
@@ -1252,7 +1562,6 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
                 </div>
               </div>
 
-              {/* Modal Buttons */}
               <div className="flex items-center justify-end gap-2.5 pt-2">
                 <button
                   type="button"
@@ -1280,9 +1589,9 @@ function PatientDetail({ id, onBack, refresh, allPatients = [], staff = [], trea
 function Stat({ label, value, highlight, danger, subtitle }) {
   return (
     <div className="px-5 py-4 text-center">
-      <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-lg font-bold ${danger ? 'text-red-500' : highlight ? 'text-emerald-600' : 'text-gray-900'}`}>{value}</p>
-      {subtitle && <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>}
+      <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-1">{label}</p>
+      <p className={`text-xl font-black ${danger ? 'text-red-500' : highlight ? 'text-emerald-600' : 'text-gray-900'}`}>{value}</p>
+      {subtitle && <p className="text-[11px] text-gray-400 font-medium mt-0.5">{subtitle}</p>}
     </div>
   );
 }

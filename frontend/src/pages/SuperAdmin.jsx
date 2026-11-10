@@ -6,9 +6,10 @@ import {
   Phone, Mail, MapPin, Key, Plus, RefreshCw, Trash2, 
   ExternalLink, Search, Filter, LogOut, ArrowRight, 
   Send, MessageSquare, Check, X, ShieldAlert, ArrowUpRight,
-  Eye, EyeOff
+  Eye, EyeOff, Layers, Package
 } from 'lucide-react';
 import { API_URL } from '../lib/api';
+import { SECTOR_PRESETS, getClinicSectorConfig, buildDirectWhatsAppUrl } from '../lib/sectorUtils';
 
 const EMOJI_REGEX = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/gu;
 function cleanText(text) {
@@ -45,6 +46,9 @@ export default function SuperAdmin() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedSector, setSelectedSector] = useState('all');
+  const [seedingClinicId, setSeedingClinicId] = useState(null);
+  const [seedNotification, setSeedNotification] = useState(null);
 
   // Modals & Action States
   const [showAddClinicModal, setShowAddClinicModal] = useState(false);
@@ -58,7 +62,9 @@ export default function SuperAdmin() {
     status: 'aktif',
     city: 'İstanbul',
     district: 'Kadıköy',
-    theme_color: '#059669'
+    theme_color: '#059669',
+    sector_type: 'fizyoterapi',
+    seed_services: true
   });
   const [showNewClinicPassword, setShowNewClinicPassword] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
@@ -168,6 +174,53 @@ export default function SuperAdmin() {
     }
   };
 
+  // Sector / Branch Change
+  const handleSectorChange = async (clinicId, newSector) => {
+    try {
+      await axios.put(`${API_URL}/superadmin/clinics/${clinicId}/sector`, { sector_type: newSector }, getAuthHeaders());
+      const label = SECTOR_PRESETS[newSector]?.shortLabel || newSector;
+      setSeedNotification({ type: 'success', text: `Klinik branşı "${label}" olarak güncellendi.` });
+      setTimeout(() => setSeedNotification(null), 4000);
+      fetchData();
+    } catch (err) {
+      alert("Branş güncellenemedi: " + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // 1-Click Seed Services into Tenant
+  const handleSeedServices = async (clinicId, sectorKey, clinicName) => {
+    const secLabel = SECTOR_PRESETS[sectorKey]?.shortLabel || 'Sektör';
+    if (!window.confirm(`"${clinicName}" için ${secLabel} branşına özel varsayılan 5 temel hizmet yüklensin mi?`)) {
+      return;
+    }
+    setSeedingClinicId(clinicId);
+    try {
+      const res = await axios.post(
+        `${API_URL}/superadmin/clinics/${clinicId}/seed-services`,
+        { sector_type: sectorKey },
+        getAuthHeaders()
+      );
+      setSeedNotification({
+        type: 'success',
+        text: `✓ ${clinicName} için ${res.data?.count || 5} adet ${secLabel} hizmeti başarıyla tanımlandı!`
+      });
+      setTimeout(() => setSeedNotification(null), 5000);
+    } catch (err) {
+      alert("Hizmetler yüklenemedi: " + (err.response?.data?.error || err.message));
+    } finally {
+      setSeedingClinicId(null);
+    }
+  };
+
+  // Build Direct WhatsApp Link for Tenant Owner
+  const buildClinicWhatsAppUrl = (clinic) => {
+    const raw = clinic.phone || '';
+    const cleanPhone = raw.replace(/\D/g, '').replace(/^0/, '');
+    const sec = getClinicSectorConfig(clinic);
+    const text = `Merhaba Sayın ${clinic.owner_name || 'Klinik Yöneticisi'}, ${clinic.name} (${sec.shortLabel}) sisteminiz hakkında FatalSoft SuperAdmin destek ekibi olarak iletişime geçiyoruz. Size yardımcı olabileceğimiz bir konu var mı?`;
+    return `https://wa.me/90${cleanPhone}?text=${encodeURIComponent(text)}`;
+  };
+
   // Reset Password Submit
   const handleResetPasswordSubmit = async (e) => {
     e.preventDefault();
@@ -219,7 +272,9 @@ export default function SuperAdmin() {
         status: 'aktif',
         city: 'İstanbul',
         district: 'Kadıköy',
-        theme_color: '#059669'
+        theme_color: '#059669',
+        sector_type: 'fizyoterapi',
+        seed_services: true
       });
       fetchData();
       alert("Yeni klinik başarıyla oluşturuldu!");
@@ -231,13 +286,18 @@ export default function SuperAdmin() {
   };
 
   // Convert Demo Request to Live Clinic
-  const handleConvertDemo = async (demoId) => {
-    if (!window.confirm("Bu demo başvurusunu otomatik olarak sisteme yeni bir klinik olarak eklemek istiyor musunuz?")) {
+  const handleConvertDemo = async (demoId, sectorKey = 'fizyoterapi') => {
+    const secLabel = SECTOR_PRESETS[sectorKey]?.shortLabel || 'Klinik';
+    if (!window.confirm(`Bu demo başvurusunu "${secLabel}" branşıyla otomatik olarak sisteme yeni bir işletme olarak eklemek ve standart hizmetlerini yüklemek istiyor musunuz?`)) {
       return;
     }
 
     try {
-      const res = await axios.post(`${API_URL}/superadmin/demo-requests/${demoId}/convert`, {}, getAuthHeaders());
+      const res = await axios.post(
+        `${API_URL}/superadmin/demo-requests/${demoId}/convert`, 
+        { sector_type: sectorKey }, 
+        getAuthHeaders()
+      );
       if (res.data?.success) {
         setConversionResult(res.data);
         fetchData();
@@ -298,7 +358,9 @@ export default function SuperAdmin() {
                           (c.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (c.city || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const secConfig = getClinicSectorConfig(c);
+    const matchesSector = selectedSector === 'all' || secConfig.sectorKey === selectedSector;
+    return matchesSearch && matchesStatus && matchesSector;
   });
 
   // ─── 1. GİRİŞ EKRANI (AUTH YOKSA) ───────────────────────────────────
@@ -598,6 +660,58 @@ export default function SuperAdmin() {
 
             </div>
 
+            {/* SAAS ÇOKLU BRANŞ & SEKTÖR DAĞILIMI */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                    <Layers size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-white">Çoklu Branş & Sektör Dağılımı (SaaS Portföyü)</h3>
+                    <p className="text-[11px] text-slate-400">7 farklı uzmanlık alanına göre kayıtlı işletmelerin dağılımı ve pazar payı</p>
+                  </div>
+                </div>
+                <div className="text-[11px] text-slate-400 font-mono">
+                  Toplam {clinics.length} İşletme / Klinik
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                {Object.entries(SECTOR_PRESETS).map(([key, preset]) => {
+                  const count = clinics.filter(c => getClinicSectorConfig(c).sectorKey === key).length;
+                  const percent = clinics.length > 0 ? Math.round((count / clinics.length) * 100) : 0;
+                  return (
+                    <div 
+                      key={key} 
+                      onClick={() => {
+                        setSelectedSector(key);
+                        setActiveTab('clinics');
+                      }}
+                      className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-slate-700 transition cursor-pointer group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{preset.icon}</span>
+                          <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition">{preset.shortLabel}</span>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-slate-300">{count}</span>
+                      </div>
+                      <div className="mt-2.5 flex items-center gap-2">
+                        <div className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                          <div 
+                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-500 w-8 text-right">%{percent}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* HIZLI AKSİYONLAR VE CANLIYA ALMA DURUMU */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
@@ -740,6 +854,56 @@ export default function SuperAdmin() {
               </div>
             </div>
 
+            {/* SEED BİLDİRİMİ */}
+            {seedNotification && (
+              <div className="p-3.5 rounded-xl bg-purple-950/80 border border-purple-500/50 text-purple-200 text-xs font-semibold flex items-center justify-between shadow-lg">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-purple-400" />
+                  <span>{seedNotification.text}</span>
+                </div>
+                <button onClick={() => setSeedNotification(null)} className="text-purple-400 hover:text-white">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* SEKTÖR / BRANŞ FİLTRE BAR */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setSelectedSector('all')}
+                className={`px-3 py-1.5 rounded-xl transition shrink-0 flex items-center gap-1.5 ${
+                  selectedSector === 'all'
+                    ? 'bg-emerald-600 text-slate-950 font-bold shadow-md shadow-emerald-600/20'
+                    : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                Tüm Branşlar ({clinics.length})
+              </button>
+              {Object.entries(SECTOR_PRESETS).map(([key, preset]) => {
+                const count = clinics.filter(c => getClinicSectorConfig(c).sectorKey === key).length;
+                const isActive = selectedSector === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSelectedSector(key)}
+                    className={`px-3 py-1.5 rounded-xl transition shrink-0 flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold'
+                        : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <span>{preset.icon}</span>
+                    <span>{preset.shortLabel}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-400'}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
             {/* TABLO */}
             <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
@@ -747,105 +911,150 @@ export default function SuperAdmin() {
                   <thead className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-semibold">
                     <tr>
                       <th className="p-4">Klinik & Konum</th>
+                      <th className="p-4">Branş / Sektör</th>
                       <th className="p-4">Yönetici & İletişim</th>
-                      <th className="p-4">Paket</th>
+                      <th className="p-4">Paket & Fiyat</th>
                       <th className="p-4">Durum</th>
                       <th className="p-4 text-right">İşlemler</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
-                    {filteredClinics.map((clinic) => (
-                      <tr key={clinic.id} className="hover:bg-slate-850/50 transition">
-                        
-                        {/* Klinik Adı ve Slug */}
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div 
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
-                              style={{ backgroundColor: clinic.theme_color || '#059669' }}
-                            >
-                              {clinic.name?.substring(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="font-bold text-white text-sm">{clinic.name}</div>
-                              <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                                <MapPin size={11} className="text-slate-500" />
-                                {clinic.city || 'İstanbul'} / {clinic.district || 'Kadıköy'}
+                    {filteredClinics.map((clinic) => {
+                      const secConfig = getClinicSectorConfig(clinic);
+                      return (
+                        <tr key={clinic.id} className="hover:bg-slate-850/50 transition">
+                          
+                          {/* Klinik Adı ve Slug */}
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
+                                style={{ backgroundColor: clinic.theme_color || '#059669' }}
+                              >
+                                {clinic.name?.substring(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-bold text-white text-sm">{clinic.name}</div>
+                                <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                  <MapPin size={11} className="text-slate-500" />
+                                  {clinic.city || 'İstanbul'} / {clinic.district || 'Kadıköy'}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Sahibi & İletişim */}
-                        <td className="p-4">
-                          <div className="font-medium text-slate-200">{clinic.owner_name}</div>
-                          <div className="text-[11px] text-slate-400 font-mono mt-0.5">{clinic.email}</div>
-                          <div className="text-[11px] text-slate-500">{clinic.phone}</div>
-                        </td>
+                          {/* Branş / Sektör Badge & Quick Switcher */}
+                          <td className="p-4">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-950 text-slate-200 border border-slate-800">
+                              <span>{secConfig.icon}</span>
+                              <span>{secConfig.shortLabel}</span>
+                            </span>
+                            <select
+                              value={secConfig.sectorKey}
+                              onChange={(e) => handleSectorChange(clinic.id, e.target.value)}
+                              className="mt-1.5 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-[10px] text-slate-400 hover:text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer block"
+                              title="Branşı Değiştir"
+                            >
+                              {Object.entries(SECTOR_PRESETS).map(([k, p]) => (
+                                <option key={k} value={k}>{p.icon} {p.shortLabel}</option>
+                              ))}
+                            </select>
+                          </td>
 
-                        {/* Abonelik Planı */}
-                        <td className="p-4">
-                          <select
-                            value={clinic.plan || 'standart'}
-                            onChange={(e) => handlePlanChange(clinic.id, e.target.value)}
-                            className="bg-slate-950 border border-slate-700/80 rounded-lg px-2.5 py-1 text-[11px] font-bold text-slate-200 focus:outline-none focus:border-emerald-500"
-                          >
-                            <option value="standart">Standart (1.500₺)</option>
-                            <option value="premium">Premium (3.500₺)</option>
-                            <option value="kurumsal">Kurumsal (6.000₺)</option>
-                          </select>
-                        </td>
+                          {/* Sahibi & İletişim */}
+                          <td className="p-4">
+                            <div className="font-medium text-slate-200">{clinic.owner_name}</div>
+                            <div className="text-[11px] text-slate-400 font-mono mt-0.5">{clinic.email}</div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[11px] text-slate-500 font-mono">{clinic.phone}</span>
+                              {clinic.phone && (
+                                <a
+                                  href={buildClinicWhatsAppUrl(clinic)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition text-[10px] font-semibold"
+                                  title="WhatsApp ile Mesaj Gönder"
+                                >
+                                  <MessageSquare size={10} /> WhatsApp
+                                </a>
+                              )}
+                            </div>
+                          </td>
 
-                        {/* Durum Toggle */}
-                        <td className="p-4">
-                          <button
-                            onClick={() => handleStatusChange(clinic.id, clinic.status)}
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider transition ${
-                              clinic.status === 'aktif'
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
-                                : clinic.status === 'deneme'
-                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
-                                : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
-                            }`}
-                          >
-                            {clinic.status?.toUpperCase() || 'AKTİF'}
-                          </button>
-                        </td>
+                          {/* Abonelik Planı */}
+                          <td className="p-4">
+                            <select
+                              value={clinic.plan || 'standart'}
+                              onChange={(e) => handlePlanChange(clinic.id, e.target.value)}
+                              className="bg-slate-950 border border-slate-700/80 rounded-lg px-2.5 py-1 text-[11px] font-bold text-slate-200 focus:outline-none focus:border-emerald-500"
+                            >
+                              <option value="standart">Standart (₺250 / ay)</option>
+                              <option value="premium">Yıllık (₺2.000 / yıl)</option>
+                              <option value="kurumsal">Kurumsal (Özel)</option>
+                            </select>
+                          </td>
 
-                        {/* Butonlar */}
-                        <td className="p-4 text-right space-x-2 whitespace-nowrap">
-                          {/* Şifre Sıfırla */}
-                          <button
-                            onClick={() => setResetModal({ open: true, clinicId: clinic.id, clinicName: clinic.name, newPassword: '' })}
-                            title="Şifre Sıfırla"
-                            className="p-1.5 text-slate-400 hover:text-amber-400 bg-slate-800 hover:bg-slate-700/80 rounded-lg transition"
-                          >
-                            <Key size={14} />
-                          </button>
+                          {/* Durum Toggle */}
+                          <td className="p-4">
+                            <button
+                              onClick={() => handleStatusChange(clinic.id, clinic.status)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider transition ${
+                                clinic.status === 'aktif'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
+                                  : clinic.status === 'deneme'
+                                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
+                                  : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
+                              }`}
+                            >
+                              {clinic.status?.toUpperCase() || 'AKTİF'}
+                            </button>
+                          </td>
 
-                          {/* Hasta Portalı */}
-                          <a
-                            href={`/portal?clinic=${clinic.slug}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Hasta Portalını Aç"
-                            className="p-1.5 text-slate-400 hover:text-emerald-400 bg-slate-800 hover:bg-slate-700/80 rounded-lg transition inline-block"
-                          >
-                            <ExternalLink size={14} />
-                          </a>
+                          {/* Butonlar */}
+                          <td className="p-4 text-right space-x-2 whitespace-nowrap">
+                            {/* Sektör Hizmetlerini Otomatik Yükle (Seed) */}
+                            <button
+                              onClick={() => handleSeedServices(clinic.id, secConfig.sectorKey, clinic.name)}
+                              disabled={seedingClinicId === clinic.id}
+                              title={`${secConfig.shortLabel} Sektör Hizmetlerini Yükle (Seed)`}
+                              className="p-1.5 text-purple-400 hover:text-purple-300 bg-purple-950/40 hover:bg-purple-900/50 border border-purple-800/40 rounded-lg transition inline-block disabled:opacity-50"
+                            >
+                              <Sparkles size={14} className={seedingClinicId === clinic.id ? 'animate-spin' : ''} />
+                            </button>
 
-                          {/* Sil */}
-                          <button
-                            onClick={() => handleDeleteClinic(clinic.id, clinic.name)}
-                            title="Kliniği Sil"
-                            className="p-1.5 text-slate-400 hover:text-red-400 bg-slate-800 hover:bg-slate-700/80 rounded-lg transition"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
+                            {/* Şifre Sıfırla */}
+                            <button
+                              onClick={() => setResetModal({ open: true, clinicId: clinic.id, clinicName: clinic.name, newPassword: '' })}
+                              title="Şifre Sıfırla"
+                              className="p-1.5 text-slate-400 hover:text-amber-400 bg-slate-800 hover:bg-slate-700/80 rounded-lg transition"
+                            >
+                              <Key size={14} />
+                            </button>
 
-                      </tr>
-                    ))}
+                            {/* Hasta Portalı */}
+                            <a
+                              href={`/portal?clinic=${clinic.slug}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Online Randevu Portalını Aç"
+                              className="p-1.5 text-slate-400 hover:text-emerald-400 bg-slate-800 hover:bg-slate-700/80 rounded-lg transition inline-block"
+                            >
+                              <ExternalLink size={14} />
+                            </a>
+
+                            {/* Sil */}
+                            <button
+                              onClick={() => handleDeleteClinic(clinic.id, clinic.name)}
+                              title="Kliniği Sil"
+                              className="p-1.5 text-slate-400 hover:text-red-400 bg-slate-800 hover:bg-slate-700/80 rounded-lg transition"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -862,82 +1071,99 @@ export default function SuperAdmin() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {demos.map((demo) => (
-                <div key={demo.id} className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        demo.status === 'onaylandi' 
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                      }`}>
-                        {demo.status ? demo.status.toUpperCase() : 'BEKLİYOR'}
-                      </span>
-                      <span className="text-[10px] text-slate-500">
-                        {new Date(demo.created_at).toLocaleDateString('tr-TR')}
-                      </span>
-                    </div>
+              {demos.map((demo) => {
+                const combined = `${demo.clinic_name || ''} ${demo.notes || ''}`.toLowerCase();
+                let demoSectorKey = 'fizyoterapi';
+                if (combined.includes('diyet')) demoSectorKey = 'diyetisyen';
+                else if (combined.includes('pilates') || combined.includes('yoga') || combined.includes('reformer')) demoSectorKey = 'pilates';
+                else if (combined.includes('psikol')) demoSectorKey = 'psikoloji';
+                else if (combined.includes('güzellik') || combined.includes('estetik') || combined.includes('lazer')) demoSectorKey = 'guzellik';
+                else if (combined.includes('diş') || combined.includes('dental')) demoSectorKey = 'dis';
+                else if (combined.includes('dil') || combined.includes('konuşma')) demoSectorKey = 'dil_konusma';
+                const demoPreset = SECTOR_PRESETS[demoSectorKey] || SECTOR_PRESETS.fizyoterapi;
 
-                    <h3 className="font-bold text-base text-white mt-3">{demo.full_name}</h3>
-                    <p className="text-xs font-semibold text-emerald-400">{demo.clinic_name || 'Klinik Adı Yok'}</p>
-
-                    <div className="mt-3 space-y-1.5 text-xs text-slate-300">
-                      <div className="flex items-center gap-2">
-                        <Phone size={13} className="text-slate-500" />
-                        <a href={`tel:${demo.phone}`} className="hover:text-emerald-400 font-mono underline">
-                          {demo.phone}
-                        </a>
+                return (
+                  <div key={demo.id} className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            demo.status === 'onaylandi' 
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                          }`}>
+                            {demo.status ? demo.status.toUpperCase() : 'BEKLİYOR'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-950 text-slate-300 border border-slate-800">
+                            {demoPreset.icon} {demoPreset.shortLabel}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {new Date(demo.created_at).toLocaleDateString('tr-TR')}
+                        </span>
                       </div>
-                      {demo.email && (
+
+                      <h3 className="font-bold text-base text-white mt-3">{demo.full_name}</h3>
+                      <p className="text-xs font-semibold text-emerald-400">{demo.clinic_name || 'İşletme Adı Yok'}</p>
+
+                      <div className="mt-3 space-y-1.5 text-xs text-slate-300">
                         <div className="flex items-center gap-2">
-                          <Mail size={13} className="text-slate-500" />
-                          <span className="font-mono text-[11px] truncate">{demo.email}</span>
+                          <Phone size={13} className="text-slate-500" />
+                          <a href={`tel:${demo.phone}`} className="hover:text-emerald-400 font-mono underline">
+                            {demo.phone}
+                          </a>
+                        </div>
+                        {demo.email && (
+                          <div className="flex items-center gap-2">
+                            <Mail size={13} className="text-slate-500" />
+                            <span className="font-mono text-[11px] truncate">{demo.email}</span>
+                          </div>
+                        )}
+                        {demo.city && (
+                          <div className="flex items-center gap-2">
+                            <MapPin size={13} className="text-slate-500" />
+                            <span>{demo.city}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {demo.notes && (
+                        <div className="mt-3 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] text-slate-400 italic">
+                          "{demo.notes}"
                         </div>
                       )}
-                      {demo.city && (
-                        <div className="flex items-center gap-2">
-                          <MapPin size={13} className="text-slate-500" />
-                          <span>{demo.city}</span>
-                        </div>
-                      )}
                     </div>
 
-                    {demo.notes && (
-                      <div className="mt-3 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] text-slate-400 italic">
-                        "{demo.notes}"
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
-                    <a
-                      href={`https://wa.me/90${demo.phone?.replace(/\D/g, '').replace(/^0/, '')}?text=${encodeURIComponent('Merhaba, Fizyotim klinik yönetim sistemi demo başvurunuz için iletişime geçiyorum.')}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-3 py-1.5 bg-emerald-700/60 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1"
-                    >
-                      <MessageSquare size={13} /> WhatsApp
-                    </a>
-
-                    {demo.status !== 'onaylandi' && (
-                      <button
-                        onClick={() => handleConvertDemo(demo.id)}
-                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-md shadow-emerald-500/20"
+                    <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+                      <a
+                        href={`https://wa.me/90${demo.phone?.replace(/\D/g, '').replace(/^0/, '')}?text=${encodeURIComponent(`Merhaba Sayın ${demo.full_name}, ${demoPreset.shortLabel} yönetim sistemimiz için yaptığınız demo talebi hakkında FatalSoft SuperAdmin ekibi olarak iletişime geçiyoruz.`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 bg-emerald-700/60 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition flex items-center gap-1"
                       >
-                        <Sparkles size={13} /> Kliniği Aç
-                      </button>
-                    )}
+                        <MessageSquare size={13} /> WhatsApp
+                      </a>
 
-                    <button
-                      onClick={() => handleDeleteDemo(demo.id)}
-                      className="p-1.5 text-slate-500 hover:text-red-400 transition"
-                      title="Sil"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                      {demo.status !== 'onaylandi' && (
+                        <button
+                          onClick={() => handleConvertDemo(demo.id, demoSectorKey)}
+                          className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-md shadow-emerald-500/20 cursor-pointer"
+                        >
+                          <Sparkles size={13} /> İşletmeyi Aç
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleDeleteDemo(demo.id)}
+                        className="p-1.5 text-slate-500 hover:text-red-400 transition"
+                        title="Sil"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {demos.length === 0 && (
                 <div className="col-span-full p-12 text-center text-slate-500 text-xs">
@@ -1051,28 +1277,63 @@ export default function SuperAdmin() {
               </button>
             </div>
 
-            <form onSubmit={handleAddClinicSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleAddClinicSubmit} className="space-y-3.5 text-xs">
+              {/* Sektör / Branş Seçici */}
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Klinik Adı *</label>
+                <label className="block font-semibold text-slate-300 mb-1.5">Sektör / Branş Türü *</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {Object.entries(SECTOR_PRESETS).map(([key, preset]) => {
+                    const isSelected = (newClinicForm.sector_type || 'fizyoterapi') === key;
+                    return (
+                      <button
+                        type="button"
+                        key={key}
+                        onClick={() => {
+                          setNewClinicForm({
+                            ...newClinicForm,
+                            sector_type: key,
+                            theme_color: preset.themeColor || '#059669'
+                          });
+                        }}
+                        className={`p-2 rounded-xl border text-left transition flex items-center gap-2 cursor-pointer ${
+                          isSelected
+                            ? 'bg-emerald-500/20 border-emerald-500 text-white font-bold shadow-xs'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <span className="text-base">{preset.icon}</span>
+                        <span className="text-[11px] truncate">{preset.shortLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-300 mb-1">
+                  {SECTOR_PRESETS[newClinicForm.sector_type || 'fizyoterapi']?.businessSingular || 'İşletme'} Adı *
+                </label>
                 <input
                   type="text"
                   required
                   value={newClinicForm.name}
                   onChange={(e) => setNewClinicForm({...newClinicForm, name: e.target.value})}
-                  placeholder="Örn: Kadıköy Manuel Terapi Merkezi"
+                  placeholder={`Örn: Kadıköy ${SECTOR_PRESETS[newClinicForm.sector_type || 'fizyoterapi']?.shortLabel || 'Merkezi'}`}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Klinik Sahibi / Baş Fzt. *</label>
+                  <label className="block font-semibold text-slate-300 mb-1">
+                    {SECTOR_PRESETS[newClinicForm.sector_type || 'fizyoterapi']?.businessSingular} Sahibi / {SECTOR_PRESETS[newClinicForm.sector_type || 'fizyoterapi']?.staffTitle} *
+                  </label>
                   <input
                     type="text"
                     required
                     value={newClinicForm.owner_name}
                     onChange={(e) => setNewClinicForm({...newClinicForm, owner_name: e.target.value})}
-                    placeholder="Uzm. Fzt. Fatih Apaydın"
+                    placeholder={`Örn: ${SECTOR_PRESETS[newClinicForm.sector_type || 'fizyoterapi']?.staffTitle || 'Uzm.'} Meltem Demir`}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -1152,9 +1413,9 @@ export default function SuperAdmin() {
                     onChange={(e) => setNewClinicForm({...newClinicForm, plan: e.target.value})}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="standart">Standart (1.500₺)</option>
-                    <option value="premium">Premium (3.500₺)</option>
-                    <option value="kurumsal">Kurumsal (6.000₺)</option>
+                    <option value="standart">Standart Plan (₺250 / ay)</option>
+                    <option value="premium">Yıllık Avantajlı Plan (₺2.000 / yıl)</option>
+                    <option value="kurumsal">Kurumsal / Çoklu Şube</option>
                   </select>
                 </div>
                 <div>
@@ -1170,6 +1431,24 @@ export default function SuperAdmin() {
                   </select>
                 </div>
               </div>
+
+              {/* Turnkey Sektör Hizmetleri Checkbox */}
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer text-slate-300 hover:border-slate-700 transition">
+                <input
+                  type="checkbox"
+                  checked={newClinicForm.seed_services}
+                  onChange={(e) => setNewClinicForm({...newClinicForm, seed_services: e.target.checked})}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                />
+                <div>
+                  <span className="font-semibold text-white block">
+                    {SECTOR_PRESETS[newClinicForm.sector_type || 'fizyoterapi']?.shortLabel} Başlangıç Hizmet Paketlerini Yükle
+                  </span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                    Seçilen branş için en çok kullanılan 5 temel hizmeti (fiyat ve süreleriyle) kliniğin paneline otomatik ekler.
+                  </span>
+                </div>
+              </label>
 
               <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
                 <button

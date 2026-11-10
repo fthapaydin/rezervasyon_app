@@ -777,7 +777,7 @@ app.get('/api/superadmin/stats', verifySuperAdmin, async (req, res) => {
       { data: payments },
       { data: demoRequests }
     ] = await Promise.all([
-      supabase.from('clinics').select('id, status, plan, created_at'),
+      supabase.from('clinics').select('id, status, plan, created_at, working_schedule'),
       supabase.from('staff').select('*', { count: 'exact', head: true }),
       supabase.from('patients').select('*', { count: 'exact', head: true }),
       supabase.from('sessions').select('*', { count: 'exact', head: true }),
@@ -792,13 +792,34 @@ app.get('/api/superadmin/stats', verifySuperAdmin, async (req, res) => {
     const trialClinics = clinics?.filter(c => c.status === 'deneme')?.length || 0;
     const passiveClinics = clinics?.filter(c => c.status === 'pasif')?.length || 0;
 
-    // Tahmini Aylık Gelir (MRR) - Standart: 1.500₺, Premium: 3.500₺, Kurumsal: 6.000₺
+    // Tahmini Aylık Gelir (MRR) - Standart: 250₺/ay, Yıllık/Premium: 166₺/ay (2.000₺/yıl), Kurumsal: 1.000₺/ay
     const estimatedMRR = clinics?.reduce((total, c) => {
       if (c.status !== 'aktif') return total;
-      if (c.plan === 'kurumsal') return total + 6000;
-      if (c.plan === 'premium') return total + 3500;
-      return total + 1500;
+      if (c.plan === 'kurumsal') return total + 1000;
+      if (c.plan === 'premium' || c.plan === 'yillik') return total + 166;
+      return total + 250;
     }, 0) || 0;
+
+    // Sektör / Branş Dağılımı Hesaplama
+    const sectorBreakdown = {
+      fizyoterapi: 0,
+      diyetisyen: 0,
+      psikoloji: 0,
+      pilates: 0,
+      guzellik: 0,
+      dis: 0,
+      dil_konusma: 0
+    };
+
+    clinics?.forEach(c => {
+      const ws = c.working_schedule;
+      const sec = (ws && typeof ws === 'object' && ws.sector_type) ? ws.sector_type : 'fizyoterapi';
+      if (sectorBreakdown[sec] !== undefined) {
+        sectorBreakdown[sec]++;
+      } else {
+        sectorBreakdown.fizyoterapi++;
+      }
+    });
 
     const totalPlatformTurnover = payments?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0;
     const totalDemos = demoRequests?.length || 0;
@@ -811,6 +832,7 @@ app.get('/api/superadmin/stats', verifySuperAdmin, async (req, res) => {
         trial: trialClinics,
         passive: passiveClinics
       },
+      sectorBreakdown,
       staffCount: staffCount || 0,
       patientsCount: patientsCount || 0,
       sessionsCount: sessionsCount || 0,
@@ -843,7 +865,70 @@ app.get('/api/superadmin/clinics', verifySuperAdmin, async (req, res) => {
   }
 });
 
-// 5. Yeni Klinik Oluştur
+// Sektör Hizmetleri & Unvan Şablonları (SuperAdmin Otomasyonu)
+const DEFAULT_SECTOR_SERVICES = {
+  fizyoterapi: [
+    { name: 'Manuel Terapi & Mobilizasyon', price: 1200, duration_minutes: 60 },
+    { name: 'Klinik Reformer Pilates', price: 900, duration_minutes: 50 },
+    { name: 'Skolyoz (3D Schroth) Terapisi', price: 1300, duration_minutes: 60 },
+    { name: 'Ortopedik & Sporcu Rehabilitasyonu', price: 1250, duration_minutes: 60 },
+    { name: 'Kuru İğneleme & Miyofasiyal Terapi', price: 1000, duration_minutes: 45 }
+  ],
+  diyetisyen: [
+    { name: 'İlk Muayene & Beslenme Öyküsü Analizi', price: 1200, duration_minutes: 60 },
+    { name: 'InBody Profesyonel Vücut Analizi', price: 500, duration_minutes: 20 },
+    { name: 'Haftalık Kilo Kontrol & Takip Seansı', price: 700, duration_minutes: 30 },
+    { name: 'Sporcu & Performans Beslenme Programı', price: 1400, duration_minutes: 50 },
+    { name: 'Fonksiyonel & Eliminasyon Diyeti Planlaması', price: 1500, duration_minutes: 60 }
+  ],
+  psikoloji: [
+    { name: 'Bireysel Yetişkin Psikoterapisi', price: 1500, duration_minutes: 50 },
+    { name: 'Çift & Aile Terapisi Seansı', price: 2000, duration_minutes: 60 },
+    { name: 'Bilişsel Davranışçı Terapi (BDT)', price: 1500, duration_minutes: 50 },
+    { name: 'Çocuk & Ergen Danışmanlığı', price: 1400, duration_minutes: 50 },
+    { name: 'Online Terapi Görüşmesi', price: 1300, duration_minutes: 50 }
+  ],
+  pilates: [
+    { name: 'Birebir (1:1) Reformer Pilates Dersi', price: 850, duration_minutes: 50 },
+    { name: 'Düet Reformer Dersi (2 Kişilik)', price: 1200, duration_minutes: 50 },
+    { name: 'Klinik & Postür Düzeltme Pilatesi', price: 950, duration_minutes: 50 },
+    { name: 'Hamile (Prenatal) Pilatesi', price: 900, duration_minutes: 50 },
+    { name: 'Postür & Esneklik Değerlendirmesi', price: 600, duration_minutes: 30 }
+  ],
+  guzellik: [
+    { name: 'Medikal Cilt Bakımı & Hydrafacial', price: 1500, duration_minutes: 60 },
+    { name: 'Buz Lazer Epilasyon (Tüm Vücut)', price: 2500, duration_minutes: 60 },
+    { name: 'Bölgesel İncelme & G5 Masajı', price: 800, duration_minutes: 40 },
+    { name: 'Dermapen & Kolajen Protokolü', price: 1800, duration_minutes: 50 },
+    { name: 'Kaş & Kirpik Laminasyon Bakımı', price: 750, duration_minutes: 45 }
+  ],
+  dis: [
+    { name: 'Genel Diş Muayenesi & Röntgen Teşhis', price: 600, duration_minutes: 30 },
+    { name: 'Ultrasonik Diş Taşı Temizliği & Polisaj', price: 1200, duration_minutes: 45 },
+    { name: 'Kompozit Estetik Dolgu', price: 1500, duration_minutes: 45 },
+    { name: 'Ofis Tipi Lazer Diş Beyazlatma (Bleaching)', price: 4000, duration_minutes: 60 },
+    { name: 'Kök Kanal Tedavisi (Tek Seans)', price: 2500, duration_minutes: 60 }
+  ],
+  dil_konusma: [
+    { name: 'Kapsamlı Dil ve Konuşma Değerlendirmesi', price: 1500, duration_minutes: 60 },
+    { name: 'Artikülasyon & Fonolojik Terapi', price: 1200, duration_minutes: 45 },
+    { name: 'Kekemelik & Akıcılık Bozukluğu Terapisi', price: 1300, duration_minutes: 45 },
+    { name: 'Gecikmiş Dil ve Konuşma Seansı', price: 1200, duration_minutes: 45 },
+    { name: 'Ses Terapisi & Vokal Hijyen Eğitimi', price: 1250, duration_minutes: 45 }
+  ]
+};
+
+const SECTOR_STAFF_TITLES = {
+  fizyoterapi: 'Klinik Sahibi / Baş Fzt.',
+  diyetisyen: 'Klinik Sahibi / Baş Dyt.',
+  psikoloji: 'Klinik Sahibi / Uzm. Psk.',
+  pilates: 'Stüdyo Sahibi / Baş Eğitmen',
+  guzellik: 'Merkez Sahibi / Uzm. Estetisyen',
+  dis: 'Klinik Sahibi / Dt.',
+  dil_konusma: 'Merkez Sahibi / Uzm. DKT'
+};
+
+// 5. Yeni Klinik Oluştur (Sektör ve Otomatik Hizmet Seeding Destekli)
 app.post('/api/superadmin/clinics', verifySuperAdmin, async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
 
@@ -858,7 +943,9 @@ app.post('/api/superadmin/clinics', verifySuperAdmin, async (req, res) => {
     plan = 'standart',
     city = 'İstanbul',
     district = 'Kadıköy',
-    theme_color = '#059669'
+    theme_color = '#059669',
+    sector_type = 'fizyoterapi',
+    seed_services = true
   } = req.body;
 
   if (!name || !owner_name || !email || !password) {
@@ -871,6 +958,12 @@ app.post('/api/superadmin/clinics', verifySuperAdmin, async (req, res) => {
     .replace(/^-|-$/g, '') + '-' + Math.floor(1000 + Math.random() * 9000);
 
   try {
+    const working_schedule = {
+      sector_type,
+      active_days: ['Pzt', 'Sal', 'Çar', 'Per', 'Cum'],
+      session_locations: ['klinik', 'online']
+    };
+
     const { data: clinic, error } = await supabase
       .from('clinics')
       .insert([{
@@ -884,23 +977,37 @@ app.post('/api/superadmin/clinics', verifySuperAdmin, async (req, res) => {
         plan,
         city,
         district,
-        theme_color
+        theme_color,
+        working_schedule
       }])
       .select()
       .single();
 
     if (error) throw error;
 
-    // Otomatik ilk personel (Klinik Sahibi Terapist) oluştur
+    // Otomatik ilk personel (Klinik Sahibi) oluştur
+    const ownerTitle = SECTOR_STAFF_TITLES[sector_type] || 'Klinik Sahibi';
     await supabase.from('staff').insert([{
       clinic_id: clinic.id,
       full_name: owner_name,
       role: 'admin',
-      title: 'Klinik Sahibi / Baş Fzt.',
+      title: ownerTitle,
       color: theme_color,
       email: email.trim().toLowerCase(),
       phone: phone || ''
     }]).catch(() => {});
+
+    // Sektöre özel varsayılan başlangıç hizmetlerini ekle
+    if (seed_services && DEFAULT_SECTOR_SERVICES[sector_type]) {
+      const initialServices = DEFAULT_SECTOR_SERVICES[sector_type].map(s => ({
+        clinic_id: clinic.id,
+        name: s.name,
+        price: s.price,
+        duration_minutes: s.duration_minutes,
+        description: `${sector_type.toUpperCase()} varsayılan başlangıç hizmeti`
+      }));
+      await supabase.from('treatments').insert(initialServices).catch(() => {});
+    }
 
     res.status(201).json(clinic);
   } catch (err) {
@@ -997,6 +1104,94 @@ app.delete('/api/superadmin/clinics/:id', verifySuperAdmin, async (req, res) => 
   }
 });
 
+// 9b. Klinik Sektör / Branş Değiştir
+app.put('/api/superadmin/clinics/:id/sector', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const { sector_type } = req.body;
+
+  const validSectors = ['fizyoterapi', 'diyetisyen', 'psikoloji', 'pilates', 'guzellik', 'dis', 'dil_konusma'];
+  if (!validSectors.includes(sector_type)) {
+    return res.status(400).json({ error: "Geçersiz sektör türü." });
+  }
+
+  try {
+    const { data: currentClinic, error: fetchErr } = await supabase
+      .from('clinics')
+      .select('working_schedule')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchErr) throw fetchErr;
+
+    const currentSchedule = currentClinic?.working_schedule && typeof currentClinic.working_schedule === 'object' && !Array.isArray(currentClinic.working_schedule)
+      ? currentClinic.working_schedule
+      : {};
+
+    const updatedSchedule = {
+      ...currentSchedule,
+      sector_type
+    };
+
+    const { data, error } = await supabase
+      .from('clinics')
+      .update({ working_schedule: updatedSchedule })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, message: "Klinik sektörü güncellendi.", clinic: data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 9c. Kliniğe Sektör Hizmetlerini Tek Tıkla Yükle (Seed)
+app.post('/api/superadmin/clinics/:id/seed-services', verifySuperAdmin, async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
+  const clinicId = req.params.id;
+  const { sector_type, clear_existing = false } = req.body;
+
+  try {
+    let targetSector = sector_type;
+    if (!targetSector) {
+      const { data: clinic } = await supabase
+        .from('clinics')
+        .select('working_schedule')
+        .eq('id', clinicId)
+        .single();
+      const ws = clinic?.working_schedule;
+      targetSector = (ws && typeof ws === 'object' && ws.sector_type) ? ws.sector_type : 'fizyoterapi';
+    }
+
+    const services = DEFAULT_SECTOR_SERVICES[targetSector] || DEFAULT_SECTOR_SERVICES.fizyoterapi;
+
+    if (clear_existing) {
+      await supabase.from('treatments').delete().eq('clinic_id', clinicId);
+    }
+
+    const payload = services.map(s => ({
+      clinic_id: clinicId,
+      name: s.name,
+      price: s.price,
+      duration_minutes: s.duration_minutes,
+      description: `${targetSector.toUpperCase()} varsayılan başlangıç hizmeti`
+    }));
+
+    const { data, error } = await supabase.from('treatments').insert(payload).select();
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: `${services.length} adet sektör hizmeti başarıyla tanımlandı.`,
+      count: data?.length || 0,
+      treatments: data
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 10. Gelen Demo Başvuruları Listesi
 app.get('/api/superadmin/demo-requests', verifySuperAdmin, async (req, res) => {
   if (!supabase) return res.status(500).json({ error: "Supabase yapılandırılmamış." });
@@ -1059,6 +1254,25 @@ app.post('/api/superadmin/demo-requests/:id/convert', verifySuperAdmin, async (r
       .replace(/^-|-$/g, '') + '-' + Math.floor(100 + Math.random() * 900);
     const tempPassword = `fizyo${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const { sector_type } = req.body;
+    let chosenSector = sector_type;
+    if (!chosenSector) {
+      const combined = `${demo.clinic_name || ''} ${demo.notes || ''}`.toLowerCase();
+      if (combined.includes('diyet')) chosenSector = 'diyetisyen';
+      else if (combined.includes('pilates') || combined.includes('yoga') || combined.includes('reformer')) chosenSector = 'pilates';
+      else if (combined.includes('psikol')) chosenSector = 'psikoloji';
+      else if (combined.includes('güzellik') || combined.includes('lazer') || combined.includes('estetik')) chosenSector = 'guzellik';
+      else if (combined.includes('diş') || combined.includes('dental')) chosenSector = 'dis';
+      else if (combined.includes('dil') || combined.includes('konuşma')) chosenSector = 'dil_konusma';
+      else chosenSector = 'fizyoterapi';
+    }
+
+    const working_schedule = {
+      sector_type: chosenSector,
+      active_days: ['Pzt', 'Sal', 'Çar', 'Per', 'Cum'],
+      session_locations: ['klinik', 'online']
+    };
+
     const { data: newClinic, error: clinicErr } = await supabase
       .from('clinics')
       .insert([{
@@ -1072,7 +1286,8 @@ app.post('/api/superadmin/demo-requests/:id/convert', verifySuperAdmin, async (r
         plan: demo.plan === 'yillik-kampanya' ? 'premium' : (demo.plan === 'ozel-teklif' ? 'kurumsal' : 'standart'),
         city: demo.city || 'İstanbul',
         district: 'Merkez',
-        theme_color: '#059669'
+        theme_color: '#059669',
+        working_schedule
       }])
       .select()
       .single();
@@ -1080,15 +1295,28 @@ app.post('/api/superadmin/demo-requests/:id/convert', verifySuperAdmin, async (r
     if (clinicErr) throw clinicErr;
 
     // Personel ekle
+    const staffTitle = SECTOR_STAFF_TITLES[chosenSector] || 'Klinik Sahibi';
     await supabase.from('staff').insert([{
       clinic_id: newClinic.id,
       full_name: demo.full_name,
       role: 'admin',
-      title: 'Klinik Yöneticisi',
+      title: staffTitle,
       color: '#059669',
       email: clinicEmail,
       phone: demo.phone
     }]).catch(() => {});
+
+    // Sektöre özel varsayılan başlangıç hizmetlerini ekle
+    if (DEFAULT_SECTOR_SERVICES[chosenSector]) {
+      const initialServices = DEFAULT_SECTOR_SERVICES[chosenSector].map(s => ({
+        clinic_id: newClinic.id,
+        name: s.name,
+        price: s.price,
+        duration_minutes: s.duration_minutes,
+        description: `${chosenSector.toUpperCase()} varsayılan başlangıç hizmeti`
+      }));
+      await supabase.from('treatments').insert(initialServices).catch(() => {});
+    }
 
     // Demo talebini onaylandı olarak işaretle
     await supabase

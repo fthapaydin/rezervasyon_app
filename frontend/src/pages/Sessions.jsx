@@ -21,6 +21,7 @@ import { getClinicSchedule, isBreakSlot, isDayWorkingHour, getDynamicHours } fro
 import { getTreatmentAssignedStaff } from '../lib/rbacUtils';
 import { getSessionLocation, cleanSessionNotes, encodeSessionNotes } from '../lib/sessionLocationUtils';
 import LocationSelector, { LocationBadge } from '../components/common/LocationSelector';
+import { getClinicSectorConfig, buildDirectWhatsAppUrl } from '../lib/sectorUtils';
 
 const DAY_NAMES = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 const SHORT_DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -108,6 +109,7 @@ function DragOverlayCard({ session }) {
 
 export default function Sessions({ clinic, staff = [], sessions, requests = [], patients, treatments, refresh, onPatientClick, activeUser }) {
   const { toast } = useToast();
+  const sector = getClinicSectorConfig(clinic);
   const [viewMode, setViewModeState] = useState(() => {
     try {
       return localStorage.getItem('fizyo_sessions_view_mode') || 'calendar';
@@ -277,7 +279,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   const handleSingleSubmit = async (e) => {
     e.preventDefault(); 
     if (staff.length > 1 && !formData.therapist_id) {
-      toast.warning('Lütfen randevuyu yönetecek fizyoterapisti seçiniz.', 'Terapist Seçimi');
+      toast.warning(`Lütfen randevuyu yönetecek ${sector.staffSingular.toLowerCase()} seçiniz.`, `${sector.staffSingular} Seçimi`);
       return;
     }
 
@@ -307,7 +309,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
     );
     if (patientConflict) {
       toast.warning(
-        `Bu hastanın ${formData.session_date} günü saat ${timeFormatted}'da zaten randevusu bulunmaktadır.`,
+        `Bu ${sector.clientSingular.toLowerCase()}'ın ${formData.session_date} günü saat ${timeFormatted}'da zaten randevusu bulunmaktadır.`,
         'Randevu Çakışması'
       );
       return;
@@ -322,7 +324,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
         s.status !== 'iptal'
       );
       if (therapistConflict) {
-        const therapistName = staff.find(st => st.id === formData.therapist_id)?.full_name || 'Seçilen fizyoterapist';
+        const therapistName = staff.find(st => st.id === formData.therapist_id)?.full_name || `Seçilen ${sector.staffSingular.toLowerCase()}`;
         toast.warning(
           `${therapistName} ${formData.session_date} günü saat ${timeFormatted}'da başka bir seanstadır. Lütfen farklı bir saat veya terapist seçiniz.`,
           'Terapist Meşgul'
@@ -377,7 +379,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   const handleEditSubmit = async (e) => {
     e.preventDefault(); 
     if (staff.length > 1 && !formData.therapist_id) {
-      toast.warning('Lütfen bir fizyoterapist seçiniz.', 'Terapist Seçimi');
+      toast.warning(`Lütfen bir ${sector.staffSingular.toLowerCase()} seçiniz.`, `${sector.staffSingular} Seçimi`);
       return;
     }
 
@@ -398,7 +400,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
     );
     if (patientConflict) {
       toast.warning(
-        `Bu hastanın ${formData.session_date} günü saat ${timeFormatted}'da başka bir randevusu bulunmaktadır.`,
+        `Bu ${sector.clientSingular.toLowerCase()}'ın ${formData.session_date} günü saat ${timeFormatted}'da başka bir randevusu bulunmaktadır.`,
         'Randevu Çakışması'
       );
       return;
@@ -413,7 +415,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
         s.status !== 'iptal'
       );
       if (therapistConflict) {
-        const therapistName = staff.find(st => st.id === formData.therapist_id)?.full_name || 'Seçilen fizyoterapist';
+        const therapistName = staff.find(st => st.id === formData.therapist_id)?.full_name || `Seçilen ${sector.staffSingular.toLowerCase()}`;
         toast.warning(
           `${therapistName} ${formData.session_date} saat ${timeFormatted}'da başka bir seanstadır.`,
           'Terapist Meşgul'
@@ -473,7 +475,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
   const handleRecurSubmit = async (e) => {
     e.preventDefault(); 
     if (staff.length > 1 && !recurData.therapist_id) {
-      toast.warning('Lütfen bir fizyoterapist seçiniz.', 'Terapist Seçimi');
+      toast.warning(`Lütfen bir ${sector.staffSingular.toLowerCase()} seçiniz.`, `${sector.staffSingular} Seçimi`);
       return;
     }
 
@@ -711,7 +713,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       );
 
       if (conflict) {
-        toast.warning('Seçilen tarih ve saatte bu fizyoterapistin veya hastanın başka bir randevusu var.', 'Saat Çakışması');
+        toast.warning(`Seçilen tarih ve saatte bu ${sector.staffSingular.toLowerCase()} veya ${sector.clientSingular.toLowerCase()}'ın başka bir randevusu var.`, 'Saat Çakışması');
         setCopyingSingle(false);
         return;
       }
@@ -783,7 +785,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       } else if (status === 'iptal') {
         toast.warning(`"${sessionData?.patient?.full_name}" seansı iptal edildi.`, 'Randevu İptal');
       } else if (status === 'gelmedi') {
-        toast.warning(`"${sessionData?.patient?.full_name}" randevuya gelmedi (No-Show) olarak kaydedildi.`, 'Hasta Gelmedi');
+        toast.warning(`"${sessionData?.patient?.full_name}" randevuya gelmedi (No-Show) olarak kaydedildi.`, `${sector.clientSingular} Gelmedi`);
       } else {
         toast.info('Seans durumu "Bekliyor" olarak güncellendi.', 'Durum Değişti');
       }
@@ -909,7 +911,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
     );
     if (conflict) {
       toast.warning(
-        `Seçilen saatte (${targetTime}) terapistin veya hastanın başka bir randevusu bulunmaktadır.`,
+        `Seçilen saatte (${targetTime}) ${sector.staffSingular.toLowerCase()} veya ${sector.clientSingular.toLowerCase()}'ın başka bir randevusu bulunmaktadır.`,
         'Saat Çakışması'
       );
       return;
@@ -965,8 +967,8 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                 </div>
               ) : (
                 <select value={selectedTherapistId} onChange={(e) => setSelectedTherapistId(e.target.value)} className="h-8 px-2.5 rounded-lg border border-gray-200 bg-white text-[12px] font-semibold text-gray-700 outline-none">
-                  <option value="all">Tüm Terapistler ({staff.length})</option>
-                  {staff.map((s) => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+                  <option value="all">Tüm {sector.staffPlural} ({staff.length})</option>
+                  {staff.map((s) => <option key={s.id} value={s.id}>{s.full_name} ({s.title || sector.staffTitle})</option>)}
                 </select>
               )}
             </div>
@@ -1020,11 +1022,11 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
 
       {/* ═══ Modals ═══ */}
       {modalMode === 'single' && (
-        <ModalShell title="Yeni Seans / Randevu Ekle" onClose={() => setModalMode(null)}>
+        <ModalShell title={`Yeni ${sector.serviceSingular} / Randevu Ekle`} onClose={() => setModalMode(null)}>
           <form onSubmit={handleSingleSubmit} className="space-y-4">
-            <FormField label="Hasta *"><select required value={formData.patient_id} className="input-field" onChange={e => setFormData({...formData, patient_id: e.target.value})}><option value="">Hasta seçiniz...</option>{patients.map(p => <option key={p.id} value={p.id}>{p.full_name}{p.complaint ? ` — (${p.complaint})` : ''}</option>)}</select></FormField>
+            <FormField label={`${sector.clientSingular} *`}><select required value={formData.patient_id} className="input-field" onChange={e => setFormData({...formData, patient_id: e.target.value})}><option value="">{sector.clientSingular} seçiniz...</option>{patients.map(p => <option key={p.id} value={p.id}>{p.full_name}{p.complaint ? ` — (${p.complaint})` : ''}</option>)}</select></FormField>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Tedavi *">
+              <FormField label={`${sector.serviceSingular} *`}>
                 <select 
                   required 
                   value={formData.treatment_id} 
@@ -1039,13 +1041,13 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                     setFormData({...formData, treatment_id: newTrId, therapist_id: newThId});
                   }}
                 >
-                  <option value="">Tedavi seçiniz...</option>
+                  <option value="">{sector.serviceSingular} seçiniz...</option>
                   {treatments.map(t => (
                     <option key={t.id} value={t.id}>{t.name} ({t.duration_minutes} dk) — {t.price} ₺</option>
                   ))}
                 </select>
               </FormField>
-              <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
+              <FormField label={`${sector.staffSingular} ${staff.length > 1 ? '*' : ''}`}>
                 {isTherapistRole ? (
                   <div className="input-field bg-gray-50 flex items-center justify-between text-gray-700">
                     <div className="flex items-center gap-1.5 truncate">
@@ -1061,9 +1063,9 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                     className="input-field" 
                     onChange={e => setFormData({...formData, therapist_id: e.target.value})}
                   >
-                    <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist seçiniz...'}</option>
+                    <option value="">{staff.length > 1 ? `${sector.staffSingular} seçiniz *` : `${sector.staffSingular} seçiniz...`}</option>
                     {getEligibleTherapistsForTreatment(formData.treatment_id).map(s => (
-                      <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>
+                      <option key={s.id} value={s.id}>{s.full_name} ({s.title || sector.staffTitle})</option>
                     ))}
                   </select>
                 )}
@@ -1103,11 +1105,11 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
       )}
 
       {modalMode === 'recurring' && (
-        <ModalShell title="Tekrarlayan Seans Paketi" onClose={() => setModalMode(null)}>
+        <ModalShell title={`Tekrarlayan ${sector.serviceSingular} Paketi`} onClose={() => setModalMode(null)}>
           <form onSubmit={handleRecurSubmit} className="space-y-4">
-            <FormField label="Hasta *"><select required value={recurData.patient_id} className="input-field" onChange={e => setRecurData({...recurData, patient_id: e.target.value})}><option value="">Hasta seçiniz...</option>{patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}</select></FormField>
+            <FormField label={`${sector.clientSingular} *`}><select required value={recurData.patient_id} className="input-field" onChange={e => setRecurData({...recurData, patient_id: e.target.value})}><option value="">{sector.clientSingular} seçiniz...</option>{patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}</select></FormField>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Tedavi *">
+              <FormField label={`${sector.serviceSingular} *`}>
                 <select 
                   required 
                   value={recurData.treatment_id} 
@@ -1122,13 +1124,13 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                     setRecurData({...recurData, treatment_id: newTrId, therapist_id: newThId});
                   }}
                 >
-                  <option value="">Tedavi...</option>
+                  <option value="">{sector.serviceSingular}...</option>
                   {treatments.map(t => (
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
               </FormField>
-              <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
+              <FormField label={`${sector.staffSingular} ${staff.length > 1 ? '*' : ''}`}>
                 {isTherapistRole ? (
                   <div className="input-field bg-gray-50 flex items-center justify-between text-gray-700">
                     <div className="flex items-center gap-1.5 truncate">
@@ -1144,7 +1146,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
                     className="input-field" 
                     onChange={e => setRecurData({...recurData, therapist_id: e.target.value})}
                   >
-                    <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist...'}</option>
+                    <option value="">{staff.length > 1 ? `${sector.staffSingular} seçiniz *` : `${sector.staffSingular}...`}</option>
                     {getEligibleTherapistsForTreatment(recurData.treatment_id).map(s => (
                       <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>
                     ))}
@@ -1181,10 +1183,10 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
               <FormField label="Saat *"><input required type="time" value={formData.session_time} className="input-field border-blue-200 focus:border-blue-500" onChange={e => setFormData({...formData, session_time: e.target.value})} /></FormField>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label={`Fizyoterapist ${staff.length > 1 ? '*' : ''}`}>
+              <FormField label={`${sector.staffSingular} ${staff.length > 1 ? '*' : ''}`}>
                 <select required={staff.length > 1} value={formData.therapist_id} className="input-field border-blue-200 focus:border-blue-500" onChange={e => setFormData({...formData, therapist_id: e.target.value})}>
-                  <option value="">{staff.length > 1 ? 'Fizyoterapist seçiniz *' : 'Terapist seçiniz...'}</option>
-                  {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || 'Fzt.'})</option>)}
+                  <option value="">{staff.length > 1 ? `${sector.staffSingular} seçiniz *` : `${sector.staffSingular} seçiniz...`}</option>
+                  {staff.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.title || sector.staffTitle})</option>)}
                 </select>
               </FormField>
               <FormField label="Randevu Durumu">
@@ -1473,7 +1475,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
             <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                  <th className="text-left px-4 py-3">Hasta</th><th className="text-left px-4 py-3">Tedavi</th><th className="text-left px-4 py-3">Hizmet Yeri</th><th className="text-left px-4 py-3">Fizyoterapist</th><th className="text-left px-4 py-3">Tarih &amp; Saat</th><th className="text-left px-4 py-3">Durum</th><th className="text-right px-4 py-3">İşlem</th>
+                  <th className="text-left px-4 py-3">{sector.clientSingular}</th><th className="text-left px-4 py-3">{sector.serviceSingular}</th><th className="text-left px-4 py-3">Hizmet Yeri</th><th className="text-left px-4 py-3">{sector.staffSingular}</th><th className="text-left px-4 py-3">Tarih &amp; Saat</th><th className="text-left px-4 py-3">Durum</th><th className="text-right px-4 py-3">İşlem</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-[13px]">
@@ -1641,7 +1643,7 @@ export default function Sessions({ clinic, staff = [], sessions, requests = [], 
 
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-[11px] text-slate-500 space-y-1">
               <p className="font-semibold text-slate-700">Otomatik Çakışma Koruması:</p>
-              <p>Gelecek haftalarda hastanın veya terapistin dolu olduğu saatler tespit edilerek çakışmalar otomatik olarak atlanır, çift randevu oluşmaz.</p>
+              <p>Gelecek haftalarda {sector.clientSingular.toLowerCase()} veya {sector.staffSingular.toLowerCase()} dolu olduğu saatler tespit edilerek çakışmalar otomatik olarak atlanır, çift randevu oluşmaz.</p>
             </div>
 
             <div className="flex justify-end pt-3 border-t border-slate-100">
